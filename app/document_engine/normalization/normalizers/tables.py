@@ -184,6 +184,7 @@ def normalize_table(
             margins=table.style.margins,
             default=DEFAULT_TABLE_MARGINS,
         ),
+        column_width=cast(tuple[int, ...], table.style.column_widths),       # overlay_dataclass_strict fills the () default
     )
 
     normalized_style = overlay_dataclass_strict(

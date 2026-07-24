@@ -259,6 +259,22 @@ def extract_table_style(table_properties: _Element | None) -> TableStyle:
     )
 
 
+def extract_table_grid(table: _Element) -> tuple[int, ...] | None:
+
+    grid_node = table.find(OOXMLTableAttributeNames.grid, NS)
+    if grid_node is None:
+        return None
+
+    widths: list[int] = []
+    for column in grid_node.findall("w:gridCol", NS):
+        width = get_int_attr(column, "w")
+        if width is None:
+            return None     # Partial grid ignored
+        widths.append(width)
+
+    return tuple(widths) or None
+
+
 def parse_styles(styles_root: _Element) -> dict[str, StyleNode]:
     styles: dict[str, StyleNode] = {}
 

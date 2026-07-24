@@ -90,13 +90,20 @@ def _build_tbl_grid(
 ) -> etree._Element:
     
     grid = etree.Element(qn("w:tblGrid"))
-    if style.width.type == TableWidthType.DXA and style.width.value:
-        col_w = style.width.value // columns
-    else:
-        col_w = DEFAULT_COL_WIDTH
 
-    for _ in range(columns):
-        etree.SubElement(grid, qn("w:gridCol")).set(qn("w:w"), str(col_w))
+    widths = style.column_widths
+
+    # The source grid only applies when the column count matches;
+    # whole-table placeholder sets its own due to dynamic nature (tax columns is optional)
+    if len(widths) != columns:
+        if style.width.type == TableWidthType.DXA and style.width.value:
+            col_w = style.width.value // columns
+        else:
+            col_w = DEFAULT_COL_WIDTH
+        widths = (col_w,) * columns
+
+    for width in widths:
+        etree.SubElement(grid, qn("w:gridCol")).set(qn("w:w"), str(width))
 
     return grid
 

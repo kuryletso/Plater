@@ -42,6 +42,7 @@ class OOXMLTableAttributeNames:
     layout: str = "w:tblLayout"
     borders: str = "w:tblBorders"
     margins: str = "w:tblCellMar"
+    grid: str = "w:tblGrid"
 
 
 @dataclass(frozen=True)

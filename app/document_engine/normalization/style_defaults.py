@@ -57,6 +57,7 @@ DEFAULT_TABLE_STYLE = NormalizedTableStyle(
     border_inside_v=DEFAULT_TABLE_BORDER,
     border_inside_h=DEFAULT_TABLE_BORDER,
     margins=DEFAULT_TABLE_MARGINS,
+    column_width=(),
 )
 
 

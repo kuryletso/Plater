@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from typing import cast
+
 from app.document_engine.blueprint.template_builder import TemplateBuilderContext
 from app.document_engine.blueprint.builders.margins import margins_bp_from_normalized
 from app.document_engine.blueprint.builders.paragraph import paragraph_bp_from_normalized
 from app.document_engine.blueprint.models.paragraph import ParagraphBlueprint
-from app.document_engine.blueprint.models.segment import PlaceholderSegment
+from app.document_engine.blueprint.models.segment import PlaceholderSegment, TextStyleBlueprint
 from app.document_engine.blueprint.models.table import (
     TableBlueprint,
     TablePlaceholder,
@@ -145,6 +147,7 @@ def table_style_bp_from_normalized(
         border_inside_v=table_border_bp_from_normalized(normalized.border_inside_v),
         border_inside_h=table_border_bp_from_normalized(normalized.border_inside_h),
         margins=margins_bp_from_normalized(normalized.margins),
+        column_widths=normalized.column_width,
     )
 
 
@@ -221,8 +224,8 @@ def _promote_placeholder_rows(
     if replace_table:
         return TablePlaceholder(
             type="placeholder_table",
-            language=table_language,        # all good here
-            text_style=table_text_style,    # table_language and table_text_stlye won't be None if replace_table is True
+            language=cast(str, table_language),        # all good here
+            text_style=cast(TextStyleBlueprint, table_text_style),    # table_language and table_text_stlye won't be None if replace_table is True
             style=table.style,
         )
     

@@ -56,6 +56,7 @@ class TableStyleBlueprint(BlueprintBase):
     border_inside_v: TableBorderBlueprint
     border_inside_h: TableBorderBlueprint
     margins: MarginsBlueprint
+    column_widths: tuple[int, ...] = ()
 
 
 class CellBlueprint(BlueprintBase):

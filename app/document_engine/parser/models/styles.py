@@ -62,6 +62,7 @@ class TableStyle:
     border_inside_v: Optional[TableBorderStyle] = None
     border_inside_h: Optional[TableBorderStyle] = None
     margins: Optional[Margins] = None
+    column_widths: Optional[tuple[int, ...]] = None
 
 
 @dataclass(slots=True, frozen=True)

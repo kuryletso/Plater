@@ -1,5 +1,7 @@
 from lxml.etree import _Element
 
+from dataclasses import replace
+
 from app.document_engine.parser.models.styles import (
     StyleNode,
     RunStyle,
@@ -15,10 +17,11 @@ from app.document_engine.parser.extractors.styles import (
     extract_table_style,
     extract_table_row_style,
     extract_table_cell_style,
-    get_attr,
+    extract_table_grid,
 )
 from app.document_engine.utils.overlay_dataclass import overlay_dataclass
 from app.document_engine.parser.errors import StyleResolutionError
+from app.document_engine.parser.utils.get_attribute import get_attr
 
 class StyleResolver:
     def __init__(
@@ -325,27 +328,30 @@ class StyleResolver:
         return resolved
     
     
-    def resolve_table_style(self, table: _Element) -> TableStyle:
+    def resolve_table_style(
+            self,
+            table: _Element,
+    ) -> TableStyle:
+
+        column_widths = extract_table_grid(table)
+        
         table_properties = table.find("w:tblPr", NS)
         if table_properties is None:
-            return self.default_table_style
+            base = self.default_table_style
+            return replace(base, column_widths=column_widths) if column_widths else base
         
         style_node = table_properties.find("w:tblStyle", NS)
-        style_id = None
+        style_id = get_attr(style_node, "val") if style_node is not None else None
         
-        if style_node is not None:
-            style_id = get_attr(style_node, "val")
-
         base_style = self.resolve_table_style_by_id(style_id)
-
         direct_style = extract_table_style(table_properties)
 
-        resolved = overlay_dataclass(
-            base_style,
-            direct_style,
-        )
+        resolved = overlay_dataclass(base_style, direct_style) or self.default_table_style
 
-        return resolved or self.default_table_style
+        if column_widths is not None:
+            resolved = replace(resolved, column_widths=column_widths)
+
+        return resolved
     
 
     def resolve_row_style(self, table_row: _Element, table_style: TableStyle) -> TableRowStyle:

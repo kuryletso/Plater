@@ -63,6 +63,7 @@ class NormalizedTableStyle:
     border_inside_v: NormalizedTableBorder
     border_inside_h: NormalizedTableBorder
     margins: NormalizedMargins
+    column_width: tuple[int, ...]
 
 
 @dataclass(slots=True, frozen=True)
