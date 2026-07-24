@@ -33,7 +33,7 @@ class StructuralNormalizer:
                 current_section_blocks.append(normalize_paragraph(item))
 
             elif isinstance(item, TableNode):
-                current_section_blocks.append(normalize_table(item))
+                current_section_blocks.append(normalize_table(item, diagnostics))
 
             elif isinstance(item, SectionBreakNode):
                 sections.append(

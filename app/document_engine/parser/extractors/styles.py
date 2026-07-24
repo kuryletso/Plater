@@ -19,23 +19,7 @@ from app.document_engine.parser.ooxml_properties.ooxml_properties import (
     OOXMLTableRowAttributeNames,
     OOXMLTableCellAttributeNames,
 )
-
-WORD_NAMESPACE = NS["w"]
-
-
-def get_attr(node: _Element, attr_name: str) -> str | None:
-    return node.get(f"{{{WORD_NAMESPACE}}}{attr_name}")
-
-
-def get_int_attr(node: _Element, attr_name: str) -> int | None:
-    value = get_attr(node, attr_name)
-    if value is None:
-        return None
-    
-    try:
-        return int(value)
-    except ValueError:
-        return None
+from app.document_engine.parser.utils.get_attribute import get_attr, get_int_attr
 
 
 def has_tag(node: _Element | None, tag: str) -> bool | None:
@@ -301,6 +285,7 @@ def parse_styles(styles_root: _Element) -> dict[str, StyleNode]:
         styles[style_id] = StyleNode(
             style_id=style_id,
             style_type=style_type,
+            is_default=get_attr(style, "default") == "1",
             name=name,
             based_on=based_on,
             run_style=extract_run_style(run_properties),

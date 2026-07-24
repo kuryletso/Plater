@@ -2,7 +2,7 @@ from lxml.etree import _Element
 from pathlib import PurePosixPath
 
 from app.document_engine.parser.context import ParserContext
-from app.document_engine.parser.models.inlines import RunNode, ImageNode
+from app.document_engine.parser.models.inlines import RunNode, ImageNode, RunStyle
 from app.document_engine.parser.namespaces import NS
 from app.document_engine.parser.errors import ParserSecurityError, ParserAssetError, ParserFormatError, UnsupportedFeatureError
 
@@ -12,10 +12,6 @@ from app.document_engine.utils.intrinsic_emu import intrinsic_emu
 type ParsedInlineNode = RunNode | ImageNode
 
 MAX_IMAGE_SIZE_BYTES = 25 * 1024 * 1024
-
-
-def get_attr(node: _Element, attr_name: str) -> str | None:
-    return node.get(f"{{{NS["w"]}}}{attr_name}")
 
 
 def extract_run_text(run: _Element) -> str:
@@ -55,8 +51,8 @@ def extract_extent(
         cy = extent.get("cy")
         if cx is not None and cy is not None:
             try:
-                return int(cx), int(cy)
-            except ValueError:
+                return int(float(cx)), int(float(cy))       # Some editors (Google Docs, LibreOffice) emit twips as float "10081.0"
+            except (ValueError, OverflowError):
                 pass
 
     context.diagnostics.warn(
@@ -129,7 +125,11 @@ def parse_image(run: _Element, context: ParserContext) -> ImageNode | None:
     )
 
 
-def parse_inline(run: _Element, context: ParserContext) -> list[ParsedInlineNode]:
+def parse_inline(
+        run: _Element,
+        context: ParserContext,
+        paragraph_base: RunStyle,
+) -> list[ParsedInlineNode]:
 
     result = []
 
@@ -142,7 +142,7 @@ def parse_inline(run: _Element, context: ParserContext) -> list[ParsedInlineNode
         result.append(
             RunNode(
                 text=text,
-                style=context.style_resolver.resolve_run_style(run),
+                style=context.style_resolver.resolve_run_style(run, paragraph_base),
             )
         )
 

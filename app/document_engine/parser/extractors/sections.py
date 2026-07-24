@@ -7,28 +7,9 @@ from app.document_engine.parser.models.header_footer import HeaderFooterNode
 from app.document_engine.parser.models.styles import SectionStyle, Margins
 from app.document_engine.parser.context import ParserContext
 from app.document_engine.parser.namespaces import NS
+from app.document_engine.parser.utils.get_attribute import get_attr, get_int_attr
+from app.document_engine.parser.utils.get_relationship import get_relationship_id
 
-WORD_NAMESPACE = NS["w"]
-RELATIONSHIP_NAMESPACE = NS["r"]
-
-
-def get_attr(node: _Element, attr_name: str) -> str | None:
-    return node.get(f"{{{WORD_NAMESPACE}}}{attr_name}")
-
-
-def get_int_attr(node: _Element, attr_name: str) -> int | None:
-    value = get_attr(node, attr_name)
-    if value is None:
-        return None
-    
-    try:
-        return int(value)
-    except ValueError:
-        return None
-
-
-def get_relationship_id(node: _Element) -> str | None:
-    return node.get(f"{{{RELATIONSHIP_NAMESPACE}}}id")
 
 def parse_section(section: _Element, context: ParserContext) -> SectionBreakNode:
     section_type = None

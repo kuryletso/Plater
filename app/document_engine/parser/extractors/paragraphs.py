@@ -8,10 +8,16 @@ from app.document_engine.parser.namespaces import NS
 WORD_NAMESPACE = NS["w"]
 
 
-def parse_paragraph(paragraph: _Element, context: ParserContext) -> ParagraphNode:
+def parse_paragraph(
+        paragraph: _Element,
+        context: ParserContext,
+) -> ParagraphNode:
+
+    run_base = context.style_resolver.resolve_paragraph_run_style(paragraph)
+
     inlines = []
     for run in paragraph.findall("w:r", NS):
-        inlines.extend(parse_inline(run, context))
+        inlines.extend(parse_inline(run, context, run_base))
 
     return ParagraphNode(
         inlines=inlines,

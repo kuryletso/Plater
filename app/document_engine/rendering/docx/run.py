@@ -32,7 +32,13 @@ def build_run(
     if style.underline:
         etree.SubElement(rpr, qn(R.underline)).set(qn("w:val"), "single")       # Hardcoded value here
 
-    t = etree.SubElement(run, qn("w:t"))
-    t.set(f"{{{XML_NS}}}space", "preserve")     # Hardcoded value here
-    t.text = text
+    segments = text.split("\n")
+    for idx, segment in enumerate(segments):
+        if idx > 0:
+            etree.SubElement(run, qn("w:br"))
+        if segment:
+            t = etree.SubElement(run, qn("w:t"))
+            t.set(f"{{{XML_NS}}}space", "preserve")     # Hardcoded value here
+            t.text = segment
+
     return run

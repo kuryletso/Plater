@@ -48,7 +48,7 @@ def split_placeholder_key(
     parts = key.split(".")
 
     if len(parts) == 1:
-        return key, None
+        return key.lower(), None
     
     if len(parts) != 2:
         raise PlaceholderSyntaxError(
@@ -67,7 +67,7 @@ def split_placeholder_key(
             f"Invalid placeholder key '{key}': missing language parameter."
         )
     
-    return base, language
+    return base.lower(), language.upper()
 
 
 def _parse_grouped(

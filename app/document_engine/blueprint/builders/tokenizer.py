@@ -4,6 +4,10 @@ from dataclasses import dataclass
 from app.document_engine.blueprint.errors import PlaceholderSyntaxError
 
 
+DOUBLE_QUOTES = frozenset('"“”„«»')
+SINGLE_QUOTES = frozenset("'‘’‚")
+
+
 class TK(Enum):
     IDENT = auto()
     STRING = auto()
@@ -17,6 +21,14 @@ class TK(Enum):
 class Token:
     kind: TK
     value: str
+
+
+def _quote_class(ch: str) -> frozenset[str] | None:
+    if ch in DOUBLE_QUOTES:
+        return DOUBLE_QUOTES
+    if ch in SINGLE_QUOTES:
+        return SINGLE_QUOTES
+    return None
 
 
 def tokenize_placeholder(
@@ -46,14 +58,14 @@ def tokenize_placeholder(
             tokens.append(Token(TK.EQ, ch))
             i += 1
 
-        elif ch in ('"', "'"):
-            q, i, buf = ch, i+1, []
+        elif (quotes := _quote_class(ch)) is not None:
+            i, buf = i + 1, []
             while i < n:
                 c = content[i]
-                if c == '\\' and i+1 < n:
+                if c == '\\' and i + 1 < n:
                     buf.append(content[i+1])
                     i += 2
-                elif c == q:
+                elif c in quotes:
                     i += 1
                     break
                 else:
@@ -61,7 +73,7 @@ def tokenize_placeholder(
                     i += 1
             else:
                 raise PlaceholderSyntaxError(
-                    f"Missing closing quote [{q}] in placeholder: {content}."
+                    f"Missing closing quote in placeholder: {content}."
                 )
 
             tokens.append(Token(TK.STRING, "".join(buf)))

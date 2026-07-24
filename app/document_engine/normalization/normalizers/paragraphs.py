@@ -62,6 +62,11 @@ def _validate_paragraph_style_attributes(paragraph_style: ParagraphStyle) -> Non
         )
 
 
+def _has_open_placeholder(text: str) -> bool:
+    """True when the accumulated text ends inside an unclosed '{{ ... }}'"""
+    return text.rfind("{{") > text.rfind("}}")
+
+
 def normalize_paragraph(paragraph: ParagraphNode) -> NormalizedParagraph:
 
     _validate_paragraph_style_attributes(paragraph.style)
@@ -87,9 +92,23 @@ def normalize_paragraph(paragraph: ParagraphNode) -> NormalizedParagraph:
         current_style = None
 
     for node in paragraph.inlines:
+
         if isinstance(node, RunNode):
             if current_style is not None and current_style == node.style:
                 current_text += node.text
+
+            elif current_style is not None and _has_open_placeholder(current_text):
+                end = node.text.find("}}")
+                if end == -1:
+                    current_text += node.text
+                else:
+                    current_text += node.text[:end + 2]
+                    remainder = node.text[end + 2:]
+                    flush_text()
+                    if remainder:
+                        current_text = remainder
+                        current_style = node.style
+                        
             else:
                 flush_text()
                 current_text = node.text

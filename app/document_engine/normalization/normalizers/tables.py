@@ -29,25 +29,39 @@ from app.document_engine.parser.models.styles import TableBorderStyle
 from app.document_engine.enums.enums import TableWidthType, TableBorderStyleEnum, TableCellShading, VerticalAlignment
 from app.document_engine.utils.overlay_dataclass import overlay_dataclass_strict
 
+from app.core.diagnostics import DiagnosticCollector
+from app.core.errors import Layer
 
-def normalize_table_width(value: int | None, type: str | None) -> NormalizedTableWidth:
+
+def normalize_table_width(
+        value: int | None,
+        type: str | None,
+        diagnostics: DiagnosticCollector,
+) -> NormalizedTableWidth:
+    
     if type is None:
         return DEFAULT_TABLE_WIDTH
     
     if type != "auto" and value is None:
-        raise NormalizationFormatError(
-            f"Missing table width value for table type {type}."
+        diagnostics.warn(
+            Layer.NORMALIZATION,
+            "missing_table_width",
+            f"Table width value missing for type '{type}'; using the default width.",
         )
+        return DEFAULT_TABLE_WIDTH
     
     try:
         return NormalizedTableWidth(
             value=value,
             type=TableWidthType(type),
         )
-    except ValueError as e:
-        raise NormalizationFormatError(
-            f"Invalid table width attribute: {type=}, {value=}."
-        ) from e
+    except ValueError:
+        diagnostics.warn(
+            Layer.NORMALIZATION,
+            "invalid_table_width",
+            f"Invalid table width attribute ({type=}, {value=}); using the default width.",
+        )
+        return DEFAULT_TABLE_WIDTH
 
 
 def normalize_table_border(border: TableBorderStyle | None) -> NormalizedTableBorder:
@@ -147,13 +161,17 @@ def normalize_cell_style(cell_style: TableCellStyle | None) -> NormalizedCellSty
     )
 
 
-def normalize_table(table: TableNode) -> NormalizedTable:
+def normalize_table(
+        table: TableNode,
+        diagnostics: DiagnosticCollector,
+) -> NormalizedTable:
 
     parsed_style = NormalizedTableStyle(
         # Fields may be None here; overlay_dataclass_strict() immediately applies defaults.
         width=normalize_table_width(
             table.style.width,
             table.style.width_type,
+            diagnostics,
         ),
         autofit=cast(bool, table.style.autofit),
         border_top=normalize_table_border(table.style.border_top),
@@ -188,7 +206,7 @@ def normalize_table(table: TableNode) -> NormalizedTable:
 
                 elif isinstance(block, TableNode):
                     normalized_blocks.append(
-                        normalize_table(block),
+                        normalize_table(block, diagnostics),
                     )
 
             normalized_cells.append(

@@ -79,6 +79,7 @@ class SectionStyle:
 class StyleNode:
     style_id: str
     style_type: str
+    is_default: bool = False
     name: Optional[str] = None
     based_on: Optional[str] = None
     run_style: Optional[RunStyle] = None
