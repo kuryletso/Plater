@@ -10,6 +10,7 @@ from app.document_engine.normalization.models.blocks import (
     NormalizedParagraph,
     NormalizedTable,
 )
+from app.document_engine.normalization.models.inlines import NormalizedTextNode
 from app.document_engine.normalization.errors import NormalizationFormatError
 
 
@@ -48,3 +49,62 @@ def test_normalize_without_trailing_section_break_raises(make_docx):
 
     with pytest.raises(NormalizationFormatError):
         StructuralNormalizer.normalize(truncated, DiagnosticCollector())
+
+
+# --- run merging -------------------------------------------------------------
+#
+# A NormalizedTextNode boundary is where the blueprint tokenizes placeholders, so a
+# placeholder must never be split across two nodes — otherwise its value is silently
+# dropped from the rendered document.
+
+def text_nodes(path) -> list:
+    sections = StructuralNormalizer.normalize(_parse(path), DiagnosticCollector())
+    paragraph = sections[0].blocks[0]
+    return [n for n in paragraph.inlines if isinstance(n, NormalizedTextNode)]
+
+
+def test_adjacent_runs_of_equal_style_merge(make_runs):
+    nodes = text_nodes(make_runs([("Hello ", False), ("world", False)]))
+
+    assert [n.text for n in nodes] == ["Hello world"]
+
+
+def test_runs_of_differing_style_stay_separate(make_runs):
+    nodes = text_nodes(make_runs([("Hello ", False), ("world", True)]))
+
+    assert [n.text for n in nodes] == ["Hello ", "world"]
+
+
+def test_placeholder_split_by_a_style_change_is_kept_whole(make_runs):
+    """The regression: a style boundary inside '{{ ... }}' must not split the node."""
+    nodes = text_nodes(make_runs([("Hello {{ org_", False), ("name }}", True)]))
+
+    assert [n.text for n in nodes] == ["Hello {{ org_name }}"]
+
+
+def test_split_placeholder_takes_the_style_of_its_opening_run(make_runs):
+    nodes = text_nodes(make_runs([("{{ org_", False), ("name }}", True)]))
+
+    assert nodes[0].style.bold is False
+
+
+def test_text_after_a_split_placeholder_keeps_its_own_style(make_runs):
+    """Absorbing stops at '}}' so the tail is not swallowed into the opening style."""
+    nodes = text_nodes(make_runs([("Hello {{ org_", False), ("name }} WORLD", True)]))
+
+    assert [n.text for n in nodes] == ["Hello {{ org_name }}", " WORLD"]
+    assert nodes[0].style.bold is False
+    assert nodes[1].style.bold is True
+
+
+def test_placeholder_split_across_three_styled_runs(make_runs):
+    nodes = text_nodes(make_runs([("{{ or", False), ("g_na", True), ("me }}", False)]))
+
+    assert [n.text for n in nodes] == ["{{ org_name }}"]
+
+
+def test_consecutive_placeholders_with_differing_styles_stay_separate(make_runs):
+    """Merging is scoped to an open placeholder, not to everything that follows one."""
+    nodes = text_nodes(make_runs([("{{ a }} ", False), ("{{ b }}", True)]))
+
+    assert [n.text for n in nodes] == ["{{ a }} ", "{{ b }}"]

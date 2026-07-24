@@ -121,6 +121,49 @@ def test_language_suffix_inside_the_provider_set_is_accepted(make_docx, fixture_
     assert "org_name" in result.draft.context.placeholders
 
 
+@pytest.mark.parametrize(
+    "runs",
+    [
+        pytest.param([("Hello {{ ", False), ("org_name }}", True)], id="split-after-braces"),
+        pytest.param([("Hello {{ org_name", False), (" }}", True)], id="split-before-braces"),
+        pytest.param([("Hello {{ org_", False), ("name }}", True)], id="split-mid-key"),
+        pytest.param(
+            [("{{ or", False), ("g_na", True), ("me }}", False)], id="split-three-ways"
+        ),
+    ],
+)
+def test_placeholder_survives_a_style_change_mid_placeholder(runs, make_runs, fixture_provider):
+    """Word splits runs freely; a placeholder broken by formatting must still resolve."""
+    pipeline = TemplateIngestionPipeline(fixture_provider)
+
+    result = pipeline.ingest(make_runs(runs))
+
+    assert "org_name" in result.draft.context.placeholders
+    assert result.diagnostics.warnings == []
+
+
+def test_uppercase_placeholder_key_resolves(make_docx, fixture_provider):
+    """Regression: a real template wrote {{ ORG_NAME }} and it was silently rejected."""
+    path = make_docx(paragraphs=["Provider {{ ORG_NAME }}"])
+    pipeline = TemplateIngestionPipeline(fixture_provider)
+
+    result = pipeline.ingest(path)
+
+    assert "org_name" in result.draft.context.placeholders
+    assert result.diagnostics.warnings == []
+
+
+def test_joined_placeholder_with_word_smart_quotes_resolves(make_docx, fixture_provider):
+    """Regression: Word autocorrected sep="," to typographic quotes, breaking the join."""
+    path = make_docx(paragraphs=["{{ org_name, invoice_no, sep=”,” }}"])
+    pipeline = TemplateIngestionPipeline(fixture_provider)
+
+    result = pipeline.ingest(path)
+
+    assert {"org_name", "invoice_no"} <= set(result.draft.context.placeholders)
+    assert result.diagnostics.warnings == []
+
+
 def test_ingest_returns_an_asset_bundle(make_docx, fixture_provider):
     """Image-free templates still carry a (empty) bundle for the repository to persist."""
     path = make_docx(paragraphs=["Invoice for {{ org_name }}"])

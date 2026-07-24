@@ -49,6 +49,38 @@ def test_tokenize_unexpected_char_raises():
         tokenize_placeholder("a @ b")
 
 
+@pytest.mark.parametrize(
+    "src",
+    [
+        pytest.param('sep=","', id="straight-double"),
+        pytest.param("sep=“,”", id="curly-matched"),
+        pytest.param("sep=”,”", id="curly-both-closing"),   # what real Word emits
+        pytest.param("sep=«,»", id="guillemets"),
+        pytest.param("sep=','", id="straight-single"),
+        pytest.param("sep=‘,’", id="curly-single"),
+    ],
+)
+def test_tokenize_accepts_typographic_quotes(src):
+    """Word autocorrects straight quotes to typographic ones; sep= must survive it."""
+    tokens = tokenize_placeholder(src)
+    strings = [t.value for t in tokens if t.kind is TK.STRING]
+
+    assert strings == [","]
+
+
+def test_tokenize_double_and_single_quotes_do_not_cross_close():
+    """A single quote must not close a double-quoted string (or vice versa)."""
+    tokens = tokenize_placeholder("""sep="it's" """)
+    strings = [t.value for t in tokens if t.kind is TK.STRING]
+
+    assert strings == ["it's"]
+
+
+def test_tokenize_unclosed_typographic_quote_raises():
+    with pytest.raises(PlaceholderSyntaxError):
+        tokenize_placeholder("“unterminated")
+
+
 # --- key splitting ---
 
 
@@ -60,6 +92,20 @@ def test_tokenize_unexpected_char_raises():
     ],
 )
 def test_split_placeholder_key_valid(key, expected):
+    assert split_placeholder_key(key) == expected
+
+
+@pytest.mark.parametrize(
+    "key,expected",
+    [
+        pytest.param("PROVIDER_TYPE", ("provider_type", None), id="upper-key"),
+        pytest.param("Provider_Type", ("provider_type", None), id="mixed-key"),
+        pytest.param("org_name.eng", ("org_name", "ENG"), id="lower-lang"),
+        pytest.param("ORG_NAME.Ukr", ("org_name", "UKR"), id="mixed-both"),
+    ],
+)
+def test_split_placeholder_key_is_case_insensitive(key, expected):
+    """Users type keys in any case in Word; keys fold to lower, languages to upper."""
     assert split_placeholder_key(key) == expected
 
 

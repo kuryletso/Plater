@@ -110,6 +110,82 @@ def diagnostics() -> DiagnosticCollector:
 
 
 @pytest.fixture
+def make_runs(tmp_path: Path) -> Callable[..., Path]:
+    """Factory building a .docx whose paragraph is split into explicit runs.
+
+    Real Word splits runs constantly (rsid, spellcheck, mid-word edits); python-docx
+    writes one run per paragraph, so run boundaries must be forced to test them.
+    """
+
+    def _make(runs: list[tuple[str, bool]], name: str = "runs.docx") -> Path:
+        document = Document()
+        paragraph = document.add_paragraph()
+        for text, bold in runs:
+            paragraph.add_run(text).bold = bold
+
+        path = tmp_path / name
+        document.save(path)
+        return path
+
+    return _make
+
+
+@pytest.fixture
+def make_styled_docx(tmp_path: Path) -> Callable[..., Path]:
+    """Factory for a .docx whose default (Normal) style carries a font size.
+
+    Word puts the body font size on the default paragraph style, not on docDefaults,
+    so run-level resolution must inherit from it.
+    """
+
+    def _make(
+        paragraphs: list[tuple[str, int | None]],
+        normal_half_points: int = 20,
+        name: str = "styled.docx",
+    ) -> Path:
+        from docx.shared import Pt
+
+        document = Document()
+        document.styles["Normal"].font.size = Pt(normal_half_points / 2)
+
+        for text, half_points in paragraphs:
+            paragraph = document.add_paragraph()
+            run = paragraph.add_run(text)
+            # Real Word runs always carry an <w:rPr> (lang, fonts...). Force one, or
+            # resolution takes the "no rPr" shortcut and never exercises inheritance.
+            run.italic = False
+            if half_points is not None:
+                run.font.size = Pt(half_points / 2)
+
+        path = tmp_path / name
+        document.save(path)
+        return path
+
+    return _make
+
+
+@pytest.fixture
+def make_break_docx(tmp_path: Path) -> Callable[..., Path]:
+    """Factory for a .docx using manual line breaks (Shift+Enter -> <w:br/>)."""
+
+    def _make(parts: list[str], name: str = "breaks.docx") -> Path:
+        document = Document()
+        paragraph = document.add_paragraph()
+        run = paragraph.add_run()
+        for i, part in enumerate(parts):
+            if i > 0:
+                run.add_break()
+            if part:
+                run.add_text(part)
+
+        path = tmp_path / name
+        document.save(path)
+        return path
+
+    return _make
+
+
+@pytest.fixture
 def make_png(tmp_path: Path) -> Callable[..., Path]:
     """Factory writing a tiny real PNG, for exercising the image/asset path."""
 
