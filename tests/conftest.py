@@ -186,6 +186,41 @@ def make_break_docx(tmp_path: Path) -> Callable[..., Path]:
 
 
 @pytest.fixture
+def make_grid_docx(tmp_path: Path) -> Callable[..., Path]:
+    """Factory for a .docx whose table has explicit, uneven column widths.
+
+    Word writes a <w:tblGrid> per table; without it the renderer can only guess
+    an even split, which squeezes wide description columns.
+    """
+
+    def _make(
+        widths: list[int],
+        rows: list[list[str]] | None = None,
+        name: str = "grid.docx",
+    ) -> Path:
+        from docx.shared import Twips
+
+        rows = rows or [["c" + str(i) for i in range(len(widths))]]
+        document = Document()
+        table = document.add_table(rows=len(rows), cols=len(widths))
+        table.autofit = False
+
+        for r, row in enumerate(rows):
+            for c, value in enumerate(row):
+                table.cell(r, c).text = value
+
+        # _Column.width maps to <w:gridCol w:w>; cell.width would only set <w:tcW>
+        for column, width in zip(table.columns, widths):
+            column.width = Twips(width)
+
+        path = tmp_path / name
+        document.save(path)
+        return path
+
+    return _make
+
+
+@pytest.fixture
 def make_png(tmp_path: Path) -> Callable[..., Path]:
     """Factory writing a tiny real PNG, for exercising the image/asset path."""
 

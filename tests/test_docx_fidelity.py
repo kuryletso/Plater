@@ -41,6 +41,27 @@ def children_tags(run: etree._Element) -> list[str]:
     return [etree.QName(child).localname for child in run if etree.QName(child).localname != "rPr"]
 
 
+def table_style(**overrides):
+    from app.document_engine.blueprint.models.margins import MarginsBlueprint
+    from app.document_engine.blueprint.models.table import (
+        TableBorderBlueprint, TableStyleBlueprint, TableWidthBlueprint,
+    )
+    from app.document_engine.enums.enums import TableBorderStyleEnum, TableWidthType
+
+    border = TableBorderBlueprint(
+        style=TableBorderStyleEnum.SINGLE, size=4, color="000000",
+    )
+    base = dict(
+        width=TableWidthBlueprint(value=9600, type=TableWidthType.DXA),
+        autofit=False,
+        border_top=border, border_bottom=border,
+        border_left=border, border_right=border,
+        border_inside_v=border, border_inside_h=border,
+        margins=MarginsBlueprint(top=0, bottom=0, left=100, right=100),
+    )
+    return TableStyleBlueprint(**(base | overrides))
+
+
 # --- manual line breaks: parsing ---------------------------------------------
 
 def test_manual_break_is_parsed_as_newline(make_break_docx):
@@ -136,6 +157,94 @@ def test_every_body_run_inherits_the_default_size(make_styled_docx):
     ))
 
     assert [r.style.font_size for r in runs_of(blocks)] == [20, 20]
+
+
+# --- table column widths -----------------------------------------------------
+
+def grid_of(table_element) -> list[int]:
+    grid = table_element.find(qn("w:tblGrid"))
+    return [int(col.get(qn("w:w"))) for col in grid.findall(qn("w:gridCol"))]
+
+
+def test_column_widths_are_parsed_from_the_table_grid(make_grid_docx):
+    from app.document_engine.parser.models.blocks import TableNode
+
+    blocks = parse(make_grid_docx([403, 3226, 1613]))
+    table = next(b for b in blocks if isinstance(b, TableNode))
+
+    assert table.style.column_widths == (403, 3226, 1613)
+
+
+def test_partial_grid_is_ignored_rather_than_guessed(tmp_path, make_grid_docx):
+    """A gridCol with no w attribute makes the whole grid untrustworthy."""
+    import shutil
+    import zipfile
+
+    from app.document_engine.parser.models.blocks import TableNode
+
+    source = make_grid_docx([403, 3226, 1613])
+    stripped = tmp_path / "partial_grid.docx"
+
+    with zipfile.ZipFile(source) as zin, zipfile.ZipFile(stripped, "w") as zout:
+        for item in zin.infolist():
+            data = zin.read(item.filename)
+            if item.filename == "word/document.xml":
+                root = etree.fromstring(data)
+                col = root.find(f".//{qn('w:tblGrid')}/{qn('w:gridCol')}")
+                del col.attrib[qn("w:w")]
+                data = etree.tostring(root, xml_declaration=True, encoding="UTF-8")
+            zout.writestr(item, data)
+
+    table = next(b for b in parse(stripped) if isinstance(b, TableNode))
+
+    assert table.style.column_widths is None
+
+
+def test_emitter_uses_the_source_widths_when_the_column_count_matches():
+    from app.document_engine.rendering.docx.table import build_table
+
+    style = table_style(column_widths=(403, 3226, 1613))
+    table = build_table(rows=[], style=style, columns=3)
+
+    assert grid_of(table) == [403, 3226, 1613]
+
+
+def test_emitter_falls_back_to_even_split_on_column_count_mismatch():
+    """The system-built invoice table sets its own column count; don't misapply a grid."""
+    from app.document_engine.rendering.docx.table import build_table
+
+    style = table_style(column_widths=(403, 3226, 1613))
+    table = build_table(rows=[], style=style, columns=6)
+
+    widths = grid_of(table)
+    assert len(widths) == 6
+    assert len(set(widths)) == 1, "mismatched grid must be ignored, not stretched"
+
+
+def test_emitter_falls_back_to_even_split_without_a_grid():
+    from app.document_engine.rendering.docx.table import build_table
+
+    style = table_style(column_widths=())
+    table = build_table(rows=[], style=style, columns=4)
+
+    widths = grid_of(table)
+    assert len(widths) == 4
+    assert len(set(widths)) == 1
+
+
+def test_uneven_widths_survive_parse_to_render(make_grid_docx):
+    """End to end: the author's proportions must reach the emitted document."""
+    from app.document_engine.parser.models.blocks import TableNode
+    from app.document_engine.rendering.docx.table import build_table
+
+    blocks = parse(make_grid_docx([403, 3226, 1613, 1613]))
+    parsed = next(b for b in blocks if isinstance(b, TableNode))
+
+    style = table_style(column_widths=parsed.style.column_widths)
+    emitted = build_table(rows=[], style=style, columns=4)
+
+    assert grid_of(emitted) == [403, 3226, 1613, 1613]
+    assert grid_of(emitted) != [sum([403, 3226, 1613, 1613]) // 4] * 4
 
 
 def test_default_style_size_applies_inside_table_cells(tmp_path):
