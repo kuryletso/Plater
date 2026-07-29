@@ -1,0 +1,742 @@
+[
+  {
+    "code": "unit",
+    "name": "Unit",
+    "name_UKR": "Штука",
+    "name_DEU": "Stück",
+    "name_FRA": "Unité",
+    "name_POL": "Sztuka",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "piece",
+    "name": "Piece",
+    "name_UKR": "Одиниця",
+    "name_DEU": "Stück",
+    "name_FRA": "Pièce",
+    "name_POL": "Sztuka",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "set",
+    "name": "Set",
+    "name_UKR": "Комплект",
+    "name_DEU": "Satz",
+    "name_FRA": "Ensemble",
+    "name_POL": "Zestaw",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "pair",
+    "name": "Pair",
+    "name_UKR": "Пара",
+    "name_DEU": "Paar",
+    "name_FRA": "Paire",
+    "name_POL": "Para",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "pack",
+    "name": "Pack",
+    "name_UKR": "Упаковка",
+    "name_DEU": "Packung",
+    "name_FRA": "Paquet",
+    "name_POL": "Opakowanie",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "box",
+    "name": "Box",
+    "name_UKR": "Коробка",
+    "name_DEU": "Karton",
+    "name_FRA": "Boîte",
+    "name_POL": "Karton",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "carton",
+    "name": "Carton",
+    "name_UKR": "Ящик",
+    "name_DEU": "Karton",
+    "name_FRA": "Carton",
+    "name_POL": "Karton",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "pallet",
+    "name": "Pallet",
+    "name_UKR": "Палета",
+    "name_DEU": "Palette",
+    "name_FRA": "Palette",
+    "name_POL": "Paleta",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "roll",
+    "name": "Roll",
+    "name_UKR": "Рулон",
+    "name_DEU": "Rolle",
+    "name_FRA": "Rouleau",
+    "name_POL": "Rolka",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "bundle",
+    "name": "Bundle",
+    "name_UKR": "В'язка",
+    "name_DEU": "Bündel",
+    "name_FRA": "Lot",
+    "name_POL": "Wiązka",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "bag",
+    "name": "Bag",
+    "name_UKR": "Мішок",
+    "name_DEU": "Sack",
+    "name_FRA": "Sac",
+    "name_POL": "Worek",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "bottle",
+    "name": "Bottle",
+    "name_UKR": "Пляшка",
+    "name_DEU": "Flasche",
+    "name_FRA": "Bouteille",
+    "name_POL": "Butelka",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "can",
+    "name": "Can",
+    "name_UKR": "Банка",
+    "name_DEU": "Dose",
+    "name_FRA": "Boîte",
+    "name_POL": "Puszka",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "tube",
+    "name": "Tube",
+    "name_UKR": "Тюбик",
+    "name_DEU": "Tube",
+    "name_FRA": "Tube",
+    "name_POL": "Tubka",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "meter",
+    "name": "Meter",
+    "name_UKR": "Метр",
+    "name_DEU": "Meter",
+    "name_FRA": "Mètre",
+    "name_POL": "Metr",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "centimeter",
+    "name": "Centimeter",
+    "name_UKR": "Сантиметр",
+    "name_DEU": "Zentimeter",
+    "name_FRA": "Centimètre",
+    "name_POL": "Centymetr",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "millimeter",
+    "name": "Millimeter",
+    "name_UKR": "Міліметр",
+    "name_DEU": "Millimeter",
+    "name_FRA": "Millimètre",
+    "name_POL": "Milimetr",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "kilometer",
+    "name": "Kilometer",
+    "name_UKR": "Кілометр",
+    "name_DEU": "Kilometer",
+    "name_FRA": "Kilomètre",
+    "name_POL": "Kilometr",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "square_meter",
+    "name": "Square Meter",
+    "name_UKR": "Квадратний метр",
+    "name_DEU": "Quadratmeter",
+    "name_FRA": "Mètre carré",
+    "name_POL": "Metr kwadratowy",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "cubic_meter",
+    "name": "Cubic Meter",
+    "name_UKR": "Кубічний метр",
+    "name_DEU": "Kubikmeter",
+    "name_FRA": "Mètre cube",
+    "name_POL": "Metr sześcienny",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "liter",
+    "name": "Liter",
+    "name_UKR": "Літр",
+    "name_DEU": "Liter",
+    "name_FRA": "Litre",
+    "name_POL": "Litr",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "milliliter",
+    "name": "Milliliter",
+    "name_UKR": "Мілілітр",
+    "name_DEU": "Milliliter",
+    "name_FRA": "Millilitre",
+    "name_POL": "Mililitr",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "kilogram",
+    "name": "Kilogram",
+    "name_UKR": "Кілограм",
+    "name_DEU": "Kilogramm",
+    "name_FRA": "Kilogramme",
+    "name_POL": "Kilogram",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "gram",
+    "name": "Gram",
+    "name_UKR": "Грам",
+    "name_DEU": "Gramm",
+    "name_FRA": "Gramme",
+    "name_POL": "Gram",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "tonne",
+    "name": "Tonne",
+    "name_UKR": "Тонна",
+    "name_DEU": "Tonne",
+    "name_FRA": "Tonne",
+    "name_POL": "Tona",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "ounce",
+    "name": "Ounce",
+    "name_UKR": "Унція",
+    "name_DEU": "Unze",
+    "name_FRA": "Once",
+    "name_POL": "Uncja",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "pound",
+    "name": "Pound",
+    "name_UKR": "Фунт",
+    "name_DEU": "Pfund",
+    "name_FRA": "Livre",
+    "name_POL": "Funt",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "hour",
+    "name": "Hour",
+    "name_UKR": "Година",
+    "name_DEU": "Stunde",
+    "name_FRA": "Heure",
+    "name_POL": "Godzina",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "day",
+    "name": "Day",
+    "name_UKR": "День",
+    "name_DEU": "Tag",
+    "name_FRA": "Jour",
+    "name_POL": "Dzień",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "week",
+    "name": "Week",
+    "name_UKR": "Тиждень",
+    "name_DEU": "Woche",
+    "name_FRA": "Semaine",
+    "name_POL": "Tydzień",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "month",
+    "name": "Month",
+    "name_UKR": "Місяць",
+    "name_DEU": "Monat",
+    "name_FRA": "Mois",
+    "name_POL": "Miesiąc",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "year",
+    "name": "Year",
+    "name_UKR": "Рік",
+    "name_DEU": "Jahr",
+    "name_FRA": "Année",
+    "name_POL": "Rok",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "minute",
+    "name": "Minute",
+    "name_UKR": "Хвилина",
+    "name_DEU": "Minute",
+    "name_FRA": "Minute",
+    "name_POL": "Minuta",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "service",
+    "name": "Service",
+    "name_UKR": "Послуга",
+    "name_DEU": "Dienstleistung",
+    "name_FRA": "Service",
+    "name_POL": "Usługa",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "project",
+    "name": "Project",
+    "name_UKR": "Проєкт",
+    "name_DEU": "Projekt",
+    "name_FRA": "Projet",
+    "name_POL": "Projekt",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "job",
+    "name": "Job",
+    "name_UKR": "Робота",
+    "name_DEU": "Auftrag",
+    "name_FRA": "Intervention",
+    "name_POL": "Zlecenie",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "session",
+    "name": "Session",
+    "name_UKR": "Сесія",
+    "name_DEU": "Sitzung",
+    "name_FRA": "Séance",
+    "name_POL": "Sesja",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "visit",
+    "name": "Visit",
+    "name_UKR": "Візит",
+    "name_DEU": "Besuch",
+    "name_FRA": "Visite",
+    "name_POL": "Wizyta",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "trip",
+    "name": "Trip",
+    "name_UKR": "Поїздка",
+    "name_DEU": "Fahrt",
+    "name_FRA": "Déplacement",
+    "name_POL": "Przejazd",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "license",
+    "name": "License",
+    "name_UKR": "Ліцензія",
+    "name_DEU": "Lizenz",
+    "name_FRA": "Licence",
+    "name_POL": "Licencja",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "subscription",
+    "name": "Subscription",
+    "name_UKR": "Передплата",
+    "name_DEU": "Abonnement",
+    "name_FRA": "Abonnement",
+    "name_POL": "Subskrypcja",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "foot",
+    "name": "Foot",
+    "name_UKR": "",
+    "name_DEU": "",
+    "name_FRA": "",
+    "name_POL": "",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "inch",
+    "name": "Inch",
+    "name_UKR": "",
+    "name_DEU": "",
+    "name_FRA": "",
+    "name_POL": "",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "yard",
+    "name": "Yard",
+    "name_UKR": "",
+    "name_DEU": "",
+    "name_FRA": "",
+    "name_POL": "",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "mile",
+    "name": "Mile",
+    "name_UKR": "",
+    "name_DEU": "",
+    "name_FRA": "",
+    "name_POL": "",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "square_foot",
+    "name": "Square Foot",
+    "name_UKR": "",
+    "name_DEU": "",
+    "name_FRA": "",
+    "name_POL": "",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "cubic_foot",
+    "name": "Cubic Foot",
+    "name_UKR": "",
+    "name_DEU": "",
+    "name_FRA": "",
+    "name_POL": "",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "gallon",
+    "name": "Gallon",
+    "name_UKR": "",
+    "name_DEU": "",
+    "name_FRA": "",
+    "name_POL": "",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "quart",
+    "name": "Quart",
+    "name_UKR": "",
+    "name_DEU": "",
+    "name_FRA": "",
+    "name_POL": "",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "pint",
+    "name": "Pint",
+    "name_UKR": "",
+    "name_DEU": "",
+    "name_FRA": "",
+    "name_POL": "",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "running_meter",
+    "name": "Running Meter",
+    "name_UKR": "Погонний метр",
+    "name_DEU": "",
+    "name_FRA": "",
+    "name_POL": "Metr bieżący",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "hectare",
+    "name": "Hectare",
+    "name_UKR": "Гектар",
+    "name_DEU": "",
+    "name_FRA": "",
+    "name_POL": "Hektar",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "are",
+    "name": "Are",
+    "name_UKR": "Ар",
+    "name_DEU": "",
+    "name_FRA": "",
+    "name_POL": "Ar",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "machine_hour",
+    "name": "Machine Hour",
+    "name_UKR": "Машино-година",
+    "name_DEU": "",
+    "name_FRA": "",
+    "name_POL": "Maszynogodzina",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "man_hour",
+    "name": "Man-hour",
+    "name_UKR": "Людино-година",
+    "name_DEU": "",
+    "name_FRA": "",
+    "name_POL": "Roboczogodzina",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "shift",
+    "name": "Shift",
+    "name_UKR": "Зміна",
+    "name_DEU": "",
+    "name_FRA": "",
+    "name_POL": "Zmiana",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "batch",
+    "name": "Batch",
+    "name_UKR": "",
+    "name_DEU": "",
+    "name_FRA": "",
+    "name_POL": "",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "lot",
+    "name": "Lot",
+    "name_UKR": "",
+    "name_DEU": "",
+    "name_FRA": "",
+    "name_POL": "",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "kit",
+    "name": "Kit",
+    "name_UKR": "",
+    "name_DEU": "",
+    "name_FRA": "",
+    "name_POL": "",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "container",
+    "name": "Container",
+    "name_UKR": "",
+    "name_DEU": "",
+    "name_FRA": "",
+    "name_POL": "",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "crate",
+    "name": "Crate",
+    "name_UKR": "",
+    "name_DEU": "",
+    "name_FRA": "",
+    "name_POL": "",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "drum",
+    "name": "Drum",
+    "name_UKR": "",
+    "name_DEU": "",
+    "name_FRA": "",
+    "name_POL": "",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "barrel",
+    "name": "Barrel",
+    "name_UKR": "",
+    "name_DEU": "",
+    "name_FRA": "",
+    "name_POL": "",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "coil",
+    "name": "Coil",
+    "name_UKR": "",
+    "name_DEU": "",
+    "name_FRA": "",
+    "name_POL": "",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "sheet",
+    "name": "Sheet",
+    "name_UKR": "",
+    "name_DEU": "",
+    "name_FRA": "",
+    "name_POL": "",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "panel",
+    "name": "Panel",
+    "name_UKR": "",
+    "name_DEU": "",
+    "name_FRA": "",
+    "name_POL": "",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "user",
+    "name": "User",
+    "name_UKR": "",
+    "name_DEU": "",
+    "name_FRA": "",
+    "name_POL": "",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "seat",
+    "name": "Seat",
+    "name_UKR": "",
+    "name_DEU": "",
+    "name_FRA": "",
+    "name_POL": "",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "account",
+    "name": "Account",
+    "name_UKR": "",
+    "name_DEU": "",
+    "name_FRA": "",
+    "name_POL": "",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "api_call",
+    "name": "API Call",
+    "name_UKR": "",
+    "name_DEU": "",
+    "name_FRA": "",
+    "name_POL": "",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "credit",
+    "name": "Credit",
+    "name_UKR": "",
+    "name_DEU": "",
+    "name_FRA": "",
+    "name_POL": "",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "token",
+    "name": "Token",
+    "name_UKR": "",
+    "name_DEU": "",
+    "name_FRA": "",
+    "name_POL": "",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "gigabyte",
+    "name": "Gigabyte",
+    "name_UKR": "",
+    "name_DEU": "",
+    "name_FRA": "",
+    "name_POL": "",
+    "system": true,
+    "active": true
+  },
+  {
+    "code": "terabyte",
+    "name": "Terabyte",
+    "name_UKR": "",
+    "name_DEU": "",
+    "name_FRA": "",
+    "name_POL": "",
+    "system": true,
+    "active": true
+  }
+]

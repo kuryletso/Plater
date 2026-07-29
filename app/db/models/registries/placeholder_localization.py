@@ -35,9 +35,9 @@ class PlaceholderRegistryLocalization(Base):
     )
 
     label: Mapped[str | None] = mapped_column(
-        String(30),
+        String(60),
     )
 
     description: Mapped[str | None] = mapped_column(
-        String(120),
+        String(255),
     )
