@@ -18,9 +18,9 @@ organization_representative_m2m = Table(
 )
 
 
-template_asset_m2m = Table(
-    "template_assets",
+template_version_asset_m2m = Table(
+    "template_version_assets",
     Base.metadata,
-    Column("template_id", ForeignKey("templates.id"), primary_key=True),
+    Column("template_version_id", ForeignKey("template_versions.id"), primary_key=True),
     Column("asset_sha256", ForeignKey("assets.sha256"), primary_key=True),
 )

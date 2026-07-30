@@ -34,9 +34,18 @@ class TemplateImportService:
     def commit(
             self,
             result: IngestionResult,
+            *,
+            code: str | None = None,
+            system: bool = False,
     ) -> int:
-        """Store the reviewed draft: template row + asset BLOBs + links."""
+        """Store the reviewed draft: template + version 1 + asset BLOBs + links."""
 
         blueprint = self._pipeline.finalize(result.draft)
 
-        return self._repo.save(blueprint, result.assets)
+        return self._repo.create(
+            blueprint,
+            result.assets,
+            result.source_sha256,
+            code=code,
+            system=system,
+        )

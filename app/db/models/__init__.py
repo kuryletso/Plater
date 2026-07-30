@@ -29,6 +29,7 @@ from app.db.models.core import (
     invoice_line,
     invoice_line_localization,
     template,
+    template_version,
     assets,
 )
 

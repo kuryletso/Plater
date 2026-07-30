@@ -18,6 +18,7 @@ from app.document_engine.rendering.ports import Asset
 class ResolvedTextRun:
     text: str
     style: TextStyleBlueprint
+    placeholder_key: str | None = None      # None for literal text
 
 
 @dataclass(slots=True, frozen=True)
