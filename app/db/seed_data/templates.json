@@ -1,0 +1,42 @@
+[
+  {
+    "code": "default_eng_invoice",
+    "file": "DEFAULT_ENG_invoice.docx",
+    "type": "invoice",
+    "primary_language": "ENG",
+    "secondary_language": null,
+    "name": "Invoice (English)",
+    "description": "Single-language invoice using the generated invoice table.",
+    "append_currency": true
+  },
+  {
+    "code": "default_ukr_invoice",
+    "file": "DEFAULT_UKR_invoice.docx",
+    "type": "invoice",
+    "primary_language": "UKR",
+    "secondary_language": null,
+    "name": "Рахунок-фактура",
+    "description": "Рахунок-фактура українською з таблицею товарів/послуг.",
+    "append_currency": true
+  },
+  {
+    "code": "default_eng_ukr_invoice",
+    "file": "DEFAULT_ENG_UKR_invoice.docx",
+    "type": "invoice",
+    "primary_language": "ENG",
+    "secondary_language": "UKR",
+    "name": "Invoice (English / Ukrainian)",
+    "description": "Bilingual invoice with an author-designed line table.",
+    "append_currency": true
+  },
+  {
+    "code": "default_ukr_akt",
+    "file": "DEFAULT_UKR_akt_nadanykh_posluh.docx",
+    "type": "akt_nadanykh_posluh",
+    "primary_language": "UKR",
+    "secondary_language": null,
+    "name": "Акт наданих послуг",
+    "description": "Акт наданих послуг українською з таблицею робіт і підписами сторін.",
+    "append_currency": true
+  }
+]

@@ -1,7 +1,7 @@
 [project]
-name = "invoice-generator"
+name = "Plater"
 version = "0.1.0"
-description = "Add your description here"
+description = "Generate invoices from custom templates."
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
@@ -22,3 +22,6 @@ dev = [
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+
+[tool.ruff.lint]
+ignore = ["I001"]

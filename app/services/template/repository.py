@@ -32,7 +32,7 @@ class TemplateRepository:
             self,
             blueprint: TemplateBlueprint,
             bundle: Mapping[str, AssetBlob],
-            source_sha256: str,
+            source: AssetBlob,
             *,
             code: str | None = None,
             system: bool = False,
@@ -47,7 +47,7 @@ class TemplateRepository:
         self._session.add(template)
         self._session.flush()
 
-        self._add_version(template.id, 1, blueprint, bundle, source_sha256)
+        self._add_version(template.id, 1, blueprint, bundle, source)
         self._session.commit()
 
         return template.id
@@ -57,13 +57,13 @@ class TemplateRepository:
             template_id: int,
             blueprint: TemplateBlueprint,
             bundle: Mapping[str, AssetBlob],
-            source_sha256: str,
+            source: AssetBlob,
     ) -> int:
 
         current = self.current_version(template_id)
         version = current.version + 1
 
-        self._add_version(template_id, version, blueprint, bundle, source_sha256)
+        self._add_version(template_id, version, blueprint, bundle, source)
         self._prune(template_id)
         self._collect_orphans()
         self._session.commit()
@@ -76,7 +76,7 @@ class TemplateRepository:
             version: int,
             blueprint: TemplateBlueprint,
             bundle: Mapping[str, AssetBlob],
-            source_sha256: str,
+            source: AssetBlob,
     ) -> TemplateVersion:
 
         sections, placeholders, config = dump_blueprint(blueprint)
@@ -84,7 +84,7 @@ class TemplateRepository:
         row = TemplateVersion(
             template_id=template_id,
             version=version,
-            source_sha256=source_sha256,
+            source_sha256=source.sha256,
             sections=sections,
             placeholders=placeholders,
             config=config,
@@ -93,9 +93,12 @@ class TemplateRepository:
         self._session.flush()
 
         referenced = collect_assets_ids(blueprint)
-        save_assets(self._session, { h: bundle[h] for h in referenced if h in bundle })
+        save_assets(
+            self._session,
+            {source.sha256: source} | { h: bundle[h] for h in referenced if h in bundle },
+        )
 
-        for sha in referenced:
+        for sha in referenced | {source.sha256}:
             self._session.execute(
                 template_version_asset_m2m.insert().values(
                     template_version_id=row.id,
@@ -130,22 +133,12 @@ class TemplateRepository:
     def restore(self, template_id: int, version: int) -> int:
         """Copy an old version forward as the newest, history stays append-only."""
 
-        old = self._session.scalars(
-            select(TemplateVersion)
-            .where(TemplateVersion.template_id == template_id,
-                   TemplateVersion.version == version,
-            )
-        ).first()
-
-        if old is None:
-            raise EntityNotFound(
-                f"template {template_id} has no version {version}",
-                context={"template_id": template_id, "version": version},
-            )
-
+        old = self._version(template_id, version)
         blueprint = load_blueprint(old.sections, old.placeholders, old.config)
 
-        return self.add_version(template_id, blueprint, {}, old.source_sha256)
+        return self.add_version(
+            template_id, blueprint, {}, self._source_blob(old.source_sha256),
+        )
 
 
     def delete(self, template_id: int) -> None:
@@ -194,3 +187,49 @@ class TemplateRepository:
     def _collect_orphans(self) -> None:
         referenced = select(template_version_asset_m2m.c.asset_sha256)
         self._session.execute(delete(Asset).where(Asset.sha256.not_in(referenced)))
+
+
+    def _version(self, template_id: int, version: int) -> TemplateVersion:
+        row = self._session.scalars(
+            select(TemplateVersion).where(
+                TemplateVersion.template_id == template_id,
+                TemplateVersion.version == version,
+            )
+        ).first()
+
+        if row is None:
+            raise EntityNotFound(
+                f"temlpate {template_id} has no version {version}",
+                context={"template_id": template_id, "version": version},
+            )
+        return row
+
+
+    def _source_blob(self, sha256: str) -> AssetBlob:
+        row = self._session.get(Asset, sha256)
+
+        if row is None:
+            raise EntityNotFound(
+                f"source document {sha256} is not stored",
+                context={"sha256": sha256},
+            )
+
+        return AssetBlob(
+            sha256=sha256,
+            mime_type=row.mime_type,
+            data=row.data,
+        )
+
+
+    def get_source(
+            self,
+            template_id: int,
+            version: int | None = None,
+    ) -> AssetBlob:
+        """The original .docx, for restoring the file the template was built from."""
+
+        row = self.current_version(template_id) \
+            if version is None \
+            else self._version(template_id, version)
+
+        return self._source_blob(row.source_sha256)

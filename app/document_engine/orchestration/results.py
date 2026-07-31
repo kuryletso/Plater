@@ -10,7 +10,7 @@ from app.document_engine.blueprint.template_builder import TemplateDraft
 class IngestionResult:
     draft: TemplateDraft
     assets: Mapping[str, AssetBlob]
-    source_sha256: str
+    source: AssetBlob
     diagnostics: DiagnosticCollector
 
 

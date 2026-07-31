@@ -3,6 +3,8 @@ from pathlib import Path
 from app.core.diagnostics import DiagnosticCollector
 from app.core.errors import AppError, Severity
 from app.assets.hashing import hash_bytes
+from app.assets.service import AssetBlob
+from app.assets.mime import detect_mime_type
 
 from app.document_engine.parser.parser import DocxParser
 from app.document_engine.normalization.structural_normalizer import StructuralNormalizer
@@ -34,7 +36,12 @@ class TemplateIngestionPipeline:
     ) -> IngestionResult:
         
         diagnostics = DiagnosticCollector()
-        source_sha256 = hash_bytes(Path(path).read_bytes())
+        source_bytes = Path(path).read_bytes()
+        source = AssetBlob(
+            sha256=hash_bytes(source_bytes),
+            mime_type=detect_mime_type(Path(path).name),
+            data=source_bytes,
+        )
 
         try:
             with DocxParser(path, diagnostics=diagnostics) as parser:
@@ -62,7 +69,7 @@ class TemplateIngestionPipeline:
         return IngestionResult(
             draft=draft,
             assets=assets,
-            source_sha256=source_sha256,
+            source=source,
             diagnostics=diagnostics,
         )
     

@@ -34,9 +34,11 @@ def _alembic_config() -> Config:
 def init_db() -> None:
     from app.db.seed import seed
     from app.db.seed_registry import SEED_SPECS
+    from app.services.template.defaults import seed_default_templates
 
     user_data_dir().mkdir(parents=True, exist_ok=True)
     command.upgrade(_alembic_config(), "head")      # migrate: fresh, updated or shared DB
 
     with SessionLocal() as session:
         seed(session, SEED_SPECS)
+        seed_default_templates(session)

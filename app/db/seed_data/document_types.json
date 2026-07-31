@@ -502,5 +502,17 @@
     "name_DEU": "",
     "name_FRA": "",
     "name_POL": ""
+  },
+  {
+    "code": "akt_nadanykh_posluh",
+    "name": "Services Acceptance Certificate",
+    "description": "Services Acceptance Certificate",
+    "system": true,
+    "active": true,
+    "name_UKR": "Акт наданих послуг",
+    "description_UKR": "Документ, який підтверджує факт виконання роботи та фіксує відсутність претензій у замовника.",
+    "name_DEU": "",
+    "name_FRA": "",
+    "name_POL": ""
   }
 ]

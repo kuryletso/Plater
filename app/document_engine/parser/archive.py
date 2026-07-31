@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from zipfile import ZipFile
+from zipfile import ZipFile, BadZipFile
 from pathlib import Path
 from os import PathLike
 
@@ -19,7 +19,13 @@ class DocxPaths:
 class DocxArchive:
     def __init__(self, path: str | PathLike[str]) -> None:
         self.path = Path(path)
-        self.zip = ZipFile(path)
+
+        try:
+            self.zip = ZipFile(path)
+        except BadZipFile as e:
+            raise ParserFormatError(
+                f"Not a valid .docx (unreadable zip archive): {self.path.name}."
+            ) from e
 
     def __enter__(self):
         return self

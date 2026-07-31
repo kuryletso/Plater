@@ -45,7 +45,21 @@ class TemplateImportService:
         return self._repo.create(
             blueprint,
             result.assets,
-            result.source_sha256,
+            result.source,
             code=code,
             system=system,
+        )
+
+
+    def update(
+            self,
+            template_id: int,
+            result: IngestionResult,
+    ) -> int:
+        """Append a new version to an existing template."""
+
+        blueprint = self._pipeline.finalize(result.draft)
+
+        return self._repo.add_version(
+            template_id, blueprint, result.assets, result.source,
         )
