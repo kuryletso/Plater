@@ -46,7 +46,7 @@ def ingested(make_docx, make_png, fixture_provider):
     path = make_docx(paragraphs=["Invoice for {{ org_name }}"], image=make_png())
     pipeline = TemplateIngestionPipeline(fixture_provider)
     result = pipeline.ingest(path)
-    return pipeline.finalize(result.draft), result.assets, result.source_sha256
+    return pipeline.finalize(result.draft), result.assets, result.source
 
 
 @pytest.fixture
@@ -59,7 +59,7 @@ def other_ingested(make_docx, make_png, fixture_provider):
     )
     pipeline = TemplateIngestionPipeline(fixture_provider)
     result = pipeline.ingest(path)
-    return pipeline.finalize(result.draft), result.assets, result.source_sha256
+    return pipeline.finalize(result.draft), result.assets, result.source
 
 
 def segments_of(bp: TemplateBlueprint) -> list:
@@ -143,9 +143,9 @@ def test_round_trip_preserves_config_and_placeholder_definitions(blueprint):
 # --- create ------------------------------------------------------------------
 
 def test_create_writes_queryable_template_columns(session: Session, ingested):
-    bp, bundle, sha = ingested
+    bp, bundle, source = ingested
 
-    template_id = TemplateRepository(session).create(bp, bundle, sha)
+    template_id = TemplateRepository(session).create(bp, bundle, source)
 
     row = session.get(Template, template_id)
     assert row.name == bp.config.name
@@ -157,10 +157,10 @@ def test_create_writes_queryable_template_columns(session: Session, ingested):
 
 
 def test_create_records_a_system_template_under_its_code(session: Session, ingested):
-    bp, bundle, sha = ingested
+    bp, bundle, source = ingested
 
     template_id = TemplateRepository(session).create(
-        bp, bundle, sha, code="default_invoice", system=True,
+        bp, bundle, source, code="default_invoice", system=True,
     )
 
     row = session.get(Template, template_id)
@@ -169,30 +169,30 @@ def test_create_records_a_system_template_under_its_code(session: Session, inges
 
 
 def test_create_starts_at_version_one_with_the_source_hash(session: Session, ingested):
-    bp, bundle, sha = ingested
+    bp, bundle, source = ingested
     repo = TemplateRepository(session)
 
-    template_id = repo.create(bp, bundle, sha)
+    template_id = repo.create(bp, bundle, source)
 
     assert versions_of(session, template_id) == [1]
-    assert repo.current_version(template_id).source_sha256 == sha
+    assert repo.current_version(template_id).source_sha256 == source.sha256
 
 
 def test_saved_blueprint_round_trips_through_the_database(session: Session, ingested):
-    bp, bundle, sha = ingested
+    bp, bundle, source = ingested
     repo = TemplateRepository(session)
 
-    template_id = repo.create(bp, bundle, sha)
+    template_id = repo.create(bp, bundle, source)
     session.expunge_all()                       # force a real reload, not identity-map cache
 
     assert repo.get(template_id) == bp
 
 
 def test_create_persists_referenced_asset_blobs(session: Session, ingested):
-    bp, bundle, sha = ingested
+    bp, bundle, source = ingested
     (asset_sha,) = collect_assets_ids(bp)
 
-    TemplateRepository(session).create(bp, bundle, sha)
+    TemplateRepository(session).create(bp, bundle, source)
 
     stored = session.get(Asset, asset_sha)
     assert stored.data == bundle[asset_sha].data
@@ -201,36 +201,118 @@ def test_create_persists_referenced_asset_blobs(session: Session, ingested):
 
 
 def test_assets_are_linked_to_the_version_not_the_template(session: Session, ingested):
-    bp, bundle, sha = ingested
+    bp, bundle, source = ingested
     repo = TemplateRepository(session)
 
-    template_id = repo.create(bp, bundle, sha)
+    template_id = repo.create(bp, bundle, source)
 
-    assert links_of(session, repo.current_version(template_id).id) == collect_assets_ids(bp)
+    links = links_of(session, repo.current_version(template_id).id)
+
+    assert links == collect_assets_ids(bp) | {source.sha256}
+    assert session.execute(select(template_version_asset_m2m)).all(), "linked at version level"
 
 
 def test_create_ignores_bundle_entries_the_blueprint_does_not_reference(session: Session, ingested):
     """A parsed-but-dropped image must not leave an orphan BLOB behind."""
-    bp, bundle, sha = ingested
+    bp, bundle, source = ingested
     padded = dict(bundle) | {
         "deadbeef": AssetBlob(sha256="deadbeef", mime_type="image/png", data=b"unused"),
     }
 
-    TemplateRepository(session).create(bp, padded, sha)
+    TemplateRepository(session).create(bp, padded, source)
 
     assert session.get(Asset, "deadbeef") is None
-    assert len(session.scalars(select(Asset)).all()) == 1
+    assert len(session.scalars(select(Asset)).all()) == 2      # the image + the source .docx
 
 
 def test_two_templates_sharing_an_image_store_one_blob(session: Session, ingested):
-    bp, bundle, sha = ingested
+    bp, bundle, source = ingested
     repo = TemplateRepository(session)
 
-    repo.create(bp, bundle, sha)
-    repo.create(bp, bundle, sha)
+    repo.create(bp, bundle, source)
+    repo.create(bp, bundle, source)
 
-    assert len(session.scalars(select(Asset)).all()) == 1
+    assert len(session.scalars(select(Asset)).all()) == 2      # deduped image + source
     assert len(session.scalars(select(Template)).all()) == 2
+
+
+# --- the source document -----------------------------------------------------
+
+def test_the_source_docx_is_stored_alongside_the_images(session: Session, ingested):
+    bp, bundle, source = ingested
+
+    TemplateRepository(session).create(bp, bundle, source)
+
+    stored = session.get(Asset, source.sha256)
+    assert stored.data == source.data
+    assert stored.mime_type.endswith("wordprocessingml.document")
+
+
+def test_the_source_is_linked_to_the_version(session: Session, ingested):
+    """Linked like any other asset, so the orphan sweep needs no special case."""
+    bp, bundle, source = ingested
+    repo = TemplateRepository(session)
+
+    template_id = repo.create(bp, bundle, source)
+
+    links = links_of(session, repo.current_version(template_id).id)
+    assert links == collect_assets_ids(bp) | {source.sha256}
+
+
+def test_get_source_returns_the_original_file(session: Session, ingested):
+    bp, bundle, source = ingested
+    repo = TemplateRepository(session)
+
+    template_id = repo.create(bp, bundle, source)
+    session.expunge_all()
+
+    restored = repo.get_source(template_id)
+    assert restored.data == source.data
+    assert restored.sha256 == source.sha256
+
+
+def test_get_source_can_fetch_an_older_version(session: Session, ingested, other_ingested):
+    bp, bundle, source = ingested
+    other_bp, other_bundle, other_source = other_ingested
+    repo = TemplateRepository(session)
+
+    template_id = repo.create(bp, bundle, source)
+    repo.add_version(template_id, other_bp, other_bundle, other_source)
+
+    assert repo.get_source(template_id, 1).sha256 == source.sha256
+    assert repo.get_source(template_id).sha256 == other_source.sha256
+
+
+def test_get_source_raises_for_an_unknown_version(session: Session, ingested):
+    bp, bundle, source = ingested
+    repo = TemplateRepository(session)
+    template_id = repo.create(bp, bundle, source)
+
+    with pytest.raises(EntityNotFound):
+        repo.get_source(template_id, 99)
+
+
+def test_deleting_a_template_collects_its_source_document(session: Session, ingested):
+    bp, bundle, source = ingested
+    repo = TemplateRepository(session)
+    template_id = repo.create(bp, bundle, source)
+
+    repo.delete(template_id)
+
+    assert session.get(Asset, source.sha256) is None
+
+
+def test_a_source_shared_by_two_templates_survives_the_first_delete(session: Session, ingested):
+    """Two templates imported from the same file share one stored .docx."""
+    bp, bundle, source = ingested
+    repo = TemplateRepository(session)
+    first, second = repo.create(bp, bundle, source), repo.create(bp, bundle, source)
+
+    repo.delete(first)
+    assert session.get(Asset, source.sha256) is not None
+
+    repo.delete(second)
+    assert session.get(Asset, source.sha256) is None
 
 
 def test_get_raises_for_unknown_template(session: Session):
@@ -247,51 +329,51 @@ def test_current_version_raises_when_there_are_none(session: Session):
 
 def test_add_version_appends_and_returns_the_new_number(session: Session,
                                                         ingested, other_ingested):
-    bp, bundle, sha = ingested
-    other_bp, other_bundle, other_sha = other_ingested
+    bp, bundle, source = ingested
+    other_bp, other_bundle, other_source = other_ingested
     repo = TemplateRepository(session)
-    template_id = repo.create(bp, bundle, sha)
+    template_id = repo.create(bp, bundle, source)
 
-    version = repo.add_version(template_id, other_bp, other_bundle, other_sha)
+    version = repo.add_version(template_id, other_bp, other_bundle, other_source)
 
     assert version == 2
     assert versions_of(session, template_id) == [1, 2]
 
 
 def test_get_returns_the_newest_version(session: Session, ingested, other_ingested):
-    bp, bundle, sha = ingested
-    other_bp, other_bundle, other_sha = other_ingested
+    bp, bundle, source = ingested
+    other_bp, other_bundle, other_source = other_ingested
     repo = TemplateRepository(session)
-    template_id = repo.create(bp, bundle, sha)
+    template_id = repo.create(bp, bundle, source)
 
-    repo.add_version(template_id, other_bp, other_bundle, other_sha)
+    repo.add_version(template_id, other_bp, other_bundle, other_source)
     session.expunge_all()
 
     assert repo.get(template_id) == other_bp
 
 
 def test_each_version_links_its_own_assets(session: Session, ingested, other_ingested):
-    bp, bundle, sha = ingested
-    other_bp, other_bundle, other_sha = other_ingested
+    bp, bundle, source = ingested
+    other_bp, other_bundle, other_source = other_ingested
     repo = TemplateRepository(session)
-    template_id = repo.create(bp, bundle, sha)
+    template_id = repo.create(bp, bundle, source)
     first = repo.current_version(template_id).id
 
-    repo.add_version(template_id, other_bp, other_bundle, other_sha)
+    repo.add_version(template_id, other_bp, other_bundle, other_source)
     second = repo.current_version(template_id).id
 
-    assert links_of(session, first) == collect_assets_ids(bp)
-    assert links_of(session, second) == collect_assets_ids(other_bp)
-    assert links_of(session, first) != links_of(session, second)
+    assert links_of(session, first) == collect_assets_ids(bp) | {source.sha256}
+    assert links_of(session, second) == collect_assets_ids(other_bp) | {other_source.sha256}
+    assert links_of(session, first).isdisjoint(links_of(session, second))
 
 
 def test_history_is_pruned_to_the_retention_limit(session: Session, ingested):
-    bp, bundle, sha = ingested
+    bp, bundle, source = ingested
     repo = TemplateRepository(session)
-    template_id = repo.create(bp, bundle, sha)
+    template_id = repo.create(bp, bundle, source)
 
     for _ in range(repo.KEEP_VERSIONS + 2):
-        repo.add_version(template_id, bp, bundle, sha)
+        repo.add_version(template_id, bp, bundle, source)
 
     kept = versions_of(session, template_id)
     assert len(kept) == repo.KEEP_VERSIONS
@@ -301,13 +383,13 @@ def test_history_is_pruned_to_the_retention_limit(session: Session, ingested):
 def test_pruning_drops_the_asset_links_of_removed_versions(session: Session,
                                                            ingested, other_ingested):
     """An image used only by a pruned version must not keep its BLOB alive."""
-    bp, bundle, sha = ingested
-    other_bp, other_bundle, other_sha = other_ingested
+    bp, bundle, source = ingested
+    other_bp, other_bundle, other_source = other_ingested
     repo = TemplateRepository(session)
 
-    template_id = repo.create(other_bp, other_bundle, other_sha)   # v1 uses the other image
+    template_id = repo.create(other_bp, other_bundle, other_source)   # v1 uses the other image
     for _ in range(repo.KEEP_VERSIONS):
-        repo.add_version(template_id, bp, bundle, sha)             # push v1 out of retention
+        repo.add_version(template_id, bp, bundle, source)             # push v1 out of retention
 
     (dropped_asset,) = collect_assets_ids(other_bp)
     (kept_asset,) = collect_assets_ids(bp)
@@ -317,24 +399,24 @@ def test_pruning_drops_the_asset_links_of_removed_versions(session: Session,
 
 
 def test_an_asset_shared_by_two_versions_survives_pruning_one(session: Session, ingested):
-    bp, bundle, sha = ingested
+    bp, bundle, source = ingested
     repo = TemplateRepository(session)
-    template_id = repo.create(bp, bundle, sha)
+    template_id = repo.create(bp, bundle, source)
     (asset_sha,) = collect_assets_ids(bp)
 
     for _ in range(repo.KEEP_VERSIONS + 1):
-        repo.add_version(template_id, bp, bundle, sha)
+        repo.add_version(template_id, bp, bundle, source)
 
     assert session.get(Asset, asset_sha) is not None
 
 
 def test_restore_copies_an_old_version_forward(session: Session, ingested, other_ingested):
     """History stays append-only: restoring v1 creates a new newest version."""
-    bp, bundle, sha = ingested
-    other_bp, other_bundle, other_sha = other_ingested
+    bp, bundle, source = ingested
+    other_bp, other_bundle, other_source = other_ingested
     repo = TemplateRepository(session)
-    template_id = repo.create(bp, bundle, sha)
-    repo.add_version(template_id, other_bp, other_bundle, other_sha)
+    template_id = repo.create(bp, bundle, source)
+    repo.add_version(template_id, other_bp, other_bundle, other_source)
 
     version = repo.restore(template_id, 1)
     session.expunge_all()
@@ -345,21 +427,21 @@ def test_restore_copies_an_old_version_forward(session: Session, ingested, other
 
 
 def test_restore_carries_the_original_source_hash(session: Session, ingested, other_ingested):
-    bp, bundle, sha = ingested
-    other_bp, other_bundle, other_sha = other_ingested
+    bp, bundle, source = ingested
+    other_bp, other_bundle, other_source = other_ingested
     repo = TemplateRepository(session)
-    template_id = repo.create(bp, bundle, sha)
-    repo.add_version(template_id, other_bp, other_bundle, other_sha)
+    template_id = repo.create(bp, bundle, source)
+    repo.add_version(template_id, other_bp, other_bundle, other_source)
 
     repo.restore(template_id, 1)
 
-    assert repo.current_version(template_id).source_sha256 == sha
+    assert repo.current_version(template_id).source_sha256 == source.sha256
 
 
 def test_restore_raises_for_an_unknown_version(session: Session, ingested):
-    bp, bundle, sha = ingested
+    bp, bundle, source = ingested
     repo = TemplateRepository(session)
-    template_id = repo.create(bp, bundle, sha)
+    template_id = repo.create(bp, bundle, source)
 
     with pytest.raises(EntityNotFound):
         repo.restore(template_id, 99)
@@ -368,9 +450,9 @@ def test_restore_raises_for_an_unknown_version(session: Session, ingested):
 # --- delete + asset GC -------------------------------------------------------
 
 def test_delete_removes_the_template_its_versions_and_links(session: Session, ingested):
-    bp, bundle, sha = ingested
+    bp, bundle, source = ingested
     repo = TemplateRepository(session)
-    template_id = repo.create(bp, bundle, sha)
+    template_id = repo.create(bp, bundle, source)
 
     repo.delete(template_id)
 
@@ -380,9 +462,9 @@ def test_delete_removes_the_template_its_versions_and_links(session: Session, in
 
 
 def test_delete_collects_the_now_orphaned_asset(session: Session, ingested):
-    bp, bundle, sha = ingested
+    bp, bundle, source = ingested
     repo = TemplateRepository(session)
-    template_id = repo.create(bp, bundle, sha)
+    template_id = repo.create(bp, bundle, source)
 
     repo.delete(template_id)
 
@@ -391,9 +473,9 @@ def test_delete_collects_the_now_orphaned_asset(session: Session, ingested):
 
 def test_shared_asset_survives_until_its_last_template_is_deleted(session: Session, ingested):
     """The reference-counting rule: an asset dies only with its final referent."""
-    bp, bundle, sha = ingested
+    bp, bundle, source = ingested
     repo = TemplateRepository(session)
-    first, second = repo.create(bp, bundle, sha), repo.create(bp, bundle, sha)
+    first, second = repo.create(bp, bundle, source), repo.create(bp, bundle, source)
     (asset_sha,) = collect_assets_ids(bp)
 
     repo.delete(first)
@@ -411,8 +493,8 @@ def test_delete_raises_for_unknown_template(session: Session):
 # --- asset provider (render side) --------------------------------------------
 
 def test_db_asset_provider_reads_back_a_saved_blob(session: Session, ingested):
-    bp, bundle, sha = ingested
-    TemplateRepository(session).create(bp, bundle, sha)
+    bp, bundle, source = ingested
+    TemplateRepository(session).create(bp, bundle, source)
     (asset_sha,) = collect_assets_ids(bp)
 
     asset = DbAssetProvider(session).get(asset_sha)
@@ -503,7 +585,7 @@ def test_ingest_reports_the_source_hash(session: Session, seeded_inputs, make_do
 
     result = service.ingest(path)
 
-    assert result.source_sha256 == hash_bytes(path.read_bytes())
+    assert result.source.sha256 == hash_bytes(path.read_bytes())
 
 
 def test_commit_persists_the_reviewed_draft(session: Session, seeded_inputs,
@@ -514,7 +596,7 @@ def test_commit_persists_the_reviewed_draft(session: Session, seeded_inputs,
     template_id = service.commit(service.ingest(path))
 
     assert session.get(Template, template_id) is not None
-    assert len(session.scalars(select(Asset)).all()) == 1
+    assert len(session.scalars(select(Asset)).all()) == 2      # the image + the source .docx
     assert "org_name" in TemplateRepository(session).get(template_id).placeholders
 
 

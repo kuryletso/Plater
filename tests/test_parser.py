@@ -50,6 +50,28 @@ def test_missing_document_part_raises_format_error(tmp_path):
         DocxParser(bogus, diagnostics=DiagnosticCollector())
 
 
+@pytest.mark.parametrize(
+    "content",
+    [
+        pytest.param(b"just some text", id="plain-text"),
+        pytest.param(b"", id="empty-file"),
+        pytest.param(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n", id="pdf-renamed"),
+        pytest.param(b"PK\x03\x04 truncated", id="truncated-zip"),
+    ],
+)
+def test_a_file_that_is_not_a_zip_raises_format_error(tmp_path, content):
+    """Users pick the wrong file all the time; that must be a diagnostic, not a crash.
+
+    Regression: BadZipFile escaped the parser, so it was never wrapped into an
+    IngestionError and reached the caller raw.
+    """
+    path = tmp_path / "not_really.docx"
+    path.write_bytes(content)
+
+    with pytest.raises(ParserFormatError):
+        DocxParser(path, diagnostics=DiagnosticCollector())
+
+
 # --- relationship target normalization (regression for the '..' fix) ---
 
 

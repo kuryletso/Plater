@@ -142,6 +142,20 @@ def test_placeholder_survives_a_style_change_mid_placeholder(runs, make_runs, fi
     assert result.diagnostics.warnings == []
 
 
+def test_a_non_docx_file_is_wrapped_in_an_ingestion_error(tmp_path, fixture_provider):
+    """The GUI file picker will hand us arbitrary files; the pipeline must not leak raw errors."""
+    path = tmp_path / "holiday_photo.docx"
+    path.write_bytes(b"\xff\xd8\xff\xe0 JPEG data")
+
+    pipeline = TemplateIngestionPipeline(fixture_provider)
+
+    with pytest.raises(IngestionError) as excinfo:
+        pipeline.ingest(path)
+
+    assert excinfo.value.layer is Layer.ORCHESTRATION
+    assert isinstance(excinfo.value.__cause__, ParserError)
+
+
 def test_uppercase_placeholder_key_resolves(make_docx, fixture_provider):
     """Regression: a real template wrote {{ ORG_NAME }} and it was silently rejected."""
     path = make_docx(paragraphs=["Provider {{ ORG_NAME }}"])

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 from docx import Document
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session
 
 from app.core.diagnostics import DiagnosticCollector
@@ -288,6 +288,15 @@ def session() -> Session:
     """In-memory SQLite with the full schema and seeded reference data."""
 
     engine = create_engine("sqlite://")
+
+    # match production (app.db.session enables this per connection): without it SQLite
+    # silently accepts rows whose foreign keys point at nothing.
+    @event.listens_for(engine, "connect")
+    def _enable_foreign_keys(dbapi_connection, _):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
     Base.metadata.create_all(engine)
 
     with Session(engine) as s:
