@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.db.models.core.assets import Asset
 from app.db.models.core.template import Template
 from app.db.models.core.template_version import TemplateVersion
+from app.services.errors import InvalidSelection
 from app.services.template import defaults as defaults_module
 from app.services.template.defaults import seed_default_templates
 from app.services.template.repository import TemplateRepository
@@ -151,8 +152,7 @@ def test_a_deactivated_default_is_not_resurrected(session: Session, shipped, mak
     shipped([entry("a", "a.docx")], {"a.docx": ["A {{ org_name }}"]})
     (created,) = seed_default_templates(session)
 
-    session.get(Template, created.template_id).active = False
-    session.commit()
+    TemplateRepository(session).deactivate(created.template_id)
 
     shutil.copy(make_docx(paragraphs=["A {{ org_name }} revised"], name="a.docx"),
                 shipped.dir / "a.docx")
@@ -186,6 +186,19 @@ def test_one_broken_template_does_not_block_the_others(session: Session, shipped
 
 
 # --- assets ------------------------------------------------------------------
+
+def test_a_seeded_default_is_read_only_but_copyable(session: Session, shipped):
+    """The end state of steps 5 and 6: shipped defaults can be used and copied, not edited."""
+    shipped([entry("a", "a.docx")], {"a.docx": ["A {{ org_name }}"]})
+    (result,) = seed_default_templates(session)
+    repo = TemplateRepository(session)
+
+    with pytest.raises(InvalidSelection):
+        repo.delete(result.template_id)
+
+    copy_id = repo.copy(result.template_id, "My invoice")
+    assert session.get(Template, copy_id).system is False
+
 
 def test_the_source_docx_of_each_default_is_stored(session: Session, shipped):
     shipped([entry("a", "a.docx")], {"a.docx": ["A {{ org_name }}"]})

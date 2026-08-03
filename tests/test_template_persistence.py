@@ -21,7 +21,7 @@ from app.document_engine.blueprint.models.template import TemplateBlueprint, Tem
 from app.document_engine.blueprint.serialize import dump_blueprint, load_blueprint
 from app.document_engine.enums.enums import PlaceholderType
 from app.document_engine.orchestration.pipeline import TemplateIngestionPipeline
-from app.services.errors import EntityNotFound
+from app.services.errors import EntityNotFound, InvalidSelection
 from app.services.template.db_input_provider import DbTemplateInputProvider
 from app.services.template.import_service import TemplateImportService
 from app.services.template.repository import TemplateRepository
@@ -445,6 +445,205 @@ def test_restore_raises_for_an_unknown_version(session: Session, ingested):
 
     with pytest.raises(EntityNotFound):
         repo.restore(template_id, 99)
+
+
+# --- copy --------------------------------------------------------------------
+
+def test_copy_creates_an_editable_user_owned_template(session: Session, ingested):
+    """Defaults are read-only; users work on a copy."""
+    bp, bundle, source = ingested
+    repo = TemplateRepository(session)
+    origin = repo.create(bp, bundle, source, code="default_invoice", system=True)
+
+    copy_id = repo.copy(origin, "My invoice")
+
+    row = session.get(Template, copy_id)
+    assert copy_id != origin
+    assert row.name == "My invoice"
+    assert row.system is False
+    assert row.code is None
+    assert row.type == session.get(Template, origin).type
+
+
+def test_copy_starts_its_own_history_at_version_one(session: Session, ingested, other_ingested):
+    bp, bundle, source = ingested
+    other_bp, other_bundle, other_source = other_ingested
+    repo = TemplateRepository(session)
+    origin = repo.create(bp, bundle, source)
+    repo.add_version(origin, other_bp, other_bundle, other_source)
+
+    copy_id = repo.copy(origin, "My invoice")
+
+    assert versions_of(session, copy_id) == [1]
+    assert versions_of(session, origin) == [1, 2]
+
+
+def test_copy_takes_the_current_version_of_the_origin(session: Session,
+                                                      ingested, other_ingested):
+    bp, bundle, source = ingested
+    other_bp, other_bundle, other_source = other_ingested
+    repo = TemplateRepository(session)
+    origin = repo.create(bp, bundle, source)
+    repo.add_version(origin, other_bp, other_bundle, other_source)
+
+    copy_id = repo.copy(origin, "My invoice")
+    session.expunge_all()
+
+    copied = repo.get(copy_id)                    # the newest, not the original v1
+    assert copied.sections == other_bp.sections
+    assert copied.placeholders == other_bp.placeholders
+
+
+def test_copy_renames_the_config_to_match_the_template(session: Session, ingested):
+    """Otherwise Template.name and blueprint.config.name disagree."""
+    bp, bundle, source = ingested
+    repo = TemplateRepository(session)
+    origin = repo.create(bp, bundle, source)
+
+    copy_id = repo.copy(origin, "My invoice")
+    session.expunge_all()
+
+    assert repo.get(copy_id).config.name == "My invoice"
+
+
+def test_copy_shares_asset_blobs_rather_than_duplicating_them(session: Session, ingested):
+    bp, bundle, source = ingested
+    repo = TemplateRepository(session)
+    origin = repo.create(bp, bundle, source)
+    before = len(session.scalars(select(Asset)).all())
+
+    copy_id = repo.copy(origin, "My invoice")
+
+    assert len(session.scalars(select(Asset)).all()) == before
+    assert links_of(session, repo.current_version(copy_id).id) == \
+        links_of(session, repo.current_version(origin).id)
+
+
+def test_the_copy_can_restore_its_source_document(session: Session, ingested):
+    bp, bundle, source = ingested
+    repo = TemplateRepository(session)
+    origin = repo.create(bp, bundle, source)
+
+    copy_id = repo.copy(origin, "My invoice")
+
+    assert repo.get_source(copy_id).data == source.data
+
+
+def test_deleting_the_origin_leaves_the_copy_intact(session: Session, ingested):
+    """Reference counting: shared blobs survive while the copy still needs them."""
+    bp, bundle, source = ingested
+    repo = TemplateRepository(session)
+    origin = repo.create(bp, bundle, source)
+    copy_id = repo.copy(origin, "My invoice")
+
+    repo.delete(origin)
+    session.expunge_all()
+
+    copied = repo.get(copy_id)
+    assert copied.sections == bp.sections          # only config.name is rewritten
+    assert copied.placeholders == bp.placeholders
+    assert repo.get_source(copy_id).data == source.data
+
+
+def test_copy_raises_for_an_unknown_template(session: Session):
+    with pytest.raises(EntityNotFound):
+        TemplateRepository(session).copy(9999, "My invoice")
+
+
+# --- built-in templates are read-only ----------------------------------------
+
+def test_a_built_in_template_cannot_be_edited(session: Session, ingested, other_ingested):
+    bp, bundle, source = ingested
+    other_bp, other_bundle, other_source = other_ingested
+    repo = TemplateRepository(session)
+    template_id = repo.create(bp, bundle, source, code="default_invoice", system=True)
+
+    with pytest.raises(InvalidSelection):
+        repo.add_version(template_id, other_bp, other_bundle, other_source)
+
+    assert versions_of(session, template_id) == [1]
+
+
+def test_a_built_in_template_cannot_be_rolled_back(session: Session, ingested):
+    """restore() is editing too, so the same rule applies."""
+    bp, bundle, source = ingested
+    repo = TemplateRepository(session)
+    template_id = repo.create(bp, bundle, source, code="default_invoice", system=True)
+
+    with pytest.raises(InvalidSelection):
+        repo.restore(template_id, 1)
+
+
+def test_a_built_in_template_cannot_be_deleted(session: Session, ingested):
+    """Otherwise 'delete' would silently mean 'reset to factory' on the next launch."""
+    bp, bundle, source = ingested
+    repo = TemplateRepository(session)
+    template_id = repo.create(bp, bundle, source, code="default_invoice", system=True)
+
+    with pytest.raises(InvalidSelection):
+        repo.delete(template_id)
+
+    assert session.get(Template, template_id) is not None
+
+
+def test_a_built_in_template_can_be_hidden(session: Session, ingested):
+    bp, bundle, source = ingested
+    repo = TemplateRepository(session)
+    template_id = repo.create(bp, bundle, source, code="default_invoice", system=True)
+
+    repo.deactivate(template_id)
+    assert session.get(Template, template_id).active is False
+
+    repo.activate(template_id)
+    assert session.get(Template, template_id).active is True
+
+
+def test_a_built_in_template_can_still_be_copied(session: Session, ingested):
+    """Copying is how users get an editable version — it must not be blocked."""
+    bp, bundle, source = ingested
+    repo = TemplateRepository(session)
+    template_id = repo.create(bp, bundle, source, code="default_invoice", system=True)
+
+    copy_id = repo.copy(template_id, "My invoice")
+
+    assert session.get(Template, copy_id).system is False
+
+
+def test_the_copy_of_a_built_in_is_editable(session: Session, ingested, other_ingested):
+    bp, bundle, source = ingested
+    other_bp, other_bundle, other_source = other_ingested
+    repo = TemplateRepository(session)
+    origin = repo.create(bp, bundle, source, code="default_invoice", system=True)
+    copy_id = repo.copy(origin, "My invoice")
+
+    assert repo.add_version(copy_id, other_bp, other_bundle, other_source) == 2
+
+
+# --- the seeder's privileged path --------------------------------------------
+
+def test_sync_updates_a_built_in_template(session: Session, ingested, other_ingested):
+    bp, bundle, source = ingested
+    other_bp, other_bundle, other_source = other_ingested
+    repo = TemplateRepository(session)
+    template_id = repo.create(bp, bundle, source, code="default_invoice", system=True)
+
+    version = repo.sync_system_version(template_id, other_bp, other_bundle, other_source)
+
+    assert version == 2
+    assert versions_of(session, template_id) == [1, 2]
+
+
+def test_sync_refuses_a_user_template(session: Session, ingested, other_ingested):
+    """The reverse guard: a seeder bug must not overwrite someone's own work."""
+    bp, bundle, source = ingested
+    other_bp, other_bundle, other_source = other_ingested
+    repo = TemplateRepository(session)
+    template_id = repo.create(bp, bundle, source)          # user-owned, no code
+
+    with pytest.raises(InvalidSelection):
+        repo.sync_system_version(template_id, other_bp, other_bundle, other_source)
+
+    assert versions_of(session, template_id) == [1]
 
 
 # --- delete + asset GC -------------------------------------------------------

@@ -194,6 +194,7 @@ def test_missing_optional_placeholder_warns_and_blanks():
 
 
 def test_joined_placeholder_joins_present_values():
+    """Emitted as one run per part so each placeholder keeps its own provenance."""
     seg = JoinedPlaceholderSegment(
         type="placeholder_join",
         items=(ph_seg("first"), ph_seg("last")),
@@ -203,7 +204,10 @@ def test_joined_placeholder_joins_present_values():
     ctx = RenderContext(scalars={"first": {"ENG": "Ada"}, "last": {"ENG": "Lovelace"}})
 
     doc, _ = resolve(bp, ctx)
-    assert doc.sections[0].blocks[0].runs[0].text == "Ada Lovelace"
+
+    runs = doc.sections[0].blocks[0].runs
+    assert "".join(r.text for r in runs) == "Ada Lovelace"
+    assert [r.placeholder_key for r in runs] == ["first", None, "last"]
 
 
 def test_image_resolves_when_present_and_warns_when_missing():
