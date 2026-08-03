@@ -63,3 +63,17 @@ class TemplateImportService:
         return self._repo.add_version(
             template_id, blueprint, result.assets, result.source,
         )
+
+
+    def sync_default(
+            self,
+            template_id: int,
+            result: IngestionResult,
+    ) -> int:
+        """Append a new version to shipped default tempalte. Seeding only."""
+
+        blueprint = self._pipeline.finalize(result.draft)
+
+        return self._repo.sync_system_version(
+            template_id, blueprint, result.assets, result.source,
+        )

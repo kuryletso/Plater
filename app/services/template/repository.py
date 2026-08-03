@@ -14,8 +14,7 @@ from app.db.models.core.template_version import TemplateVersion
 from app.document_engine.blueprint.models.template import TemplateBlueprint
 from app.document_engine.blueprint.assets import collect_assets_ids
 from app.document_engine.blueprint.serialize import dump_blueprint, load_blueprint
-from app.services.errors import EntityNotFound
-
+from app.services.errors import EntityNotFound, InvalidSelection
 
 class TemplateRepository:
 
@@ -59,16 +58,17 @@ class TemplateRepository:
             bundle: Mapping[str, AssetBlob],
             source: AssetBlob,
     ) -> int:
+        """Append a user-authored version. Built-in templates are read-only."""
 
-        current = self.current_version(template_id)
-        version = current.version + 1
+        if self._template(template_id).system:
+            raise InvalidSelection(
+                f"template {template_id} is built in and cannot be edited",
+                user_message="This is a built-in template. Make a copy to edit it.",
+                context={"template_id": template_id},
+            )
 
-        self._add_version(template_id, version, blueprint, bundle, source)
-        self._prune(template_id)
-        self._collect_orphans()
-        self._session.commit()
+        return self._append_version(template_id, blueprint, bundle, source)
 
-        return version
 
     def _add_version(
             self,
@@ -109,6 +109,42 @@ class TemplateRepository:
         return row
 
 
+    def sync_system_version(
+            self,
+            template_id: int,
+            blueprint: TemplateBlueprint,
+            bundle: Mapping[str, AssetBlob],
+            source: AssetBlob,
+    ) -> int:
+        """Update a shipped default from its new .docx. Seeding only."""
+
+        if not self._template(template_id).system:
+            raise InvalidSelection(
+                f"template {template_id} is not built-in template",
+                context={"template_id": template_id},
+            )
+
+        return self._append_version(template_id, blueprint, bundle, source)
+
+
+    def _append_version(
+            self,
+            template_id: int,
+            blueprint: TemplateBlueprint,
+            bundle: Mapping[str, AssetBlob],
+            source: AssetBlob,
+    ) -> int:
+
+        version = self.current_version(template_id).version + 1
+
+        self._add_version(template_id, version, blueprint, bundle, source)
+        self._prune(template_id)
+        self._collect_orphans()
+        self._session.commit()
+
+        return version
+
+
     def current_version(self, template_id: int) -> TemplateVersion:
         row = self._session.scalars(
             select(TemplateVersion)
@@ -130,6 +166,20 @@ class TemplateRepository:
         return load_blueprint(row.sections, row.placeholders, row.config)
 
 
+    def _template(
+            self,
+            template_id: int,
+    ) -> Template:
+
+        template = self._session.get(Template, template_id)
+        if template is None:
+            raise EntityNotFound(
+                f"template {template_id} not found",
+                context={"template_id": template_id},
+            )
+        return template
+
+
     def restore(self, template_id: int, version: int) -> int:
         """Copy an old version forward as the newest, history stays append-only."""
 
@@ -143,11 +193,12 @@ class TemplateRepository:
 
     def delete(self, template_id: int) -> None:
 
-        template = self._session.get(Template, template_id)
+        template = self._template(template_id)
 
-        if template is None:
-            raise EntityNotFound(
-                f"template {template_id} not found",
+        if template.system:
+            raise InvalidSelection(
+                f"template {template_id} is built in and cannot be deleted",
+                user_message="Built-int templates can only be hidden, not deleted.",
                 context={"template_id": template_id},
             )
 
@@ -233,3 +284,76 @@ class TemplateRepository:
             else self._version(template_id, version)
 
         return self._source_blob(row.source_sha256)
+
+
+    def copy(
+            self,
+            template_id: int,
+            name: str,
+    ) -> int:
+        """Derive an editable, user-owned template from an existing one.
+        
+        Only the current version is copied, the copy starts its own history.
+        Assets are shared by hash, so nothing is duplicated in storage.
+        """
+
+        origin = self._template(template_id)
+
+        current = self.current_version(template_id)
+
+        template = Template(
+            code=None,
+            name=name,
+            type=origin.type,
+            system=False,
+        )
+
+        self._session.add(template)
+        self._session.flush()
+
+        row = TemplateVersion(
+            template_id=template.id,
+            version=1,
+            source_sha256=current.source_sha256,
+            sections=current.sections,
+            placeholders=current.placeholders,
+            config=dict(current.config) | {"name": name},
+        )
+        self._session.add(row)
+        self._session.flush()
+
+        linked = self._session.execute(
+            select(template_version_asset_m2m.c.asset_sha256)
+            .where(template_version_asset_m2m.c.template_version_id == current.id)
+        ).scalars().all()
+
+        for sha in linked:
+            self._session.execute(
+                template_version_asset_m2m.insert().values(
+                    template_version_id=row.id,
+                    asset_sha256=sha,
+                )
+            )
+
+        self._session.commit()
+
+        return template.id
+
+
+    def deactivate(
+            self,
+            template_id: int,
+    ) -> None:
+        """Hide a template without destroying it. The only removal flow for built-ins."""
+
+        self._template(template_id).active = False
+        self._session.commit()
+
+
+    def activate(
+            self,
+            template_id: int,
+    ) -> None:
+
+        self._template(template_id).active = True
+        self._session.commit()

@@ -87,7 +87,7 @@ def seed_default_templates(session: Session) -> list[TemplateSeedResult]:
                 template_id = service.commit(ingested, code=code, system=True)
                 action = "created"
             else:
-                service.update(template.id, ingested)
+                service.sync_default(template.id, ingested)
                 template_id, action = template.id, "updated"
 
         except AppError as e:
