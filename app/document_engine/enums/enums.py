@@ -77,3 +77,8 @@ class PlaceholderType(StrEnum):
 class MoneySymbolPosition(StrEnum):
     PREFIX = "prefix"
     SUFFIX = "suffix"
+
+
+class ResolveMode(StrEnum):
+    VALUES = "values"
+    KEYS = "keys"

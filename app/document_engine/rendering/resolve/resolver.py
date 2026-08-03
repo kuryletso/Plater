@@ -32,6 +32,8 @@ from app.document_engine.rendering.resolve.models import (
     ResolvedHeaderFooter, ResolvedHeaderFooterGroup,
 )
 from app.document_engine.rendering.resolve.invoice_table import build_invoice_table
+from app.document_engine.rendering.resolve.raw import placeholder_syntax, raw_table_data, RAW_SINGLE_ROW
+from app.document_engine.enums.enums import ResolveMode
 
 
 class DocumentResolver:
@@ -41,11 +43,13 @@ class DocumentResolver:
         context: RenderContext,
         assets: AssetProvider,
         diagnostics: DiagnosticCollector,
+        mode: ResolveMode = ResolveMode.VALUES,
     ) -> None:
         
         self._context = context
         self._assets = assets
         self._diag = diagnostics
+        self._mode = mode
         self._required: dict[str, bool] = {}
 
 
@@ -158,6 +162,10 @@ class DocumentResolver:
     ) -> list[ResolvedRow]:
         
         table = self._context.table
+
+        if self._mode is ResolveMode.KEYS:
+            table = RAW_SINGLE_ROW
+
         if table is None:
             self._diag.warn(
                 Layer.RENDER,
@@ -209,7 +217,7 @@ class DocumentResolver:
         if isinstance(cell, CellPlaceholder):
             value = self._column_value(cell.key, cell.language, data_row)
             para = ResolvedParagraph(
-                runs=(ResolvedTextRun(text=value, style=cell.text_style),),
+                runs=(ResolvedTextRun(text=value, style=cell.text_style, placeholder_key=cell.key),),
                 style=cell.para_style,
             )
             return ResolvedCell(
@@ -225,6 +233,9 @@ class DocumentResolver:
         language: str,
         data_row,
     ) -> str:
+
+        if self._mode is ResolveMode.KEYS:
+            return placeholder_syntax(key)
         
         values = data_row.values.get(key)
         value = values.get(language) if values is not None else None
@@ -250,15 +261,30 @@ class DocumentResolver:
         if isinstance(block, TableBlueprint):
             return self._table(block)
         
+        # if isinstance(block, TablePlaceholder):
+        #     if self._context.table is None:
+        #         self._diag.warn(
+        #             Layer.RENDER,
+        #             "table_placeholder_no_data",
+        #             "invoice_table present but no table data provided; skipped.",
+        #         )
+        #         return None
+        #     return build_invoice_table(block, self._context.table)
+
         if isinstance(block, TablePlaceholder):
-            if self._context.table is None:
+            data = raw_table_data(block.language) \
+                if self._mode is ResolveMode.KEYS \
+                else self._context.table
+
+            if data is None:
                 self._diag.warn(
                     Layer.RENDER,
                     "table_placeholder_no_data",
                     "invoice_table present but no table data provided; skipped.",
                 )
                 return None
-            return build_invoice_table(block, self._context.table)
+
+            return build_invoice_table(block, data)
     
 
     def _segment_runs(
@@ -276,34 +302,39 @@ class DocumentResolver:
             return [ResolvedTextRun(
                 text=self._value(seg.key, seg.language),
                 style=seg.style,
+                placeholder_key=seg.key,
             )]
         
         if isinstance(seg, JoinedPlaceholderSegment):
-            parts = [
-                item.text if isinstance(item, TextSegment) \
-                else self._value(item.key, item.language) \
-                for item in seg.items
-            ]
-            text = seg.separator.join(p for p in parts if p)
-            return [ResolvedTextRun(text=text, style=seg.style)]
+            # parts = [
+            #     item.text if isinstance(item, TextSegment) \
+            #     else self._value(item.key, item.language) \
+            #     for item in seg.items
+            # ]
+            # text = seg.separator.join(p for p in parts if p)
+            # return [ResolvedTextRun(text=text, style=seg.style)]
+            
+            return self._joined_runs(seg)
         
         if isinstance(seg, GroupedPlaceholderSegment):
-            groups = []
-            for group in seg.items:
-                inner = [
-                    item.text if isinstance(item, TextSegment) \
-                    else self._value(item.key, item.language) \
-                    for item in group
-                ]
+            # groups = []
+            # for group in seg.items:
+            #     inner = [
+            #         item.text if isinstance(item, TextSegment) \
+            #         else self._value(item.key, item.language) \
+            #         for item in group
+            #     ]
 
-                joined = " ".join(p for p in inner) if all(inner) else None      # (!) empty string from db will drop whole group, Hardcoded value here
-                if joined:
-                    groups.append(joined)
+            #     joined = " ".join(p for p in inner) if all(inner) else None      # (!) empty string from db will drop whole group, Hardcoded value here
+            #     if joined:
+            #         groups.append(joined)
 
-            return [ResolvedTextRun(
-                text=seg.separator.join(groups),
-                style=seg.style,
-            )]
+            # return [ResolvedTextRun(
+            #     text=seg.separator.join(groups),
+            #     style=seg.style,
+            # )]
+
+            return self._grouped_runs(seg)
         
         if isinstance(seg, ImageSegment):
             asset = self._assets.get(seg.asset_id)
@@ -322,6 +353,53 @@ class DocumentResolver:
             )]
         
         return []
+
+
+    def _joined_runs(self, seg) -> list[ResolvedRun]:
+        runs: list[ResolvedRun] = []
+
+        for item in seg.items:
+            text, key = (item.text, None) \
+                if isinstance(item, TextSegment) \
+                else (self._value(item.key, item.language), item.key)
+
+            if not text:
+                continue
+
+            if runs:
+                runs.append(ResolvedTextRun(text=seg.separator, style=seg.style))
+
+            runs.append(ResolvedTextRun(
+                text=text, style=seg.style, placeholder_key=key,
+            ))
+
+        return runs
+
+
+    def _grouped_runs(self, seg) -> list[ResolvedRun]:
+        runs: list[ResolvedRun] = []
+
+        for group in seg.items:
+            resolved = [
+                (item.text, None) if isinstance(item, TextSegment)
+                else (self._value(item.key, item.language), item.key)
+                for item in group
+            ]
+
+            if not all(text for text, _ in resolved):
+                continue        # empty part drops the whole group
+
+            if runs:
+                runs.append(ResolvedTextRun(text=seg.separator, style=seg.style))
+
+            for index, (text, key) in enumerate(resolved):
+                if index:
+                    runs.append(ResolvedTextRun(text=" ", style=seg.style))
+                runs.append(ResolvedTextRun(
+                    text=text, style=seg.style, placeholder_key=key,
+                ))
+
+        return runs
     
 
     def _value(
@@ -329,6 +407,9 @@ class DocumentResolver:
         key: str,
         language: str,
     ) -> str:
+
+        if self._mode is ResolveMode.KEYS:
+            return placeholder_syntax(key)
         
         values = self._context.scalars.get(key)
         found = values.get(language) if values is not None else None

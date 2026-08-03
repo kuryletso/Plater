@@ -21,6 +21,8 @@ from .ports import TemplateInputProvider
 from .results import IngestionResult, RenderingResult
 from .errors import IngestionError, RenderingFailedError
 
+from app.document_engine.enums.enums import ResolveMode
+
 
 class TemplateIngestionPipeline:
     def __init__(
@@ -112,4 +114,32 @@ class TemplateRenderingPipeline:
                 context={"cause": e.code},
             ) from e
         
+        return RenderingResult(docx=docx, diagnostics=diagnostics)
+
+
+    def render_raw(
+            self,
+            blueprint: TemplateBlueprint,
+    ) -> RenderingResult:
+        """Render with placeholders left as '{{ key }} for export and preview."""
+
+        diagnostics = DiagnosticCollector()
+
+        try:
+            resolved = DocumentResolver(
+                RenderContext(),
+                self._assets,
+                diagnostics,
+                mode=ResolveMode.KEYS,
+            ).resolve(blueprint)
+            docx = DocxEmitter(diagnostics).emit(resolved)
+
+        except AppError as e:
+            diagnostics.record(e.as_diagnostic(Severity.ERROR))
+            raise RenderingFailedError(
+                f"Raw rendering failed in {e.layer}: {e}.",
+                user_message="The template could not be rendered.",
+                context={"cause": e.code},
+            ) from e
+
         return RenderingResult(docx=docx, diagnostics=diagnostics)
