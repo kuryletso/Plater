@@ -71,3 +71,5 @@ node_modules/
 
 # Local config overrides
 local_settings.py
+# Manual test script artefacts
+scripts/output/

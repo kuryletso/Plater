@@ -159,6 +159,164 @@ def test_every_body_run_inherits_the_default_size(make_styled_docx):
     assert [r.style.font_size for r in runs_of(blocks)] == [20, 20]
 
 
+# --- cell borders ------------------------------------------------------------
+#
+# Layout tables routinely suppress borders per cell (w:val="nil"), so a cell border
+# that is *absent* must stay absent — emitting a default would override the table's
+# own borders on every cell.
+
+def cell_borders_of(cell_element) -> dict[str, tuple[str, str, str]]:
+    borders = cell_element.find(f"{qn('w:tcPr')}/{qn('w:tcBorders')}")
+    if borders is None:
+        return {}
+    return {
+        etree.QName(side).localname: (
+            side.get(qn("w:val")), side.get(qn("w:sz")), side.get(qn("w:color")),
+        )
+        for side in borders
+    }
+
+
+def first_cell(table_element):
+    return table_element.find(f"{qn('w:tr')}/{qn('w:tc')}")
+
+
+def cell_style(**overrides):
+    from app.document_engine.blueprint.models.margins import MarginsBlueprint
+    from app.document_engine.blueprint.models.table import CellStyleBlueprint
+    from app.document_engine.enums.enums import TableCellShading, VerticalAlignment
+
+    base = dict(
+        shading=TableCellShading.CLEAR,
+        shading_fill="auto",
+        margins=MarginsBlueprint(top=0, bottom=0, left=100, right=100),
+        grid_span=1,
+        v_alignment=VerticalAlignment.TOP,
+    )
+    return CellStyleBlueprint(**(base | overrides))
+
+
+def border(style="single", size=8, color="000000"):
+    from app.document_engine.blueprint.models.table import TableBorderBlueprint
+    from app.document_engine.enums.enums import TableBorderStyleEnum
+
+    return TableBorderBlueprint(
+        style=TableBorderStyleEnum(style), size=size, color=color,
+    )
+
+
+def test_a_cell_without_borders_emits_no_tc_borders():
+    """Absent means 'inherit from the table', so nothing may be written."""
+    from app.document_engine.rendering.docx.table import build_cell
+
+    cell = build_cell(blocks=[], style=cell_style())
+
+    assert cell_borders_of(cell) == {}
+
+
+def test_cell_borders_are_emitted_with_width_and_colour():
+    from app.document_engine.rendering.docx.table import build_cell
+
+    cell = build_cell(blocks=[], style=cell_style(
+        border_top=border("single", 12, "FF0000"),
+        border_bottom=border("single", 12, "FF0000"),
+    ))
+
+    assert cell_borders_of(cell) == {
+        "top": ("single", "12", "FF0000"),
+        "bottom": ("single", "12", "FF0000"),
+    }
+
+
+def test_a_suppressed_cell_border_round_trips_as_nil():
+    """A layout cell hiding an inherited border must keep val='nil', not become 'none'."""
+    from app.document_engine.rendering.docx.table import build_cell
+
+    cell = build_cell(blocks=[], style=cell_style(
+        border_top=border("nil", 0, "000000"),
+        border_left=border("nil", 0, "000000"),
+        border_bottom=border("nil", 0, "000000"),
+        border_right=border("nil", 0, "000000"),
+    ))
+
+    assert cell_borders_of(cell) == {
+        side: ("nil", "0", "000000") for side in ("top", "left", "bottom", "right")
+    }
+
+
+def test_only_the_sides_that_were_set_are_emitted():
+    from app.document_engine.rendering.docx.table import build_cell
+
+    cell = build_cell(blocks=[], style=cell_style(border_bottom=border()))
+
+    assert list(cell_borders_of(cell)) == ["bottom"]
+
+
+def test_tc_borders_precedes_shading_in_the_cell_properties():
+    """CT_TcPr order is schema-significant: gridSpan, tcBorders, shd, tcMar, vAlign."""
+    from app.document_engine.rendering.docx.table import build_cell
+
+    cell = build_cell(blocks=[], style=cell_style(border_top=border()))
+    children = [etree.QName(c).localname for c in cell.find(qn("w:tcPr"))]
+
+    assert children.index("tcBorders") < children.index("shd")
+
+
+def test_cell_borders_are_parsed_from_a_real_document(tmp_path):
+    from docx import Document
+
+    from app.document_engine.parser.models.blocks import TableNode
+
+    document = Document()
+    table = document.add_table(rows=1, cols=1)
+    tc_pr = table.cell(0, 0)._tc.get_or_add_tcPr()
+    borders = etree.SubElement(tc_pr, qn("w:tcBorders"))
+    for side, val, size in (("w:top", "nil", "0"), ("w:bottom", "single", "18")):
+        element = etree.SubElement(borders, qn(side))
+        element.set(qn("w:val"), val)
+        element.set(qn("w:sz"), size)
+        element.set(qn("w:color"), "0000FF")
+
+    path = tmp_path / "cell_borders.docx"
+    document.save(path)
+
+    node = next(b for b in parse(path) if isinstance(b, TableNode))
+    style = node.rows[0].cells[0].style
+
+    assert (style.border_top.style, style.border_top.size) == ("nil", 0)
+    assert (style.border_bottom.style, style.border_bottom.size) == ("single", 18)
+    assert style.border_bottom.color == "0000FF"
+    assert style.border_left is None, "unset sides must stay unset"
+
+
+def test_cell_borders_survive_parse_to_render(tmp_path):
+    """End to end: a suppressed cell border must not reappear in the output."""
+    from docx import Document
+
+    from app.document_engine.normalization.structural_normalizer import StructuralNormalizer
+    from app.document_engine.parser.models.blocks import TableNode
+
+    document = Document()
+    table = document.add_table(rows=1, cols=1)
+    tc_pr = table.cell(0, 0)._tc.get_or_add_tcPr()
+    borders = etree.SubElement(tc_pr, qn("w:tcBorders"))
+    for side in ("w:top", "w:left", "w:bottom", "w:right"):
+        element = etree.SubElement(borders, qn(side))
+        element.set(qn("w:val"), "nil")
+        element.set(qn("w:sz"), "0")
+        element.set(qn("w:color"), "000000")
+
+    path = tmp_path / "layout.docx"
+    document.save(path)
+
+    sections = StructuralNormalizer.normalize(parse(path), DiagnosticCollector())
+    normalized = next(b for b in sections[0].blocks if not hasattr(b, "inlines"))
+    style = normalized.rows[0].cells[0].style
+
+    assert style.border_top is not None
+    assert style.border_top.style.value == "nil"
+
+
 # --- table column widths -----------------------------------------------------
 
 def grid_of(table_element) -> list[int]:
