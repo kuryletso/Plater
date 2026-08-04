@@ -108,6 +108,29 @@ def _build_tbl_grid(
     return grid
 
 
+def _build_tc_borders(
+        style: CellStyleBlueprint,
+) -> etree._Element | None:
+    """Only emitter for sides the template set, otherwise the table's borders inherit."""
+
+    sides = (
+        ("w:top", style.border_top),
+        ("w:left", style.border_left),
+        ("w:bottom", style.border_bottom),
+        ("w:right", style.border_right),
+    )
+
+    if all(border is None for _, border in sides):
+        return None
+
+    borders = etree.Element(qn("w:tcBorders"))
+    for tag, border in sides:
+        if border is not None:
+            borders.append(_build_border(tag, border))
+
+    return borders
+
+
 def build_cell(
     blocks: list[etree._Element],
     style: CellStyleBlueprint,
@@ -116,9 +139,13 @@ def build_cell(
     tc = etree.Element(qn("w:tc"))
     tc_pr = etree.SubElement(tc, qn("w:tcPr"))
 
-    # (!) CT_TcPr order: gridSpan, shd, tcMar, vAlign
+    # (!) CT_TcPr order: gridSpan, tcBorders, shd, tcMar, vAlign
     if style.grid_span > 1:
         etree.SubElement(tc_pr,qn("w:gridSpan")).set(qn("w:val"), str(style.grid_span))
+
+    borders = _build_tc_borders(style)
+    if borders is not None:
+        tc_pr.append(borders)
     
     shd = etree.SubElement(tc_pr, qn("w:shd"))
     shd.set(qn("w:val"), style.shading.value)

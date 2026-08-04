@@ -376,12 +376,16 @@ class StyleResolver:
         if inherited_margins is None:
             inherited_margins = table_style.margins
 
-        resolved = TableCellStyle(
-            shading=direct_style.shading,
-            shading_fill=direct_style.shading_fill,
-            margins=inherited_margins,
-            grid_span=direct_style.grid_span,
-            v_alignment=direct_style.v_alignment,
-        )
+        # resolved = TableCellStyle(
+        #     shading=direct_style.shading,
+        #     shading_fill=direct_style.shading_fill,
+        #     margins=inherited_margins,
+        #     grid_span=direct_style.grid_span,
+        #     v_alignment=direct_style.v_alignment,
+        #     border_top=direct_style.border_top,
+        #     border_left=direct_style.border_left,
+        #     border_bottom=direct_style.border_bottom,
+        #     border_right=direct_style.border_right,
+        # )
 
-        return resolved
+        return replace(direct_style, margins=inherited_margins)

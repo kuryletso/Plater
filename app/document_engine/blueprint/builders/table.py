@@ -61,12 +61,19 @@ def cell_style_bp_from_normalized(
     normalized: NormalizedCellStyle,
 ) -> CellStyleBlueprint:
     
+    def border(value):
+        return table_border_bp_from_normalized(value) if value is not None else None
+    
     return CellStyleBlueprint(
         shading=normalized.shading,
         shading_fill=normalized.shading_fill,
         margins=margins_bp_from_normalized(normalized.margins),
         grid_span=normalized.grid_span,
         v_alignment=normalized.v_alignment,
+        border_top=border(normalized.border_top),
+        border_left=border(normalized.border_left),
+        border_bottom=border(normalized.border_bottom),
+        border_right=border(normalized.border_right),
     )
 
 
@@ -141,8 +148,8 @@ def table_style_bp_from_normalized(
         width=table_width_bp_from_normalized(normalized.width),
         autofit=normalized.autofit,
         border_top=table_border_bp_from_normalized(normalized.border_top),
-        border_bottom=table_border_bp_from_normalized(normalized.border_bottom),
         border_left=table_border_bp_from_normalized(normalized.border_left),
+        border_bottom=table_border_bp_from_normalized(normalized.border_bottom),
         border_right=table_border_bp_from_normalized(normalized.border_right),
         border_inside_v=table_border_bp_from_normalized(normalized.border_inside_v),
         border_inside_h=table_border_bp_from_normalized(normalized.border_inside_h),

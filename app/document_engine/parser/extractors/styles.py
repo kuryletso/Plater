@@ -152,12 +152,24 @@ def extract_table_cell_style(cell_properties: _Element | None) -> TableCellStyle
     if v_alignment_node is not None:
         v_alignment = get_attr(v_alignment_node, "val")
 
+    borders_node = cell_properties.find(OOXMLTableCellAttributeNames.borders, NS)
+    border_top = border_bottom = border_left = border_right = None
+    if borders_node is not None:
+        border_top = extract_table_border_style(borders_node.find("w:top", NS))
+        border_bottom = extract_table_border_style(borders_node.find("w:bottom", NS))
+        border_left = extract_table_border_style(borders_node.find("w:left", NS))
+        border_right = extract_table_border_style(borders_node.find("w:right", NS))
+
     return TableCellStyle(
         shading=shading,
         shading_fill=shading_fill,
         margins=margins,
         grid_span=grid_span,
         v_alignment=v_alignment,
+        border_top=border_top,
+        border_left=border_left,
+        border_bottom=border_bottom,
+        border_right=border_right,
     )
 
 
@@ -195,8 +207,8 @@ def extract_table_style(table_properties: _Element | None) -> TableStyle:
 
     borders_node = table_properties.find(OOXMLTableAttributeNames.borders, NS)
     border_top = None
-    border_bottom = None
     border_left = None
+    border_bottom = None
     border_right = None
     border_inside_v = None
     border_inside_h = None
@@ -250,8 +262,8 @@ def extract_table_style(table_properties: _Element | None) -> TableStyle:
         width_type=width_type,
         autofit=autofit,
         border_top=border_top,
-        border_bottom=border_bottom,
         border_left=border_left,
+        border_bottom=border_bottom,
         border_right=border_right,
         border_inside_v=border_inside_v,
         border_inside_h=border_inside_h,

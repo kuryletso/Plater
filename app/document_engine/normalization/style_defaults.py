@@ -51,8 +51,8 @@ DEFAULT_TABLE_STYLE = NormalizedTableStyle(
     width=DEFAULT_TABLE_WIDTH,
     autofit=True,
     border_top=DEFAULT_TABLE_BORDER,
-    border_bottom=DEFAULT_TABLE_BORDER,
     border_left=DEFAULT_TABLE_BORDER,
+    border_bottom=DEFAULT_TABLE_BORDER,
     border_right=DEFAULT_TABLE_BORDER,
     border_inside_v=DEFAULT_TABLE_BORDER,
     border_inside_h=DEFAULT_TABLE_BORDER,
@@ -81,6 +81,10 @@ DEFAULT_CELL_STYLE = NormalizedCellStyle(
     margins=DEFAULT_CELL_MARGINS,
     grid_span=1,
     v_alignment=VerticalAlignment("top"),
+    border_top=None,
+    border_left=None,
+    border_bottom=None,
+    border_right=None,
 )
 
 

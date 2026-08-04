@@ -31,6 +31,10 @@ class NormalizedCellStyle:
     margins: NormalizedMargins
     grid_span: int
     v_alignment: VerticalAlignment
+    border_top: NormalizedTableBorder | None
+    border_left: NormalizedTableBorder | None
+    border_bottom: NormalizedTableBorder | None
+    border_right: NormalizedTableBorder | None
 
 
 @dataclass(slots=True, frozen=True)
@@ -57,8 +61,8 @@ class NormalizedTableStyle:
     width: NormalizedTableWidth
     autofit: bool
     border_top: NormalizedTableBorder
-    border_bottom: NormalizedTableBorder
     border_left: NormalizedTableBorder
+    border_bottom: NormalizedTableBorder
     border_right: NormalizedTableBorder
     border_inside_v: NormalizedTableBorder
     border_inside_h: NormalizedTableBorder

@@ -27,6 +27,7 @@ class OOXMLTableCellAttributeNames:
     margins: str = "w:tcMar"
     grid_span: str = "w:gridSpan"
     v_alignment: str = "w:vAlign"
+    borders: str = "w:tcBorders"
 
 
 @dataclass(frozen=True)

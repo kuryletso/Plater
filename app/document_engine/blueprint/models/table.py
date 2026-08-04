@@ -28,6 +28,10 @@ class CellStyleBlueprint(BlueprintBase):
     margins: MarginsBlueprint
     grid_span: int
     v_alignment: VerticalAlignment
+    border_top: TableBorderBlueprint | None = None
+    border_left: TableBorderBlueprint | None = None
+    border_bottom: TableBorderBlueprint | None = None
+    border_right: TableBorderBlueprint | None = None
 
 
 class RowStyleBlueprint(BlueprintBase):
@@ -50,8 +54,8 @@ class TableStyleBlueprint(BlueprintBase):
     width: TableWidthBlueprint
     autofit: bool
     border_top: TableBorderBlueprint
-    border_bottom: TableBorderBlueprint
     border_left: TableBorderBlueprint
+    border_bottom: TableBorderBlueprint
     border_right: TableBorderBlueprint
     border_inside_v: TableBorderBlueprint
     border_inside_h: TableBorderBlueprint

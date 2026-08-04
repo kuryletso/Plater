@@ -116,6 +116,12 @@ def normalize_row_style(row_style: TableRowStyle | None) -> NormalizedRowStyle:
     )
 
 
+def normalize_cell_border(border: TableBorderStyle | None) -> NormalizedTableBorder | None:
+    """Unlike table borders, an unset cell border means 'inherit', not 'None'."""
+
+    return normalize_table_border(border) if border is not None else None
+
+
 def normalize_cell_style(cell_style: TableCellStyle | None) -> NormalizedCellStyle:
     if cell_style is None:
         return DEFAULT_CELL_STYLE
@@ -152,8 +158,11 @@ def normalize_cell_style(cell_style: TableCellStyle | None) -> NormalizedCellSty
         ),
         grid_span=cast(int, cell_style.grid_span),
         v_alignment=cast(VerticalAlignment, v_alignment),
+        border_top=normalize_cell_border(cell_style.border_top),
+        border_left=normalize_cell_border(cell_style.border_left),
+        border_bottom=normalize_cell_border(cell_style.border_bottom),
+        border_right=normalize_cell_border(cell_style.border_right),
     )
-
     
     return overlay_dataclass_strict(
         DEFAULT_CELL_STYLE,
@@ -175,8 +184,8 @@ def normalize_table(
         ),
         autofit=cast(bool, table.style.autofit),
         border_top=normalize_table_border(table.style.border_top),
-        border_bottom=normalize_table_border(table.style.border_bottom),
         border_left=normalize_table_border(table.style.border_left),
+        border_bottom=normalize_table_border(table.style.border_bottom),
         border_right=normalize_table_border(table.style.border_right),
         border_inside_v=normalize_table_border(table.style.border_inside_v),
         border_inside_h=normalize_table_border(table.style.border_inside_h),

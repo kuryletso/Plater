@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Optional
 from dataclasses import dataclass
 
@@ -28,6 +30,7 @@ class Margins:
     left: Optional[int] = None
     right: Optional[int] = None
 
+
 @dataclass(slots=True, frozen=True)
 class TableCellStyle:
     shading: Optional[str] = None
@@ -35,6 +38,10 @@ class TableCellStyle:
     margins: Optional[Margins] = None
     grid_span: Optional[int] = None
     v_alignment: Optional[str] = None
+    border_top: Optional[TableBorderStyle] = None
+    border_left: Optional[TableBorderStyle] = None
+    border_bottom: Optional[TableBorderStyle] = None
+    border_right: Optional[TableBorderStyle] = None
 
 
 @dataclass(slots=True, frozen=True)
@@ -56,8 +63,8 @@ class TableStyle:
     width_type: Optional[str] = None
     autofit: Optional[bool] = None
     border_top: Optional[TableBorderStyle] = None
-    border_bottom: Optional[TableBorderStyle] = None
     border_left: Optional[TableBorderStyle] = None
+    border_bottom: Optional[TableBorderStyle] = None
     border_right: Optional[TableBorderStyle] = None
     border_inside_v: Optional[TableBorderStyle] = None
     border_inside_h: Optional[TableBorderStyle] = None
