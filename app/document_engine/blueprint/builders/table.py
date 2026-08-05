@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import cast
 
+from app.core.diagnostics import Layer
+
 from app.document_engine.blueprint.template_builder import TemplateBuilderContext
 from app.document_engine.blueprint.builders.margins import margins_bp_from_normalized
 from app.document_engine.blueprint.builders.paragraph import paragraph_bp_from_normalized
@@ -20,6 +22,8 @@ from app.document_engine.blueprint.models.table import (
     TableWidthBlueprint,
     TableBorderBlueprint,
 )
+from app.document_engine.blueprint.models.margins import MarginsBlueprint
+from app.document_engine.blueprint.models.segment import TextSegment
 from app.document_engine.blueprint.errors import BlueprintBuilderError, PlaceholderSyntaxError
 
 from app.document_engine.normalization.models.blocks import (
@@ -33,7 +37,27 @@ from app.document_engine.normalization.models.blocks import (
     NormalizedTableBorder,
     NormalizedParagraph,
 )
-from app.document_engine.enums.enums import PlaceholderType
+from app.document_engine.enums.enums import PlaceholderType, TableBorderStyleEnum, TableWidthType
+
+
+DEFAULT_STANDALONE_TABLE_BORDER = TableBorderBlueprint(
+    style=TableBorderStyleEnum.SINGLE,
+    size=4,
+    color="000000",
+)
+
+DEFAULT_STANDALONE_TABLE_STYLE = TableStyleBlueprint(
+    width=TableWidthBlueprint(value=0, type=TableWidthType.AUTO),
+    autofit=True,
+    border_top=DEFAULT_STANDALONE_TABLE_BORDER,
+    border_left=DEFAULT_STANDALONE_TABLE_BORDER,
+    border_bottom=DEFAULT_STANDALONE_TABLE_BORDER,
+    border_right=DEFAULT_STANDALONE_TABLE_BORDER,
+    border_inside_v=DEFAULT_STANDALONE_TABLE_BORDER,
+    border_inside_h=DEFAULT_STANDALONE_TABLE_BORDER,
+    margins=MarginsBlueprint(top=0, left=0, bottom=0, right=0),
+    column_widths=(),
+)
 
 
 def table_border_bp_from_normalized(
@@ -263,3 +287,46 @@ def table_bp_from_normalized(
     )
 
     return _promote_placeholder_rows(table)
+
+
+def promote_standalone_table(
+        paragraph: ParagraphBlueprint,
+        context: TemplateBuilderContext,
+) -> ParagraphBlueprint | TablePlaceholder:
+    """A table placeholder alone in its paragraph becomes a table in its own right.
+    
+    Inside a table the wrapper supplies the style. Standalone it falls back to a plain bordered default.
+    """
+
+    table_segment = next(
+        (
+            s for s in paragraph.segments
+            if isinstance(s, PlaceholderSegment) and s.ph_type is PlaceholderType.TABLE
+        ),
+        None,
+    )
+    if table_segment is None:
+        return paragraph
+
+    companions = [
+        s for s in paragraph.segments
+        if s is not table_segment
+        and not (isinstance(s, TextSegment) and not s.text.strip())
+    ]
+    if companions:
+        context.diagnostics.warn(
+            Layer.BLUEPRINT,
+            "table_placeholder_not_alone",
+            f"'{table_segment.key}' must be the only content of its paragraph "
+            f"to become a table; left as text.",
+            key=table_segment.key,
+        )
+        return paragraph
+
+    return TablePlaceholder(
+        type="placeholder_table",
+        key=table_segment.key,
+        language=table_segment.language,
+        text_style=table_segment.style,
+        style=DEFAULT_STANDALONE_TABLE_STYLE,
+    )

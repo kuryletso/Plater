@@ -1,6 +1,6 @@
 from app.document_engine.blueprint.template_builder import TemplateBuilderContext
 from app.document_engine.blueprint.builders.paragraph import paragraph_bp_from_normalized
-from app.document_engine.blueprint.builders.table import table_bp_from_normalized
+from app.document_engine.blueprint.builders.table import table_bp_from_normalized, promote_standalone_table
 from app.document_engine.blueprint.models.header_footer import HeaderFooterGroupBlueprint, HeaderFooterBlueprint
 
 from app.document_engine.normalization.models.header_footer import NormalizedHeaderFooterGroup, NormalizedHeaderFooter
@@ -18,12 +18,13 @@ def hf_bp_from_normalized(
     blocks = []
     for block in header_footer.blocks:
         if isinstance(block, NormalizedParagraph):
-            blocks.append(
+            blocks.append(promote_standalone_table(
                 paragraph_bp_from_normalized(
                     block,
                     context,
                 ),
-            )
+                context,
+            ))
 
         elif isinstance(block, NormalizedTable):
             blocks.append(

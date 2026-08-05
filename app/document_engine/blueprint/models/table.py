@@ -98,6 +98,7 @@ class TableBlueprint(BlueprintBase):
 
 class TablePlaceholder(BlueprintBase):
     type: Literal["placeholder_table"] = "placeholder_table"
+    key: str = "invoice_table"
     language: str
     text_style: TextStyleBlueprint
     style: TableStyleBlueprint

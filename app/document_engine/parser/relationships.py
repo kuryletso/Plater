@@ -18,8 +18,11 @@ class Relationship:
 
 
 class RelationshipResolver:
-    def __init__(self, relationships_root: _Element) -> None:
+    def __init__(self, relationships_root: _Element | None) -> None:
         self._relationships: dict[str, Relationship] = {}
+
+        if relationships_root is None:
+            return
 
         for relationship in relationships_root.findall("pr:Relationship", NS):
             relationship_id = relationship.get("Id")

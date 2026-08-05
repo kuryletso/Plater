@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from app.document_engine.blueprint.builders.margins import margins_bp_from_normalized
 from app.document_engine.blueprint.builders.header_footer import hf_group_bp_from_normalized
 from app.document_engine.blueprint.builders.paragraph import paragraph_bp_from_normalized
-from app.document_engine.blueprint.builders.table import table_bp_from_normalized
+from app.document_engine.blueprint.builders.table import table_bp_from_normalized, promote_standalone_table
 
 from app.document_engine.blueprint.models.section import SectionBlueprint, SectionStyleBlueprint
 
@@ -39,9 +39,10 @@ def section_bp_from_normalized(
     blocks = []
     for block in section.blocks:
         if isinstance(block, NormalizedParagraph):
-            blocks.append(
+            blocks.append(promote_standalone_table(
                 paragraph_bp_from_normalized(block, context),
-            )
+                context,
+            ))
 
         elif isinstance(block, NormalizedTable):
             blocks.append(

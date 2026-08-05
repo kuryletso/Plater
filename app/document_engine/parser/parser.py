@@ -27,12 +27,22 @@ class DocxParser:
         ) -> None:
         self.archive = DocxArchive(path)
         self.document_root = self.archive.read_xml(DocxPaths.document)
-        self.styles_root = self.archive.read_xml(DocxPaths.styles)
-        self.styles = parse_styles(self.styles_root)
-        self.doc_defaults = self.styles_root.find("w:docDefaults", NS)
-        self.relationships = RelationshipResolver(
-            self.archive.read_xml(DocxPaths.relationships),
-        )
+
+        try:
+            self.styles_root = self.archive.read_xml(DocxPaths.styles)
+        except ParserFormatError:
+            self.styles_root = None
+        self.styles = parse_styles(self.styles_root) \
+            if self.styles_root is not None else {}
+        self.doc_defaults = self.styles_root.find("w:docDefaults", NS) \
+            if self.styles_root is not None else None
+
+        try:
+            rel_root = self.archive.read_xml(DocxPaths.relationships)
+        except ParserFormatError:
+            rel_root = None
+        self.relationships = RelationshipResolver(rel_root)
+
         self.context = ParserContext(
             archive=self.archive,
             relationships=self.relationships,

@@ -25,10 +25,10 @@ RIGHT_ALIGNED = {QUANTITY, PRICE, TAX, TOTAL}
 
 SUBTOTAL_LABEL, TOTAL_TAX_LABEL, TOTAL_LABEL = "subtotal", "total_tax", "total"
 
-DEFAULT_FONT = "Calibri"        # TODO: source from document default
+DEFAULT_FONT = "Arial"        # TODO: source from document default
 DEFAULT_SIZE = 22       # half-points
 
-_MARGINS = MarginsBlueprint(top=0, bottom=0, left=0, right=100)
+_MARGINS = MarginsBlueprint(top=50, bottom=50, left=100, right=100)
 
 
 def _text(bold: bool) -> TextStyleBlueprint:

@@ -32,7 +32,7 @@ from app.document_engine.rendering.resolve.models import (
     ResolvedHeaderFooter, ResolvedHeaderFooterGroup,
 )
 from app.document_engine.rendering.resolve.invoice_table import build_invoice_table
-from app.document_engine.rendering.resolve.raw import placeholder_syntax, raw_table_data, RAW_SINGLE_ROW
+from app.document_engine.rendering.resolve.raw import placeholder_syntax, raw_table_data, RAW_SINGLE_ROW, raw_paragtaph_style
 from app.document_engine.enums.enums import ResolveMode
 
 
@@ -260,23 +260,20 @@ class DocumentResolver:
         
         if isinstance(block, TableBlueprint):
             return self._table(block)
-        
-        # if isinstance(block, TablePlaceholder):
-        #     if self._context.table is None:
-        #         self._diag.warn(
-        #             Layer.RENDER,
-        #             "table_placeholder_no_data",
-        #             "invoice_table present but no table data provided; skipped.",
-        #         )
-        #         return None
-        #     return build_invoice_table(block, self._context.table)
 
         if isinstance(block, TablePlaceholder):
-            data = raw_table_data(block.language) \
-                if self._mode is ResolveMode.KEYS \
-                else self._context.table
-
-            if data is None:
+            if self._mode is ResolveMode.KEYS:
+                return ResolvedParagraph(
+                    runs=(
+                        ResolvedTextRun(
+                            text=placeholder_syntax(block.key),
+                            style=block.text_style,
+                            placeholder_key=block.key,
+                        ),
+                    ),
+                    style=raw_paragtaph_style(),
+                )
+            if self._context.table is None:
                 self._diag.warn(
                     Layer.RENDER,
                     "table_placeholder_no_data",
@@ -284,7 +281,7 @@ class DocumentResolver:
                 )
                 return None
 
-            return build_invoice_table(block, data)
+            return build_invoice_table(block, self._context.table)
     
 
     def _segment_runs(
