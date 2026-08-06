@@ -328,7 +328,7 @@ def session() -> Session:
         ))
 
         s.add(TaxIdSystemRegistry(
-            code="edrpou",
+            code="ua_edrpou",
             localizations={
                 "UKR": TaxIdSystemRegistryLocalization(language_code="UKR", name="ЄДРПОУ"),
                 "ENG": TaxIdSystemRegistryLocalization(language_code="ENG", name="EDRPOU"),
@@ -398,7 +398,7 @@ def make_org(session: Session) -> Callable[..., Organization]:
             },
         )
         org.tax_ids.append(
-            TaxId(tax_id_system_code="edrpou", country_code="UKR", value=tax_value)
+            TaxId(tax_id_system_code="ua_edrpou", country_code="UKR", value=tax_value)
         )
 
         if with_representative:
