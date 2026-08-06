@@ -42,6 +42,7 @@ class Organization(Base):
 
     bank_accounts: Mapped[list[BankAccount]] = relationship(
         back_populates="organization",
+        cascade="all, delete-orphan",
     )
 
     tax_ids: Mapped[list[TaxId]] = relationship(
