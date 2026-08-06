@@ -8,6 +8,8 @@ from sqlalchemy.orm import sessionmaker
 
 from app.paths import database_path, user_data_dir, PROJECT_ROOT
 
+from app.services.settings import TemplateDefaultService
+
 DATABASE_URL = f"sqlite:///{database_path().as_posix()}"
 
 engine = create_engine(
@@ -41,4 +43,5 @@ def init_db() -> None:
 
     with SessionLocal() as session:
         seed(session, SEED_SPECS)
+        TemplateDefaultService(session).ensure()
         seed_default_templates(session)

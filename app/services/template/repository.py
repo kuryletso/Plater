@@ -198,7 +198,7 @@ class TemplateRepository:
         if template.system:
             raise InvalidSelection(
                 f"template {template_id} is built in and cannot be deleted",
-                user_message="Built-int templates can only be hidden, not deleted.",
+                user_message="Built in templates can only be hidden, not deleted.",
                 context={"template_id": template_id},
             )
 
