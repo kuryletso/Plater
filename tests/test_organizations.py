@@ -348,19 +348,19 @@ def test_delete_leaves_shared_representatives_alone(repo, organization,
     assert session.get(Representative, representative.id) is not None
 
 
-def test_delete_is_refused_once_invoice_numbers_have_been_issued(repo, organization,
-                                                                 session: Session):
-    """Deleting would destroy the sequence and restart numbering at one."""
+def test_delete_takes_its_sequences_with_it(repo, organization, session: Session):
+    """Only the counter is lost — invoices are not stored — so a short-lived
+    client must not become permanently undeletable."""
     session.add(DocumentSequence(
         document_type_code="invoice", organization_id=organization.id,
         prefix="INV-", counter=7, padding=4,
     ))
     session.commit()
 
-    with pytest.raises(InvalidSelection):
-        repo.delete(organization.id)
+    repo.delete(organization.id)
 
-    assert repo.get(organization.id) is not None
+    assert session.scalars(select(Organization)).all() == []
+    assert session.scalars(select(DocumentSequence)).all() == []
 
 
 def test_an_unused_sequence_does_not_block_deletion(repo, organization,
