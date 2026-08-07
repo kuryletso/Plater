@@ -44,7 +44,6 @@ class DocumentSequence(Base):
 
     prefix: Mapped[str | None] = mapped_column(
         String(32),
-        default="",
     )
 
     counter: Mapped[int]

@@ -170,20 +170,6 @@ class OrganizationRepository:
 
         organization = self.get(organizaiton_id)
 
-        issued = self._session.scalars(
-            select(DocumentSequence)
-            .where(DocumentSequence.organization_id == organizaiton_id, DocumentSequence.counter > 0),
-        ).first()
-
-        if issued is not None:
-            raise InvalidSelection(
-                f"organization {organizaiton_id} has issued invoice numbers",
-                user_message="This organization has already issued documents "
-                             "and cannot be deleted."
-                             "Delete issued documents first.",
-                context={"organization_id": organizaiton_id},
-            )
-
         self._session.delete(organization)
         self._session.commit()
 
