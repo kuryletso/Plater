@@ -1,16 +1,13 @@
 from __future__ import annotations
 
-from typing import cast
-
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models.configs.default_template_config import DefaultTemplateConfig
 from app.db.models.references.language import Language
 from app.db.models.registries.document_type import DocumentTypeRegistry
+from app.services.sentinel import Unset, UNSET
 from app.services.errors import EntityNotFound, InvalidSelection
-
-_UNSET = object()
 
 
 class TemplateDefaultService:
@@ -60,26 +57,26 @@ class TemplateDefaultService:
     def update(
             self,
             *,
-            primary_language: str | object = _UNSET,
-            secondary_language: str | None | object = _UNSET,
-            document_type: str | object = _UNSET,
-            name: str | object = _UNSET,
-            description: str | object = _UNSET,
-            append_currency: bool | object = _UNSET,
+            primary_language: str | Unset = UNSET,
+            secondary_language: str | None | Unset = UNSET,
+            document_type: str | Unset = UNSET,
+            name: str | Unset = UNSET,
+            description: str | Unset = UNSET,
+            append_currency: bool | Unset = UNSET,
     ) -> DefaultTemplateConfig:
 
         row = self.get()
 
         new_primary = self._language(primary_language) \
-            if primary_language is not _UNSET and isinstance(primary_language, str) \
+            if not isinstance(primary_language, Unset) \
             else row.primary_language_code
 
-        if secondary_language is _UNSET:
+        if isinstance(secondary_language, Unset):
             new_secondary = row.secondary_language_code
         elif secondary_language is None:
             new_secondary = None
         else:
-            new_secondary = self._language(cast(str, secondary_language))
+            new_secondary = self._language(secondary_language)
 
         if new_secondary is not None and new_secondary == new_primary:
             raise InvalidSelection(
@@ -89,7 +86,7 @@ class TemplateDefaultService:
             )
 
         new_type = self._document_type(document_type) \
-            if document_type is not _UNSET and isinstance(document_type, str) \
+            if not isinstance(document_type, Unset) \
             else row.document_type_code
 
         row.primary_language_code = new_primary
@@ -101,7 +98,7 @@ class TemplateDefaultService:
             ("description", description),
             ("append_currency", append_currency),
         ):
-            if value is not _UNSET:
+            if not isinstance(value, Unset):
                 setattr(row, field, value)
 
         self._session.commit()

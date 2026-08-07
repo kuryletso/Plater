@@ -17,9 +17,8 @@ from app.db.models.references.country import Country
 from app.db.models.references.currency import Currency
 from app.db.models.references.language import Language
 from app.db.models.registries.tax_id_system import TaxIdSystemRegistry
+from app.services.sentinel import Unset, UNSET
 from app.services.errors import EntityNotFound, InvalidSelection
-
-_UNSET = object()
 
 
 @dataclass(slots=True, frozen=True)
@@ -123,23 +122,23 @@ class OrganizationRepository:
             self,
             organization_id: int,
             *,
-            email: str | None | object = _UNSET,
-            phone: str | None | object = _UNSET,
-            localizations: Mapping[str, OrganizationText] | object = _UNSET,
+            email: str | None | Unset = UNSET,
+            phone: str | None | Unset = UNSET,
+            localizations: Mapping[str, OrganizationText] | Unset = UNSET,
     ) -> Organization:
 
         organization = self.get(organization_id)
 
-        if localizations is not _UNSET and isinstance(localizations, Mapping):
+        if not isinstance(localizations, Unset):
             self._check_localizations(localizations)
 
-        if email is not _UNSET and isinstance(email, (str, type(None))):
+        if not isinstance(email, Unset):
             organization.email = email
 
-        if phone is not _UNSET and isinstance(phone, (str, type(None))):
+        if not isinstance(phone, Unset):
             organization.phone = phone
 
-        if localizations is not _UNSET and isinstance(localizations, Mapping):
+        if not isinstance(localizations, Unset):
             current = organization.localizations
 
             for code, value in localizations.items():
