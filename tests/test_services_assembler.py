@@ -19,12 +19,18 @@ from app.db.models.registries.placeholder import PlaceholderRegistry
 from app.db.models.registries.placeholder_localization import (
     PlaceholderRegistryLocalization,
 )
+from app.services.doc_sequence.repository import IssuedNumber, SequenceRepository
 from app.services.errors import EntityNotFound, InvalidSelection
 from app.services.invoice.draft import InvoiceDraft, PartySelection
 from app.services.invoice.mapper import InvoiceMapper
 from app.services.language import LanguageSpec
 
 from tests.conftest import CODES, LANGS
+
+
+# assemble() takes the issued number from its caller; for tests that only
+# exercise other fields, any plausible one will do.
+NUMBER = IssuedNumber(prefix="INV-", number="0007")
 
 
 def make_draft(provider_org, client_org, sequence, line_ids, **overrides) -> InvoiceDraft:
@@ -63,7 +69,8 @@ def invoice(session, make_org, make_line, make_sequence, assembler):
     sequence = make_sequence(provider)
 
     draft = make_draft(provider, client, sequence, (line.id,))
-    return assembler.assemble(draft), provider, client, sequence, line
+    number = SequenceRepository(session).peek(sequence.id)
+    return assembler.assemble(draft, number), provider, client, sequence, line
 
 
 # --- helpers -----------------------------------------------------------------
@@ -156,15 +163,32 @@ def test_build_labels_omits_placeholders_without_labels(session):
 
 # --- assembly ----------------------------------------------------------------
 
-def test_assemble_pads_the_next_number(invoice):
+def test_assemble_carries_the_issued_number(invoice):
+    """The number is passed in, never derived: what the caller reserved is
+    exactly what the document must say."""
     data, _, _, sequence, _ = invoice
 
     assert sequence.counter == 6
-    assert data.number == "0007"      # counter + 1, zero-padded to `padding`
+    assert data.number == "0007"      # peeked: counter + 1, zero-padded
     assert data.prefix == "INV-"
 
 
-def test_assemble_does_not_consume_the_sequence(session, invoice):
+def test_a_prefixless_number_yields_an_empty_prefix(session, make_org, make_line,
+                                                    make_sequence, assembler):
+    provider = make_org("P", tax_value="11111111")
+    client = make_org("C", tax_value="22222222")
+    line, sequence = make_line(), make_sequence(provider)
+
+    data = assembler.assemble(
+        make_draft(provider, client, sequence, (line.id,)),
+        IssuedNumber(prefix=None, number="001"),
+    )
+
+    assert data.prefix == ""
+    assert data.number == "001"
+
+
+def test_peek_and_assemble_do_not_consume_the_sequence(session, invoice):
     """Assembling is a read; a preview must not burn an invoice number."""
     _, _, _, sequence, _ = invoice
     session.refresh(sequence)
@@ -216,7 +240,7 @@ def test_representative_title_is_none_when_untranslated(session, make_org, make_
     session.commit()
 
     line, sequence = make_line(), make_sequence(provider)
-    data = assembler.assemble(make_draft(provider, client, sequence, (line.id,)))
+    data = assembler.assemble(make_draft(provider, client, sequence, (line.id,)), NUMBER)
 
     assert data.provider.representative.title is None
 
@@ -240,7 +264,7 @@ def test_lines_follow_draft_order_not_database_order(session, make_org, make_lin
     sequence = make_sequence(provider)
 
     ordered = (third.id, first.id, second.id)
-    data = assembler.assemble(make_draft(provider, client, sequence, ordered))
+    data = assembler.assemble(make_draft(provider, client, sequence, ordered), NUMBER)
 
     assert [line.description["ENG"] for line in data.lines] == ["Third", "First", "Second"]
 
@@ -265,7 +289,7 @@ def test_unknown_organization_raises_not_found(session, make_org, make_line,
         client=PartySelection(organization_id=9999, tax_id_id=1),
     )
     with pytest.raises(EntityNotFound):
-        assembler.assemble(draft)
+        assembler.assemble(draft, NUMBER)
 
 
 def test_unknown_line_raises_not_found(session, make_org, make_line,
@@ -275,18 +299,8 @@ def test_unknown_line_raises_not_found(session, make_org, make_line,
     line, sequence = make_line(), make_sequence(provider)
 
     with pytest.raises(EntityNotFound):
-        assembler.assemble(make_draft(provider, client, sequence, (line.id, 9999)))
-
-
-def test_unknown_sequence_raises_not_found(session, make_org, make_line,
-                                           make_sequence, assembler):
-    provider = make_org("P", tax_value="11111111")
-    client = make_org("C", tax_value="22222222")
-    line, sequence = make_line(), make_sequence(provider)
-
-    with pytest.raises(EntityNotFound):
-        assembler.assemble(make_draft(provider, client, sequence, (line.id,),
-                                      sequence_id=9999))
+        assembler.assemble(make_draft(provider, client, sequence, (line.id, 9999)),
+                           NUMBER)
 
 
 def test_unknown_currency_raises_not_found(session, make_org, make_line,
@@ -297,7 +311,8 @@ def test_unknown_currency_raises_not_found(session, make_org, make_line,
 
     with pytest.raises(EntityNotFound):
         assembler.assemble(make_draft(provider, client, sequence, (line.id,),
-                                      currency_code="XXX"))
+                                      currency_code="XXX"),
+                           NUMBER)
 
 
 def test_tax_id_from_another_organization_is_rejected(session, make_org, make_line,
@@ -315,7 +330,7 @@ def test_tax_id_from_another_organization_is_rejected(session, make_org, make_li
         ),
     )
     with pytest.raises(InvalidSelection):
-        assembler.assemble(draft)
+        assembler.assemble(draft, NUMBER)
 
 
 def test_bank_account_from_another_organization_is_rejected(session, make_org, make_line,
@@ -333,7 +348,7 @@ def test_bank_account_from_another_organization_is_rejected(session, make_org, m
         ),
     )
     with pytest.raises(InvalidSelection):
-        assembler.assemble(draft)
+        assembler.assemble(draft, NUMBER)
 
 
 def test_representative_from_another_organization_is_rejected(session, make_org, make_line,
@@ -351,7 +366,7 @@ def test_representative_from_another_organization_is_rejected(session, make_org,
         ),
     )
     with pytest.raises(InvalidSelection):
-        assembler.assemble(draft)
+        assembler.assemble(draft, NUMBER)
 
 
 # --- assemble -> map ---------------------------------------------------------
