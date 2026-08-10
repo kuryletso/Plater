@@ -17,3 +17,10 @@ class EntityNotFound(ServiceError):
 class InvalidSelection(ServiceError):
     category = ErrorCategory.VALIDATION
     recoverable = True
+
+
+class SequenceConflict(ServiceError):
+    """The number consumed after rendering is not the number the document carries."""
+
+    category = ErrorCategory.INTERNAL
+    recoverable = True

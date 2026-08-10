@@ -18,6 +18,7 @@ from datetime import date
 import _scenario as scenario                                       # noqa: E402  (must precede app.db)
 from _scenario import OUTPUT_DIR, banner, print_document
 
+from app.services.doc_sequence.repository import SequenceRepository
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -131,7 +132,8 @@ def main() -> int:
                 issue_date=date(2026, 8, 3),
             )
 
-            data = InvoiceAssembler(session, languages).assemble(draft)
+            number = SequenceRepository(session).peek(draft.sequence_id)
+            data = InvoiceAssembler(session, languages).assemble(draft, number)
             labels = build_labels(session, tuple(l.code for l in languages))
             context = InvoiceMapper(
                 languages, labels, blueprint.config.append_currency,

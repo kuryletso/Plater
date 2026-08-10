@@ -11,7 +11,6 @@ from app.db.models.core.representative import Representative as RepresentativeOR
 from app.db.models.core.tax_id import TaxId as TaxIdORM
 from app.db.models.core.bank_account import BankAccount as BankAccountORM
 from app.db.models.core.invoice_line import InvoiceLine
-from app.db.models.core.document_sequence import DocumentSequence
 from app.db.models.references.country import Country
 from app.db.models.references.currency import Currency
 from app.db.models.references.language import Language
@@ -29,6 +28,7 @@ from app.services.invoice.data import (
     InvoiceData, Party, Line, Representative, TaxId, BankDetails,
 )
 from app.services.invoice.draft import InvoiceDraft, PartySelection
+from app.services.doc_sequence.repository import IssuedNumber
 
 
 def values_of(
@@ -131,14 +131,14 @@ class InvoiceAssembler:
     def assemble(
             self,
             draft: InvoiceDraft,
+            number: IssuedNumber,
     ) -> InvoiceData:
         
-        sequence = self._get(DocumentSequence, draft.sequence_id, "document_sequence")
         currency = self._get(Currency, draft.currency_code, "currency")
 
         return InvoiceData(
-            prefix=sequence.prefix or "",
-            number=str(sequence.counter + 1).zfill(sequence.padding),
+            prefix=number.prefix or "",
+            number=number.number,
             issue_date=draft.issue_date,
             currency=money_format(currency, self._codes),
             provider=self._party(draft.provider),
