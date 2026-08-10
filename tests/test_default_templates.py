@@ -210,11 +210,17 @@ def test_the_source_docx_of_each_default_is_stored(session: Session, shipped):
 
 
 def test_two_defaults_from_identical_files_share_one_stored_blob(session: Session, shipped):
-    """Content addressing means duplicate shipped files cost one BLOB, not two."""
+    """Content addressing means duplicate shipped files cost one BLOB, not two.
+
+    b.docx must be a byte copy of a.docx: generating it separately flakes,
+    because zip entry timestamps have 2-second granularity, so two saves
+    straddling a boundary differ in bytes despite identical content.
+    """
     shipped(
         [entry("a", "a.docx"), entry("b", "b.docx")],
-        {"a.docx": ["Same {{ org_name }}"], "b.docx": ["Same {{ org_name }}"]},
+        {"a.docx": ["Same {{ org_name }}"]},
     )
+    shutil.copy(shipped.dir / "a.docx", shipped.dir / "b.docx")
 
     seed_default_templates(session)
 
