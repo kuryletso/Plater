@@ -188,6 +188,57 @@ def test_saved_blueprint_round_trips_through_the_database(session: Session, inge
     assert repo.get(template_id) == bp
 
 
+# --- list --------------------------------------------------------------------
+
+def make_template(
+    session: Session,
+    name: str,
+    *,
+    type: str = "invoice",
+    active: bool = True,
+) -> Template:
+    """list() reads only the templates table, so bare rows are enough."""
+    row = Template(name=name, type=type, active=active)
+    session.add(row)
+    session.commit()
+    return row
+
+
+def test_list_returns_newest_first(session: Session):
+    first = make_template(session, "Old")
+    second = make_template(session, "New")
+
+    assert [t.id for t in TemplateRepository(session).list()] == [second.id, first.id]
+
+
+def test_list_search_matches_the_name_case_insensitively(session: Session):
+    match = make_template(session, "Default Invoice")
+    make_template(session, "Quote")
+
+    found = TemplateRepository(session).list(search="invoice")
+
+    assert [t.id for t in found] == [match.id]
+
+
+def test_list_can_filter_by_document_type(session: Session):
+    invoice = make_template(session, "Invoice", type="invoice")
+    make_template(session, "Akt", type="akt")
+
+    found = TemplateRepository(session).list(document_type="invoice")
+
+    assert [t.id for t in found] == [invoice.id]
+
+
+def test_list_hides_inactive_templates_unless_asked(session: Session):
+    active = make_template(session, "Active")
+    hidden = make_template(session, "Hidden", active=False)
+
+    repo = TemplateRepository(session)
+
+    assert [t.id for t in repo.list()] == [active.id]
+    assert {t.id for t in repo.list(include_inactive=True)} == {active.id, hidden.id}
+
+
 def test_create_persists_referenced_asset_blobs(session: Session, ingested):
     bp, bundle, source = ingested
     (asset_sha,) = collect_assets_ids(bp)
