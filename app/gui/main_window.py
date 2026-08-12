@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import (
     QFrame,
     QWidget,
@@ -16,7 +17,8 @@ from PySide6.QtWidgets import (
 from app.gui.preview import PreviewPanel
 from app.gui.widgets.collapsible_column import Accordion, CollapsibleColumn
 
-COLUMN_TITLES = ("Template", "Provider", "Client", "Document")
+from app.db.session import SessionLocal
+from app.gui.columns.template_column import TemplateColumn
 
 
 def _stub_content(title: str) -> QWidget:
@@ -35,6 +37,9 @@ def _stub_content(title: str) -> QWidget:
 class MainWindow(QMainWindow):
 
     def __init__(self) -> None:
+
+        self._session = SessionLocal()
+
         super().__init__()
         self.setWindowTitle("Plater")
         self.resize(1280, 800)
@@ -72,8 +77,12 @@ class MainWindow(QMainWindow):
 
 
     def _build_workspace(self) -> QWidget:
+        self.template_column = TemplateColumn(self._session)
+
         self.accordion = Accordion()
-        for title in COLUMN_TITLES:
+        self.accordion.add_column(CollapsibleColumn("Template", self.template_column))
+
+        for title in ("Provider", "Client", "Document"):
             self.accordion.add_column(CollapsibleColumn(title, _stub_content(title)))
 
         workspace = QFrame()
@@ -99,3 +108,8 @@ class MainWindow(QMainWindow):
 
     def _about(self) -> None:
         QMessageBox.about(self, "Plater", "Plater — invoice generator.")
+
+
+    def closeEvent(self, event) -> None:
+        self._session.close()
+        super().closeEvent(event)

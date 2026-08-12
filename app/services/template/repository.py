@@ -357,3 +357,24 @@ class TemplateRepository:
 
         self._template(template_id).active = True
         self._session.commit()
+
+
+    def list(
+            self,
+            *,
+            search: str | None = None,
+            document_type: str | None = None,
+            include_inactive: bool = False,
+    ) -> list[Template]:
+        """Newest first; 'search' matches the template name."""
+
+        query = select(Template).order_by(Template.id.desc())
+
+        if not include_inactive:
+            query = query.where(Template.active.is_(True))
+        if document_type is not None:
+            query = query.where(Template.type == document_type)
+        if search:
+            query = query.where(Template.name.icontains(search))
+
+        return list(self._session.scalars(query).all())

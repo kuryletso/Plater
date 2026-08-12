@@ -62,6 +62,7 @@ temp/
 
 # Generated files
 *.pdf
+app/gui/generated
 
 # Jupyter
 .ipynb_checkpoints/
