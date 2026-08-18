@@ -86,6 +86,7 @@ class MainWindow(QMainWindow):
     def _build_workspace(self) -> QWidget:
         self.template_column = TemplateColumn(self._session, self.draft)
         self.provider_column = PartyColumn(self._session, self.draft, PartyRole.PROVIDER)
+        self.client_column = PartyColumn(self._session, self.draft, PartyRole.CLIENT)
 
         self.accordion = Accordion()
         self._columns: dict[str, CollapsibleColumn] = {}
@@ -93,6 +94,7 @@ class MainWindow(QMainWindow):
         contents = {
             "Template": self.template_column,
             "Provider": self.provider_column,
+            "Client": self.client_column,
         }
         for title in COLUMNS:
             column = CollapsibleColumn(title, contents.get(title) or _stub_content(title))
