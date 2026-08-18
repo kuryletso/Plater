@@ -11,8 +11,15 @@ def main() -> int:
 
     app = QApplication(sys.argv)
     app.setApplicationName("Plater")
-    app.setStyleSheet(
-        'CollapsibleColumn[status="invalid"] { border: 1px solid #c0392b; }',
+    app.setStyleSheet("""
+            CollapsibleColumn {
+            background-color: palette(base);
+            border: 1px solid palette(mid);
+            border-radius: 4 px;
+        }
+        CollapsibleColumn[status="complete"] { border-color: #2e7d32; }
+        CollapsibleColumn[status="invalid"] { border-color: #c0392b; }
+        """,
     )
 
     from app.gui.main_window import MainWindow

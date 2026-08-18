@@ -19,6 +19,7 @@ from app.gui.widgets.collapsible_column import Accordion, CollapsibleColumn
 
 from app.db.session import SessionLocal
 from app.gui.columns.template_column import TemplateColumn
+from app.gui.columns.party_column import PartyColumn, PartyRole
 from app.gui.draft_state import COLUMNS, DraftState
 
 
@@ -84,11 +85,15 @@ class MainWindow(QMainWindow):
 
     def _build_workspace(self) -> QWidget:
         self.template_column = TemplateColumn(self._session, self.draft)
+        self.provider_column = PartyColumn(self._session, self.draft, PartyRole.PROVIDER)
 
         self.accordion = Accordion()
         self._columns: dict[str, CollapsibleColumn] = {}
 
-        contents = {"Template": self.template_column}
+        contents = {
+            "Template": self.template_column,
+            "Provider": self.provider_column,
+        }
         for title in COLUMNS:
             column = CollapsibleColumn(title, contents.get(title) or _stub_content(title))
             self._columns[title] = column
