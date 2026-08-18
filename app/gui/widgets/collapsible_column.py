@@ -12,6 +12,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from app.gui.draft_state import ColumnStatus
+
 
 QWIDGETSIZE_MAX = 16777215      # Not present in current version of PySide6 so set manually
 
@@ -115,10 +117,10 @@ class CollapsibleColumn(QFrame):
         super().mousePressEvent(event)
 
 
-    def set_incomplete(self, incomplete: bool) -> None:
-        """Red-bordered while this column still blocks generation."""
+    def set_status(self, status: ColumnStatus) -> None:
+        """Neutral while pristine. Red once the column has regresed."""
 
-        self.setProperty("incomplete", incomplete)
+        self.setProperty("status", status.value)
         self.style().unpolish(self)
         self.style().polish(self)
 

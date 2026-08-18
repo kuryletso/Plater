@@ -8,21 +8,21 @@ from sqlalchemy.orm import Session
 
 from app.gui.generated.ui_template_column import Ui_TemplateColumn
 from app.services.template.repository import TemplateRepository
+from app.gui.draft_state import DraftState
 
 
 class TemplateColumn(QWidget):
     """Pick the template. Its document type will drive sequence filtering."""
 
-    template_selected = Signal(int, str)
-    selection_cleared = Signal()
-
     def __init__(
             self,
             session: Session,
+            draft: DraftState,
             parent: QWidget | None = None,
     ) -> None:
 
         super().__init__(parent)
+        self._draft = draft
         self._repo = TemplateRepository(session)
 
         self.ui = Ui_TemplateColumn()
@@ -54,13 +54,13 @@ class TemplateColumn(QWidget):
         
         if current is None:
             self.ui.details_label.setText("")
-            self.selection_cleared.emit()
+            self._draft.set_template(None, None)
             return
 
         template_id, document_type = current.data(Qt.ItemDataRole.UserRole)
         self._show_details(template_id)
-        self.template_selected.emit(template_id, document_type)
-
+        self._draft.set_template(template_id, document_type)
+        
 
     def _show_details(self, template_id: int) -> None:
         version = self._repo.current_version(template_id)

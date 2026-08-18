@@ -19,6 +19,7 @@ from app.gui.widgets.collapsible_column import Accordion, CollapsibleColumn
 
 from app.db.session import SessionLocal
 from app.gui.columns.template_column import TemplateColumn
+from app.gui.draft_state import COLUMNS, DraftState
 
 
 def _stub_content(title: str) -> QWidget:
@@ -41,6 +42,9 @@ class MainWindow(QMainWindow):
         self._session = SessionLocal()
 
         super().__init__()
+        self.draft = DraftState(self)
+        self.draft.changed.connect(self._refresh_readiness)
+
         self.setWindowTitle("Plater")
         self.resize(1280, 800)
 
@@ -64,6 +68,8 @@ class MainWindow(QMainWindow):
 
         self.setCentralWidget(central)
 
+        self._refresh_readiness()
+
 
     def _build_menu(self) -> None:
         file_menu = self.menuBar().addMenu("&File")
@@ -77,13 +83,16 @@ class MainWindow(QMainWindow):
 
 
     def _build_workspace(self) -> QWidget:
-        self.template_column = TemplateColumn(self._session)
+        self.template_column = TemplateColumn(self._session, self.draft)
 
         self.accordion = Accordion()
-        self.accordion.add_column(CollapsibleColumn("Template", self.template_column))
+        self._columns: dict[str, CollapsibleColumn] = {}
 
-        for title in ("Provider", "Client", "Document"):
-            self.accordion.add_column(CollapsibleColumn(title, _stub_content(title)))
+        contents = {"Template": self.template_column}
+        for title in COLUMNS:
+            column = CollapsibleColumn(title, contents.get(title) or _stub_content(title))
+            self._columns[title] = column
+            self.accordion.add_column(column)
 
         workspace = QFrame()
         layout = QVBoxLayout(workspace)
@@ -108,6 +117,17 @@ class MainWindow(QMainWindow):
 
     def _about(self) -> None:
         QMessageBox.about(self, "Plater", "Plater — invoice generator.")
+
+
+    def _refresh_readiness(self) -> None:
+        for title, status in self.draft.statuses().items():
+            self._columns[title].set_status(status)
+
+        gaps = [ g for gaps in self.draft.missing_by_column().values() for g in gaps ]
+        self.generate_button.setEnabled(not gaps)
+        self.generate_button.setToolTip(
+            "Ready to generate." if not gaps else " | ".join(gaps) 
+        )
 
 
     def closeEvent(self, event) -> None:

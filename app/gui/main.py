@@ -12,7 +12,7 @@ def main() -> int:
     app = QApplication(sys.argv)
     app.setApplicationName("Plater")
     app.setStyleSheet(
-        'CollapsibleColumn[incomplete="true"] { border: 1px solid #c0392b; }'
+        'CollapsibleColumn[status="invalid"] { border: 1px solid #c0392b; }',
     )
 
     from app.gui.main_window import MainWindow
