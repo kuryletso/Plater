@@ -7,7 +7,7 @@ from enum import StrEnum
 
 from PySide6.QtCore import QObject, Signal
 
-from app.services.invoice.draft import InvoiceDraft, PartySelection
+from app.services.invoice.draft import InvoiceDraft, PartySelection, LineInput
 
 TEMPLATE = "Template"
 PROVIDER = "Provider"
@@ -47,7 +47,7 @@ class DraftState(QObject):
         self.client_bank_id: int | None = None
 
         self.sequence_id: int | None = None
-        self.line_ids: tuple[int, ...] = ()
+        self.lines: tuple[LineInput, ...] = ()
         self.currency_code: str | None = None
         self.issue_date: date = date.today()
 
@@ -124,8 +124,8 @@ class DraftState(QObject):
         self._emit()
 
 
-    def set_lines(self, line_ids: tuple[int, ...]) -> None:
-        self.line_ids = line_ids
+    def set_lines(self, lines: tuple[LineInput, ...]) -> None:
+        self.lines = lines
         self._emit()
 
 
@@ -165,7 +165,7 @@ class DraftState(QObject):
             missing[CLIENT] = client
 
         document: list[str] = []
-        if not self.line_ids:
+        if not self.lines:
             document.append("Add at least one invoice line")
         if self.currency_code is None:
             document.append("Select a currency")
@@ -211,7 +211,7 @@ class DraftState(QObject):
                 representative_id=self.client_representative_id,
                 bank_account_id=self.client_bank_id,
             ),
-            line_ids=self.line_ids,
+            lines=self.lines,
         )
 
 

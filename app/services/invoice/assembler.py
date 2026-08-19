@@ -27,7 +27,7 @@ from app.services.money import MoneyFormat
 from app.services.invoice.data import (
     InvoiceData, Party, Line, Representative, TaxId, BankDetails,
 )
-from app.services.invoice.draft import InvoiceDraft, PartySelection
+from app.services.invoice.draft import InvoiceDraft, PartySelection, LineInput
 from app.services.doc_sequence.repository import IssuedNumber
 
 
@@ -143,7 +143,7 @@ class InvoiceAssembler:
             currency=money_format(currency, self._codes),
             provider=self._party(draft.provider),
             client=self._party(draft.client),
-            lines=self._lines(draft.line_ids),
+            lines=self._lines(draft.lines),
         )
     
 
@@ -284,37 +284,33 @@ class InvoiceAssembler:
 
     def _lines(
             self,
-            line_ids: tuple[int, ...],
+            lines: tuple[LineInput, ...],
     ) -> tuple[Line, ...]:
-        
-        rows = {
-            line.id: line
-            for line in self._session.scalars(
-                select(InvoiceLine)
-                .where(InvoiceLine.id.in_(line_ids))
-                .options(
-                    selectinload(InvoiceLine.localizations),
-                    selectinload(InvoiceLine.measurement_unit)
-                        .selectinload(MeasurementUnitRegistry.localizations),
+
+        units: dict[str, MeasurementUnitRegistry] = {}
+        for line in lines:
+            if line.unit_code in units:
+                continue
+
+            unit = self._session.get(MeasurementUnitRegistry, line.unit_code)
+            if unit is None:
+                raise EntityNotFound(
+                    f"measurement unit {line.unit_code!r} not found",
+                    context={"code": line.unit_code},
                 )
-            )
-        }
+            units[line.unit_code] = unit
 
-
-        missing = [ i for i in line_ids if i not in rows ]
-        if missing:
-            raise EntityNotFound(
-                f"Invoice lines not found: {missing}",
-                context={"line_ids": missing},
-            )
-        
         return tuple(
             Line(
-                description=values_of(rows[i].localizations, "description", self._codes),
-                unit=values_of(rows[i].measurement_unit.localizations, "name", self._codes),
-                quantity=rows[i].quantity,
-                unit_price=rows[i].unit_price,
-                tax_rate=rows[i].tax_rate,
+                description={
+                    code: text
+                    for code, text in line.descriptions.items()
+                    if code in self._codes and text
+                },
+                unit=values_of(units[line.unit_code].localizations, "name", self._codes),
+                quantity=line.quantity,
+                unit_price=line.unit_price,
+                tax_rate=line.tax_rate,
             )
-            for i in line_ids
+            for line in lines
         )

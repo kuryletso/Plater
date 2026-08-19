@@ -1,6 +1,7 @@
 from decimal import Decimal
+from datetime import datetime, UTC
 
-from sqlalchemy import ForeignKey
+from sqlalchemy import ForeignKey, DateTime, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship, attribute_keyed_dict
 
 from app.db.base import Base
@@ -32,3 +33,14 @@ class InvoiceLine(Base):
     unit_price: Mapped[Decimal] = mapped_column(MONEY)
 
     tax_rate: Mapped[Decimal] = mapped_column(RATE)
+
+    use_count: Mapped[int] = mapped_column(
+        default=1,
+        server_default=text("1"),
+    )
+
+    last_used_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        server_default=text("CURRENT_TIMESTAMP"),
+    )

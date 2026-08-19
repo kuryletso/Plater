@@ -12,6 +12,8 @@ Outputs land in scripts/output/.
 
 from __future__ import annotations
 
+from typing import cast
+
 import argparse
 from datetime import date
 
@@ -67,7 +69,7 @@ def main() -> int:
             session, "Globex Trading", "Глобекс Трейдинг", "87654321",
             with_bank=False,
         )
-        lines = scenario.sample_invoice_lines(session)
+        lines = scenario.sample_lines()
         session.flush()
 
         sequence = DocumentSequence(
@@ -78,9 +80,8 @@ def main() -> int:
         session.commit()
 
         provider_id, client_id, sequence_id = provider.id, client.id, sequence.id
-        line_ids = [line.id for line in lines]
         print(f"   provider={provider_id} client={client_id} "
-              f"lines={line_ids} sequence={sequence_id}")
+              f"lines={len(lines)} sequence={sequence_id}")
 
     banner("3. Choose the template(s)")
     with SessionLocal() as session:
@@ -117,6 +118,10 @@ def main() -> int:
         with SessionLocal() as session:
             repository = TemplateRepository(session)
             template = session.get(Template, template_id)
+            if template is None:
+                raise ValueError(
+                    f"Couldn't get template {template_id}."
+                )
             blueprint = repository.get(template_id)
 
             banner(f"4. {template.code or template.name} — assemble and render")
@@ -128,7 +133,6 @@ def main() -> int:
                 _organisation(session, provider_id),
                 _organisation(session, client_id),
                 session.get(DocumentSequence, sequence_id),
-                line_ids,
                 issue_date=date(2026, 8, 3),
             )
 

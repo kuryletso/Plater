@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from decimal import Decimal
+from datetime import datetime, UTC
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
@@ -168,6 +169,86 @@ class InvoiceLineRepository:
 
         self._session.delete(line)
         self._session.commit()
+
+
+    def touch(
+            self,
+            localizations: Mapping[str, InvoiceLineText],
+            *,
+            quantity: Decimal,
+            measurement_unit: str,
+            unit_price: Decimal,
+            tax_rate: Decimal,
+    ) -> InvoiceLine:
+        """Cache write-back after a successful generate. Bump the match or store a new hint.
+        Quantity is per-invoice, so it never participates in matching
+        and only remembered a 'last used'.
+        """
+
+        typed = {
+            code: text.description.casefold()
+            for code, text in localizations.items()
+        }
+
+        for line in self.list():
+            if line.measurement_unit_code != measurement_unit:
+                continue
+            if line.unit_price != unit_price or line.tax_rate != tax_rate:
+                continue
+
+            stored = {
+                code: row.description.casefold()
+                for code, row in line.localizations.items()
+            }
+            if stored != typed:
+                continue
+
+            line.use_count += 1
+            line.last_used_at = datetime.now(UTC)
+            line.quantity = quantity
+            self._session.commit()
+            return line
+
+        return self.create(
+            localizations=localizations,
+            quantity=quantity,
+            measurement_unit=measurement_unit,
+            unit_price=unit_price,
+            tax_rate=tax_rate,
+        )
+
+
+    def hints(
+            self,
+            search: str | None = None,
+            *,
+            limit: int = 20,
+    ) -> list[InvoiceLine]:
+        """Autocomplete candidates, best first. Filtering and scoring happen in Python:
+        the cache is small, casefild() handles Cyrillic, uses frecency formula."""
+
+        now = datetime.now(UTC)
+        needle = search.casefold() if search else None
+
+        def matches(line: InvoiceLine) -> bool:
+            if needle is None:
+                return True
+            return any(
+                needle in row.description.casefold()
+                for row in line.localizations.values()
+            )
+
+        def score(line: InvoiceLine) -> float:
+            last_used = line.last_used_at
+            if last_used.tzinfo is None:        # (!) SQLite returs datetime without timezone
+                last_used = last_used.replace(tzinfo=UTC)
+            age_days = max((now - last_used).total_seconds() / 86400, 0.0)
+            return line.use_count * 2 ** (-age_days / 30)
+
+        candidates = [ line for line in self.list() if matches(line) ]
+        candidates.sort(key=score, reverse=True)
+
+        return candidates[:limit]
 
 
     def _check_localizations(

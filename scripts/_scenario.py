@@ -125,11 +125,42 @@ def sample_organisation(session, en_name: str, uk_name: str, tax_value: str,
     return org
 
 
-def sample_invoice_lines(session) -> list:
-    """Three lines with tax, enough to exercise totals and row expansion."""
+# def sample_invoice_lines(session) -> list:
+#     """Three lines with tax, enough to exercise totals and row expansion."""
 
-    from app.db.models.core.invoice_line import InvoiceLine
-    from app.db.models.core.invoice_line_localization import InvoiceLineLocalization
+#     from app.db.models.core.invoice_line import InvoiceLine
+#     from app.db.models.core.invoice_line_localization import InvoiceLineLocalization
+
+#     rows = [
+#         ("Backend development", "Розробка бекенду", "40.000", "85.00", "0.20000"),
+#         ("UI/UX design", "UI/UX дизайн", "12.500", "95.50", "0.20000"),
+#         ("Consulting", "Консультації", "3.000", "150.00", "0.20000"),
+#     ]
+
+#     lines = []
+#     for desc_en, desc_uk, quantity, price, tax in rows:
+#         line = InvoiceLine(
+#             quantity=Decimal(quantity),
+#             unit_price=Decimal(price),
+#             tax_rate=Decimal(tax),
+#             measurement_unit_code=UNIT,
+#             localizations={
+#                 "ENG": InvoiceLineLocalization(language_code="ENG", description=desc_en),
+#                 "UKR": InvoiceLineLocalization(language_code="UKR", description=desc_uk),
+#             },
+#         )
+#         session.add(line)
+#         lines.append(line)
+
+#     return lines
+
+
+def sample_lines() -> tuple:
+    """Three lines with tax, enough to exercise totals and row expansion.
+    Values now, not stored rows — the draft carries them directly.
+    """
+
+    from app.services.invoice.draft import LineInput
 
     rows = [
         ("Backend development", "Розробка бекенду", "40.000", "85.00", "0.20000"),
@@ -137,25 +168,19 @@ def sample_invoice_lines(session) -> list:
         ("Consulting", "Консультації", "3.000", "150.00", "0.20000"),
     ]
 
-    lines = []
-    for desc_en, desc_uk, quantity, price, tax in rows:
-        line = InvoiceLine(
+    return tuple(
+        LineInput(
+            descriptions={"ENG": desc_en, "UKR": desc_uk},
+            unit_code=UNIT,
             quantity=Decimal(quantity),
             unit_price=Decimal(price),
             tax_rate=Decimal(tax),
-            measurement_unit_code=UNIT,
-            localizations={
-                "ENG": InvoiceLineLocalization(language_code="ENG", description=desc_en),
-                "UKR": InvoiceLineLocalization(language_code="UKR", description=desc_uk),
-            },
         )
-        session.add(line)
-        lines.append(line)
-
-    return lines
+        for desc_en, desc_uk, quantity, price, tax in rows
+    )
 
 
-def sample_draft(provider, client, sequence, line_ids, issue_date: date | None = None):
+def sample_draft(provider, client, sequence, issue_date: date | None = None):
     """An InvoiceDraft selecting the provider's representative and bank account."""
 
     from app.services.invoice.draft import InvoiceDraft, PartySelection
@@ -175,7 +200,7 @@ def sample_draft(provider, client, sequence, line_ids, issue_date: date | None =
             organization_id=client.id,
             tax_id_id=client.tax_ids[0].id,
         ),
-        line_ids=tuple(line_ids),
+        lines=sample_lines(),
     )
 
 

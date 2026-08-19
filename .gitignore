@@ -74,3 +74,6 @@ node_modules/
 local_settings.py
 # Manual test script artefacts
 scripts/output/
+
+# Claude
+.claude
