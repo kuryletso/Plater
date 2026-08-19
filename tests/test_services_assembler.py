@@ -15,6 +15,7 @@ from app.services.invoice.assembler import (
     values_of,
 )
 from app.db.models.references.currency import Currency
+from app.db.models.registries.measurement_unit import MeasurementUnitRegistry
 from app.db.models.registries.placeholder import PlaceholderRegistry
 from app.db.models.registries.placeholder_localization import (
     PlaceholderRegistryLocalization,
@@ -33,7 +34,7 @@ from tests.conftest import CODES, LANGS
 NUMBER = IssuedNumber(prefix="INV-", number="0007")
 
 
-def make_draft(provider_org, client_org, sequence, line_ids, **overrides) -> InvoiceDraft:
+def make_draft(provider_org, client_org, sequence, lines, **overrides) -> InvoiceDraft:
     kwargs = dict(
         template_id=1,
         sequence_id=sequence.id,
@@ -49,7 +50,7 @@ def make_draft(provider_org, client_org, sequence, line_ids, **overrides) -> Inv
             organization_id=client_org.id,
             tax_id_id=client_org.tax_ids[0].id,
         ),
-        line_ids=line_ids,
+        lines=lines,
     )
     kwargs.update(overrides)
     return InvoiceDraft(**kwargs)
@@ -61,14 +62,14 @@ def assembler(session: Session) -> InvoiceAssembler:
 
 
 @pytest.fixture
-def invoice(session, make_org, make_line, make_sequence, assembler):
+def invoice(session, make_org, make_line_input, make_sequence, assembler):
     """A fully assembled InvoiceData plus the entities behind it."""
     provider = make_org("Provider Co", tax_value="11111111")
     client = make_org("Client Co", tax_value="22222222")
-    line = make_line()
+    line = make_line_input()
     sequence = make_sequence(provider)
 
-    draft = make_draft(provider, client, sequence, (line.id,))
+    draft = make_draft(provider, client, sequence, (line,))
     number = SequenceRepository(session).peek(sequence.id)
     return assembler.assemble(draft, number), provider, client, sequence, line
 
@@ -173,14 +174,14 @@ def test_assemble_carries_the_issued_number(invoice):
     assert data.prefix == "INV-"
 
 
-def test_a_prefixless_number_yields_an_empty_prefix(session, make_org, make_line,
+def test_a_prefixless_number_yields_an_empty_prefix(session, make_org, make_line_input,
                                                     make_sequence, assembler):
     provider = make_org("P", tax_value="11111111")
     client = make_org("C", tax_value="22222222")
-    line, sequence = make_line(), make_sequence(provider)
+    line, sequence = make_line_input(), make_sequence(provider)
 
     data = assembler.assemble(
-        make_draft(provider, client, sequence, (line.id,)),
+        make_draft(provider, client, sequence, (line,)),
         IssuedNumber(prefix=None, number="001"),
     )
 
@@ -231,7 +232,7 @@ def test_unselected_representative_and_bank_are_none(invoice):
     assert data.client.bank is None
 
 
-def test_representative_title_is_none_when_untranslated(session, make_org, make_line,
+def test_representative_title_is_none_when_untranslated(session, make_org, make_line_input,
                                                         make_sequence, assembler):
     provider = make_org("P", tax_value="11111111")
     client = make_org("C", tax_value="22222222")
@@ -239,8 +240,8 @@ def test_representative_title_is_none_when_untranslated(session, make_org, make_
         loc.title = None
     session.commit()
 
-    line, sequence = make_line(), make_sequence(provider)
-    data = assembler.assemble(make_draft(provider, client, sequence, (line.id,)), NUMBER)
+    line, sequence = make_line_input(), make_sequence(provider)
+    data = assembler.assemble(make_draft(provider, client, sequence, (line,)), NUMBER)
 
     assert data.provider.representative.title is None
 
@@ -256,17 +257,50 @@ def test_assemble_maps_lines_with_localized_unit(invoice):
     assert line.tax_rate == Decimal("0.20000")
 
 
-def test_lines_follow_draft_order_not_database_order(session, make_org, make_line,
-                                                     make_sequence, assembler):
+def test_lines_render_in_draft_order(session, make_org, make_line_input,
+                                     make_sequence, assembler):
+    """Row order is the user's, so the draft's tuple order is authoritative."""
     provider = make_org("P", tax_value="11111111")
     client = make_org("C", tax_value="22222222")
-    first, second, third = make_line("First"), make_line("Second"), make_line("Third")
     sequence = make_sequence(provider)
 
-    ordered = (third.id, first.id, second.id)
+    ordered = (make_line_input("Third"), make_line_input("First"), make_line_input("Second"))
     data = assembler.assemble(make_draft(provider, client, sequence, ordered), NUMBER)
 
     assert [line.description["ENG"] for line in data.lines] == ["Third", "First", "Second"]
+
+
+def test_a_description_is_kept_only_for_rendered_languages(session, make_org,
+                                                           make_line_input,
+                                                           make_sequence, assembler):
+    """A bilingual row rendered by a single-language template must not leak
+    the other language into the context."""
+    provider = make_org("P", tax_value="11111111")
+    client = make_org("C", tax_value="22222222")
+    sequence = make_sequence(provider)
+
+    english_only = InvoiceAssembler(session, (LanguageSpec(code="ENG", alpha_2="en"),))
+    data = english_only.assemble(
+        make_draft(provider, client, sequence, (make_line_input(),)), NUMBER,
+    )
+
+    assert data.lines[0].description == {"ENG": "Design work"}
+
+
+def test_an_empty_description_is_dropped_rather_than_rendered_blank(session, make_org,
+                                                                    make_line_input,
+                                                                    make_sequence,
+                                                                    assembler):
+    """The grid can leave the secondary description empty; that must read as
+    'absent', not as an empty string."""
+    provider = make_org("P", tax_value="11111111")
+    client = make_org("C", tax_value="22222222")
+    sequence = make_sequence(provider)
+
+    line = make_line_input(description_ukr="")
+    data = assembler.assemble(make_draft(provider, client, sequence, (line,)), NUMBER)
+
+    assert data.lines[0].description == {"ENG": "Design work"}
 
 
 def test_assemble_reads_currency_presets(invoice):
@@ -278,52 +312,70 @@ def test_assemble_reads_currency_presets(invoice):
 
 # --- failure modes -----------------------------------------------------------
 
-def test_unknown_organization_raises_not_found(session, make_org, make_line,
+def test_unknown_organization_raises_not_found(session, make_org, make_line_input,
                                                make_sequence, assembler):
     provider = make_org("P", tax_value="11111111")
     client = make_org("C", tax_value="22222222")
-    line, sequence = make_line(), make_sequence(provider)
+    line, sequence = make_line_input(), make_sequence(provider)
 
     draft = make_draft(
-        provider, client, sequence, (line.id,),
+        provider, client, sequence, (line,),
         client=PartySelection(organization_id=9999, tax_id_id=1),
     )
     with pytest.raises(EntityNotFound):
         assembler.assemble(draft, NUMBER)
 
 
-def test_unknown_line_raises_not_found(session, make_org, make_line,
-                                       make_sequence, assembler):
+def test_unknown_measurement_unit_raises_not_found(session, make_org, make_line_input,
+                                                   make_sequence, assembler):
+    """Units are still registry-backed even though descriptions are free text."""
     provider = make_org("P", tax_value="11111111")
     client = make_org("C", tax_value="22222222")
-    line, sequence = make_line(), make_sequence(provider)
+    sequence = make_sequence(provider)
+
+    line = make_line_input(unit="parsec")
 
     with pytest.raises(EntityNotFound):
-        assembler.assemble(make_draft(provider, client, sequence, (line.id, 9999)),
-                           NUMBER)
+        assembler.assemble(make_draft(provider, client, sequence, (line,)), NUMBER)
 
 
-def test_unknown_currency_raises_not_found(session, make_org, make_line,
+def test_a_disabled_unit_still_renders(session, make_org, make_line_input,
+                                       make_sequence, assembler):
+    """Regenerating an old invoice must not break because a unit was retired."""
+    provider = make_org("P", tax_value="11111111")
+    client = make_org("C", tax_value="22222222")
+    sequence = make_sequence(provider)
+    session.get(MeasurementUnitRegistry, "hour").active = False
+    session.commit()
+
+    data = assembler.assemble(
+        make_draft(provider, client, sequence, (make_line_input(),)), NUMBER,
+    )
+
+    assert data.lines[0].unit == {"UKR": "год", "ENG": "hr"}
+
+
+def test_unknown_currency_raises_not_found(session, make_org, make_line_input,
                                            make_sequence, assembler):
     provider = make_org("P", tax_value="11111111")
     client = make_org("C", tax_value="22222222")
-    line, sequence = make_line(), make_sequence(provider)
+    line, sequence = make_line_input(), make_sequence(provider)
 
     with pytest.raises(EntityNotFound):
-        assembler.assemble(make_draft(provider, client, sequence, (line.id,),
+        assembler.assemble(make_draft(provider, client, sequence, (line,),
                                       currency_code="XXX"),
                            NUMBER)
 
 
-def test_tax_id_from_another_organization_is_rejected(session, make_org, make_line,
+def test_tax_id_from_another_organization_is_rejected(session, make_org, make_line_input,
                                                       make_sequence, assembler):
     """A foreign tax id must not silently print on the invoice."""
     provider = make_org("P", tax_value="11111111")
     client = make_org("C", tax_value="22222222")
-    line, sequence = make_line(), make_sequence(provider)
+    line, sequence = make_line_input(), make_sequence(provider)
 
     draft = make_draft(
-        provider, client, sequence, (line.id,),
+        provider, client, sequence, (line,),
         client=PartySelection(
             organization_id=client.id,
             tax_id_id=provider.tax_ids[0].id,
@@ -333,14 +385,15 @@ def test_tax_id_from_another_organization_is_rejected(session, make_org, make_li
         assembler.assemble(draft, NUMBER)
 
 
-def test_bank_account_from_another_organization_is_rejected(session, make_org, make_line,
+def test_bank_account_from_another_organization_is_rejected(session, make_org,
+                                                            make_line_input,
                                                             make_sequence, assembler):
     provider = make_org("P", tax_value="11111111")
     client = make_org("C", tax_value="22222222")
-    line, sequence = make_line(), make_sequence(provider)
+    line, sequence = make_line_input(), make_sequence(provider)
 
     draft = make_draft(
-        provider, client, sequence, (line.id,),
+        provider, client, sequence, (line,),
         client=PartySelection(
             organization_id=client.id,
             tax_id_id=client.tax_ids[0].id,
@@ -351,14 +404,15 @@ def test_bank_account_from_another_organization_is_rejected(session, make_org, m
         assembler.assemble(draft, NUMBER)
 
 
-def test_representative_from_another_organization_is_rejected(session, make_org, make_line,
+def test_representative_from_another_organization_is_rejected(session, make_org,
+                                                              make_line_input,
                                                               make_sequence, assembler):
     provider = make_org("P", tax_value="11111111")
     client = make_org("C", tax_value="22222222")
-    line, sequence = make_line(), make_sequence(provider)
+    line, sequence = make_line_input(), make_sequence(provider)
 
     draft = make_draft(
-        provider, client, sequence, (line.id,),
+        provider, client, sequence, (line,),
         client=PartySelection(
             organization_id=client.id,
             tax_id_id=client.tax_ids[0].id,

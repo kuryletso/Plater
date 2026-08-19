@@ -2,12 +2,29 @@
 agreement between is_complete() and to_draft()."""
 
 from datetime import date
+from decimal import Decimal
 
 import pytest
 from PySide6.QtCore import QCoreApplication
 
 from app.gui.draft_state import (
     CLIENT, COLUMNS, DOCUMENT, PROVIDER, TEMPLATE, ColumnStatus, DraftState,
+)
+from app.services.invoice.draft import LineInput
+
+LINE = LineInput(
+    descriptions={"ENG": "Design work"},
+    unit_code="hour",
+    quantity=Decimal("10"),
+    unit_price=Decimal("125.50"),
+    tax_rate=Decimal("0.2"),
+)
+OTHER_LINE = LineInput(
+    descriptions={"ENG": "Consulting"},
+    unit_code="hour",
+    quantity=Decimal("3"),
+    unit_price=Decimal("150"),
+    tax_rate=Decimal("0.2"),
 )
 
 
@@ -31,7 +48,7 @@ def complete(draft: DraftState) -> DraftState:
     draft.set_sequence(12)
     draft.set_client_organization(20)
     draft.set_client_tax(21)
-    draft.set_lines((30, 31))
+    draft.set_lines((LINE, OTHER_LINE))
     draft.set_currency("UAH")
     return draft
 
@@ -192,7 +209,7 @@ def test_a_complete_state_builds_the_draft(draft):
     assert built.provider.tax_id_id == 11
     assert built.client.organization_id == 20
     assert built.client.tax_id_id == 21
-    assert built.line_ids == (30, 31)
+    assert built.lines == (LINE, OTHER_LINE)
 
 
 def test_optional_selections_pass_through(draft):
@@ -222,7 +239,7 @@ def test_to_draft_agrees_with_is_complete(draft):
         lambda: draft.set_sequence(12),
         lambda: draft.set_client_organization(20),
         lambda: draft.set_client_tax(21),
-        lambda: draft.set_lines((30,)),
+        lambda: draft.set_lines((LINE,)),
         lambda: draft.set_currency("UAH"),
     )
 

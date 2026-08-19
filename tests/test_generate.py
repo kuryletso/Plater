@@ -54,12 +54,12 @@ def failing_template_id(session, seeded_inputs, registered_keys, make_docx) -> i
 
 
 @pytest.fixture
-def scenario(session, make_org, make_line, make_sequence):
+def scenario(session, make_org, make_line_input, make_sequence):
     """(provider, client, sequence, line) — one of everything a draft needs."""
 
     provider = make_org("Provider Co", tax_value="11111111")
     client = make_org("Client Co", tax_value="22222222")
-    return provider, client, make_sequence(provider), make_line()
+    return provider, client, make_sequence(provider), make_line_input()
 
 
 @pytest.fixture
@@ -82,7 +82,7 @@ def make_draft(template_id, scenario, **overrides) -> InvoiceDraft:
             organization_id=client.id,
             tax_id_id=client.tax_ids[0].id,
         ),
-        line_ids=(line.id,),
+        lines=(line,),
     )
     kwargs.update(overrides)
     return InvoiceDraft(**kwargs)

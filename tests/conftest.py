@@ -48,6 +48,7 @@ from app.db.models.registries.tax_id_system_localization import (
     TaxIdSystemRegistryLocalization,
 )
 
+from app.services.invoice.draft import LineInput
 from app.services.language import LanguageSpec
 
 
@@ -460,6 +461,31 @@ def make_line(session: Session) -> Callable[..., InvoiceLine]:
         session.add(line)
         session.commit()
         return line
+
+    return _make
+
+
+@pytest.fixture
+def make_line_input() -> Callable[..., LineInput]:
+    """Factory for a typed invoice line — what a draft carries now that lines
+    are values rather than references to stored rows."""
+
+    def _make(
+        description: str = "Design work",
+        *,
+        description_ukr: str = "Дизайн",
+        quantity: str = "10.000",
+        unit: str = "hour",
+        unit_price: str = "125.50",
+        tax_rate: str = "0.20000",
+    ) -> LineInput:
+        return LineInput(
+            descriptions={"ENG": description, "UKR": description_ukr},
+            unit_code=unit,
+            quantity=Decimal(quantity),
+            unit_price=Decimal(unit_price),
+            tax_rate=Decimal(tax_rate),
+        )
 
     return _make
 

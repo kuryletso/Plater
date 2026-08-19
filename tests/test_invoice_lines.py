@@ -1,5 +1,7 @@
-"""Invoice lines: the reusable catalog rows a draft references by id."""
+"""Invoice lines: the hint cache behind the lines grid — CRUD, plus the
+write-back (touch) and frecency ranking (hints) that feed autocomplete."""
 
+from datetime import datetime, timedelta, UTC
 from decimal import Decimal
 
 import pytest
@@ -326,3 +328,144 @@ def test_delete_removes_the_line_and_its_localizations(repo, line, session: Sess
 def test_delete_raises_for_an_unknown_line(repo):
     with pytest.raises(EntityNotFound):
         repo.delete(9999)
+
+
+# --- touch: cache write-back after a successful generate ----------------------
+
+def touch(repo, description="Design work", *, description_ukr="Дизайн",
+          quantity="10", unit="hour", unit_price="125.50", tax_rate="0.2"):
+    return repo.touch(
+        {
+            "ENG": InvoiceLineText(description=description),
+            "UKR": InvoiceLineText(description=description_ukr),
+        },
+        quantity=Decimal(quantity),
+        measurement_unit=unit,
+        unit_price=Decimal(unit_price),
+        tax_rate=Decimal(tax_rate),
+    )
+
+
+def test_touching_an_unseen_line_stores_it(repo, session: Session):
+    stored = touch(repo)
+
+    assert session.scalars(select(InvoiceLine)).unique().all() == [stored]
+    assert stored.use_count == 1
+
+
+def test_touching_a_known_line_bumps_it_instead_of_duplicating(repo, session: Session):
+    first = touch(repo)
+    second = touch(repo)
+
+    assert second.id == first.id
+    assert second.use_count == 2
+    assert len(session.scalars(select(InvoiceLine)).unique().all()) == 1
+
+
+def test_matching_ignores_case(repo):
+    """The user retyping 'design work' must not fork the hint."""
+    first = touch(repo, "Design work")
+    second = touch(repo, "DESIGN WORK")
+
+    assert second.id == first.id
+
+
+def test_quantity_is_remembered_but_never_matched(repo):
+    """Quantity is per-invoice; billing 40 hours instead of 10 is the same line."""
+    first = touch(repo, quantity="10")
+    second = touch(repo, quantity="40")
+
+    assert second.id == first.id
+    assert second.quantity == Decimal("40")
+
+
+def test_a_new_price_forks_a_new_hint(repo, session: Session):
+    """Price changes are real, so both survive and the stale one decays away."""
+    first = touch(repo, unit_price="125.50")
+    second = touch(repo, unit_price="150.00")
+
+    assert second.id != first.id
+    assert len(session.scalars(select(InvoiceLine)).unique().all()) == 2
+
+
+def test_a_different_description_forks_a_new_hint(repo):
+    assert touch(repo, "Design work").id != touch(repo, "Consulting").id
+
+
+def test_dropping_a_language_forks_a_new_hint(repo):
+    """Descriptions must match as a whole, not per language."""
+    both = touch(repo)
+    english_only = repo.touch(
+        {"ENG": InvoiceLineText(description="Design work")},
+        quantity=Decimal("10"), measurement_unit="hour",
+        unit_price=Decimal("125.50"), tax_rate=Decimal("0.2"),
+    )
+
+    assert english_only.id != both.id
+
+
+# --- hints: frecency ranking --------------------------------------------------
+
+def age(line, *, days: float, uses: int) -> None:
+    line.last_used_at = datetime.now(UTC) - timedelta(days=days)
+    line.use_count = uses
+
+
+def test_hints_match_either_language(repo):
+    line = touch(repo)
+
+    assert [h.id for h in repo.hints("design")] == [line.id]
+    assert [h.id for h in repo.hints("дизайн")] == [line.id]
+
+
+def test_hint_search_folds_cyrillic_case(repo):
+    """casefold() in Python is why this works where SQLite's lower() would not."""
+    line = touch(repo, description_ukr="Дизайн")
+
+    assert [h.id for h in repo.hints("ДИЗАЙН")] == [line.id]
+    assert [h.id for h in repo.hints("дизайн")] == [line.id]
+
+
+def test_hints_exclude_non_matches(repo):
+    touch(repo, "Design work")
+
+    assert repo.hints("plumbing") == []
+
+
+def test_a_frequent_line_outranks_a_merely_recent_one(repo, session: Session):
+    """The point of frecency: something billed monthly beats yesterday's one-off."""
+    frequent = touch(repo, "Monthly retainer")
+    once = touch(repo, "One-off fix")
+    age(frequent, days=20, uses=12)
+    age(once, days=0, uses=1)
+    session.commit()
+
+    assert [h.id for h in repo.hints()] == [frequent.id, once.id]
+
+
+def test_recency_breaks_ties_between_equally_used_lines(repo, session: Session):
+    stale = touch(repo, "Stale")
+    fresh = touch(repo, "Fresh")
+    age(stale, days=90, uses=3)
+    age(fresh, days=1, uses=3)
+    session.commit()
+
+    assert [h.id for h in repo.hints()] == [fresh.id, stale.id]
+
+
+def test_a_long_unused_line_decays_below_a_new_one(repo, session: Session):
+    """Half-life is 30 days, so 8 uses a year ago must lose to 1 use today."""
+    ancient = touch(repo, "Ancient")
+    recent = touch(repo, "Recent")
+    age(ancient, days=365, uses=8)
+    age(recent, days=0, uses=1)
+    session.commit()
+
+    assert [h.id for h in repo.hints()] == [recent.id, ancient.id]
+
+
+def test_hints_respect_the_limit(repo):
+    for i in range(5):
+        touch(repo, f"Line {i}")
+
+    assert len(repo.hints(limit=3)) == 3
