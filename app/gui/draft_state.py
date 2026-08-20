@@ -4,6 +4,8 @@ from typing import cast
 
 from datetime import date
 from enum import StrEnum
+from dataclasses import dataclass, field
+from decimal import Decimal
 
 from PySide6.QtCore import QObject, Signal
 
@@ -20,6 +22,58 @@ class ColumnStatus(StrEnum):
     PRISTINE = "pristine"       # untouched or still in progress
     COMPLETE = "complete"
     INVALID = "invalid"
+
+
+@dataclass(slots=True)
+class LineRow:
+    """One grid row, possibly mid-typing. Untouched numeric cells are None,
+    never 0 — a fresh row must not read as 'quantity is invalid'.
+    """
+
+    descriptions: dict[str, str] = field(default_factory=dict)
+    unit_code: str | None = None
+    quantity: Decimal | None = None
+    unit_price: Decimal | None = None
+    tax_rate: Decimal | None = None
+
+
+    def is_blank(self) -> bool:
+        """Blank rows are workspace, not errors, including the one we start with."""
+
+        return (
+            not any( text.strip() for text in self.descriptions.values())
+            and self.unit_code is None
+            and self.quantity is None
+            and self.unit_price is None
+            and self.tax_rate is None
+        )
+
+    def problems(self, primary_language: str) -> list[str]:
+        gaps: list[str] = []
+        if not self.descriptions.get(primary_language, "").strip():
+            gaps.append("description")
+        if self.unit_code is None:
+            gaps.append("unit")
+        if self.quantity is None or self.quantity <= 0:
+            gaps.append("quantity")
+        if self.unit_price is None or self.unit_price < 0:
+            gaps.append("price")
+        return gaps
+
+    def to_input(self) -> LineInput:
+        """Only meaningful for rows with no problems(), to_draft() guards that."""
+
+        return LineInput(
+            descriptions={
+                code: text.strip()
+                for code, text in self.descriptions.items()
+                if text.strip()
+            },
+            unit_code=cast(str, self.unit_code),
+            quantity=cast(Decimal, self.quantity),
+            unit_price=cast(Decimal, self.unit_price),
+            tax_rate=self.tax_rate if self.tax_rate is not None else Decimal(0),
+        )
 
 
 class DraftState(QObject):
@@ -47,7 +101,8 @@ class DraftState(QObject):
         self.client_bank_id: int | None = None
 
         self.sequence_id: int | None = None
-        self.lines: tuple[LineInput, ...] = ()
+        self.languages: tuple[str, ...] = ()
+        self.rows: tuple[LineRow, ...] = ()
         self.currency_code: str | None = None
         self.issue_date: date = date.today()
 
@@ -58,6 +113,7 @@ class DraftState(QObject):
             self,
             template_id: int | None,
             document_type: str | None,
+            languages: tuple[str, ...],
     ) -> None:
         
         if document_type != self.document_type:
@@ -65,6 +121,7 @@ class DraftState(QObject):
 
         self.template_id = template_id
         self.document_type = document_type
+        self.languages = languages
         self._emit()
 
 
@@ -124,8 +181,8 @@ class DraftState(QObject):
         self._emit()
 
 
-    def set_lines(self, lines: tuple[LineInput, ...]) -> None:
-        self.lines = lines
+    def set_rows(self, rows: tuple[LineRow, ...]) -> None:
+        self.rows = rows
         self._emit()
 
 
@@ -165,8 +222,16 @@ class DraftState(QObject):
             missing[CLIENT] = client
 
         document: list[str] = []
-        if not self.lines:
+        primary = self.languages[0] if self.languages else None
+
+        if all( row.is_blank() for row in self.rows ):
             document.append("Add at least one invoice line")
+        elif primary is not None:
+            for number, row in enumerate(self.rows, start=1):
+                if row.is_blank():
+                    continue
+                if gaps := row.problems(primary):
+                    document.append(f"Line {number}: {' and '.join(gaps)} required")
         if self.currency_code is None:
             document.append("Select a currency")
         if document:
@@ -211,7 +276,9 @@ class DraftState(QObject):
                 representative_id=self.client_representative_id,
                 bank_account_id=self.client_bank_id,
             ),
-            lines=self.lines,
+            lines=tuple(
+                row.to_input() for row in self.rows if not row.is_blank()
+            ),
         )
 
 

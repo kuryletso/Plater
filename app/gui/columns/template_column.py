@@ -65,7 +65,7 @@ class TemplateColumn(QWidget):
             self.ui.template_list.setCurrentRow(-1)
 
         self.ui.details_label.setText("")
-        self._draft.set_template(None, None)
+        self._draft.set_template(None, None, ())
         self._show_selected(None)
 
 
@@ -77,13 +77,22 @@ class TemplateColumn(QWidget):
         
         if current is None:
             self.ui.details_label.setText("")
-            self._draft.set_template(None, None)
+            self._draft.set_template(None, None, ())
             return
 
         self._show_selected(current.text())
         template_id, document_type = current.data(Qt.ItemDataRole.UserRole)
+
+        version = self._repo.current_version(template_id)
+        config = version.config
+        languages = tuple(
+            code for code
+            in (config.get("primary_language"), config.get("secondary_language"))
+            if code
+        )
+
         self._show_details(template_id)
-        self._draft.set_template(template_id, document_type)
+        self._draft.set_template(template_id, document_type, languages)
         
 
     def _show_details(self, template_id: int) -> None:

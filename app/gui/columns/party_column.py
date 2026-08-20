@@ -6,24 +6,11 @@ from PySide6.QtCore import Qt, QSignalBlocker
 from PySide6.QtWidgets import QListWidgetItem, QWidget
 from sqlalchemy.orm import Session
 
+from app.gui.text import localized
 from app.gui.draft_state import DraftState
 from app.gui.generated.ui_party_column import Ui_PartyColumn
 from app.services.doc_sequence.repository import SequenceRepository
 from app.services.organization.repository import OrganizationRepository
-
-
-PREFERRED_LANGUAGES = ("ENG", "UKR")
-
-
-def localized(localizations, attr: str) -> str:
-    for code in PREFERRED_LANGUAGES:
-        row = localizations.get(code)
-        if row is not None and getattr(row, attr):
-            return getattr(row, attr)
-    for row in localizations.values():
-        if getattr(row, attr):
-            return getattr(row, attr)
-    return "?"
 
 
 class PartyRole(StrEnum):
@@ -119,6 +106,12 @@ class PartyColumn(QWidget):
         self._set_org(None)
         self._clear_pickers()
         self._show_selected(None)
+
+
+    def refresh_sequences(self) -> None:
+        """The generate flow calls this after a number is consumed."""
+
+        self._populate_sequences()
 
 
     def _on_org_selected(

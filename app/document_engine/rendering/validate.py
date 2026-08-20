@@ -25,6 +25,19 @@ def blueprint_uses_table(
     return any(_section_uses_table(s) for s in blueprint.sections)
 
 
+def column_languages(
+        blueprint: TemplateBlueprint,
+        key: str,
+) -> set[str]:
+    """Languages a given table column is actually rendered in.
+    Unsuffixed placeholders were resolved to the template's default language
+    at ingestion, so the result is always concrete codes.
+    """
+
+    _, columns, _, _ = _collect_usage(blueprint)
+    return { language for column_key, language in columns if column_key == key }
+
+
 def _section_uses_table(
     section: SectionBlueprint,
 ) -> bool:

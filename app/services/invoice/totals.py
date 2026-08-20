@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Protocol
+
 from collections.abc import Sequence
 from dataclasses import dataclass
 from decimal import Decimal, ROUND_HALF_UP
@@ -22,8 +24,22 @@ class InvoiceTotals:
     taxed: bool
 
 
+class Priced(Protocol):
+    """The three numbers totals need.
+    InvoiceData's Line and the draft's LineInput both
+    qualify without either knowing about each other.
+    """
+
+    @property
+    def quantity(self) -> Decimal: ...
+    @property
+    def unit_price(self) -> Decimal: ...
+    @property
+    def tax_rate(self) -> Decimal: ...
+
+
 def compute_totals(
-        lines: Sequence[Line],
+        lines: Sequence[Priced],
         decimal_places: int,
 ) -> InvoiceTotals:
     
