@@ -3,12 +3,14 @@ from __future__ import annotations
 from enum import StrEnum
 
 from PySide6.QtCore import Qt, QSignalBlocker
-from PySide6.QtWidgets import QListWidgetItem, QWidget
+from PySide6.QtWidgets import QListWidgetItem, QWidget, QDialog
 from sqlalchemy.orm import Session
 
-from app.gui.text import localized
+from app.gui.text import localized, organization_label
 from app.gui.draft_state import DraftState
 from app.gui.generated.ui_party_column import Ui_PartyColumn
+from app.gui.dialogs.organization import OrganizationDialog
+from app.gui.dialogs.tax_id import TaxIdDialog
 from app.services.doc_sequence.repository import SequenceRepository
 from app.services.organization.repository import OrganizationRepository
 
@@ -37,6 +39,7 @@ class PartyColumn(QWidget):
         self._draft = draft
         self._role = role
         self._sequence_key: tuple | None = None
+        self._session = session
 
         if role is PartyRole.PROVIDER:
             self._set_org = draft.set_provider_organization
@@ -73,6 +76,9 @@ class PartyColumn(QWidget):
         self.ui.bank_combo.currentIndexChanged.connect(self._on_bank_changed)
         self.ui.sequence_combo.currentIndexChanged.connect(self._on_sequence_changed)
 
+        self.ui.add_organization_button.clicked.connect(self._add_organization)
+        self.ui.add_tax_button.clicked.connect(self._add_tax_id)
+
         draft.changed.connect(self._on_draft_changed)
 
         self.refresh_organizations()
@@ -89,7 +95,7 @@ class PartyColumn(QWidget):
             widget.clear()
             organizations = self._org_repo.list(search=search)
             for org in organizations:
-                item = QListWidgetItem(localized(org.localizations, "legal_name"))
+                item = QListWidgetItem(organization_label(org))
                 item.setData(Qt.ItemDataRole.UserRole, org.id)
                 widget.addItem(item)
 
@@ -259,6 +265,7 @@ class PartyColumn(QWidget):
         self.ui.selection_label.setText(name or "Nothing selected")
         self.ui.selection_label.setEnabled(name is not None)
         self.ui.clear_button.setEnabled(name is not None)
+        self.ui.add_tax_button.setEnabled(name is not None)
 
 
     def _show_empty_notice(self, search: str | None) -> None:
@@ -269,3 +276,30 @@ class PartyColumn(QWidget):
         item.setFlags(Qt.ItemFlag.NoItemFlags)
         item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
         self.ui.organization_list.addItem(item)
+
+
+    def _add_organization(self) -> None:
+        dialog = OrganizationDialog(self._session, parent=self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        self.refresh_organizations()
+        self._select_organization(dialog.organization_id)
+
+
+    def _add_tax_id(self) -> None:
+        organization_id = self._get_org()
+        if organization_id is None:
+            return
+
+        dialog = TaxIdDialog(self._session, organization_id, parent=self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self._populate_pickers(organization_id)
+
+
+    def _select_organization(self, organization_id: int | None) -> None:
+        widget = self.ui.organization_list
+        for position in range(widget.count()):
+            if widget.item(position).data(Qt.ItemDataRole.UserRole) == organization_id:
+                widget.setCurrentRow(position)
+                return

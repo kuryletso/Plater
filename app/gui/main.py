@@ -27,6 +27,14 @@ def main() -> int:
                 border-radius: 2px;
                 padding: 2px;
             }
+
+            QLabel[role="error"] {
+                background-color: #fdecea;
+                color: #611a15;
+                border: 1px solid #c0392b;
+                border-radius: 3px;
+                padding: 6px;
+            }
         """,
     )
 

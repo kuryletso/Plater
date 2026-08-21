@@ -103,8 +103,12 @@ class OrganizationRepository:
 
         query = (
             select(Organization)
-            .options(selectinload(Organization.localizations))
-            .order_by(Organization.id.desc())
+            .options(
+                selectinload(Organization.localizations),
+                selectinload(Organization.tax_ids)
+                    .selectinload(TaxId.tax_id_system)
+                        .selectinload(TaxIdSystemRegistry.localizations),
+            ).order_by(Organization.id.desc())
         )
 
         if search:
