@@ -13,12 +13,20 @@ def main() -> int:
     app.setApplicationName("Plater")
     app.setStyleSheet("""
             CollapsibleColumn {
-            background-color: palette(base);
-            border: 1px solid palette(mid);
-            border-radius: 4 px;
-        }
-        CollapsibleColumn[status="complete"] { border-color: #2e7d32; }
-        CollapsibleColumn[status="invalid"] { border-color: #c0392b; }
+                background-color: palette(base);
+                border: 1px solid palette(mid);
+                border-radius: 4 px;
+            }
+            CollapsibleColumn[status="complete"] { border-color: #2e7d32; }
+            CollapsibleColumn[status="invalid"] { border-color: #c0392b; }
+
+            QLineEdit[warn="true"] {
+                background-color: #fff4d6;
+                color: #1a1a1a;
+                border: 1px solid #e0a800;
+                border-radius: 2px;
+                padding: 2px;
+            }
         """,
     )
 

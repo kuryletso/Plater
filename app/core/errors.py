@@ -20,6 +20,7 @@ class Layer(StrEnum):
     RENDER = "render"
     PERSISTENCE = "persistence"     # CRUD
     ORCHESTRATION = "orchestration"
+    UI = "ui"
 
 
 class ErrorCategory(StrEnum):

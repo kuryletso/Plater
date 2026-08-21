@@ -12,10 +12,7 @@ from sqlalchemy.orm import Session
 from app.db.models.references.currency import Currency
 from app.db.models.registries.measurement_unit import MeasurementUnitRegistry
 from app.document_engine.rendering.validate import column_languages
-from app.gui.columns.lines_delegates import (
-    DescriptionDelegate, NumberDelegate, UnitDelegate,
-)
-from app.gui.columns.lines_model import LinesModel
+from app.gui.columns.lines_row import LinesContainer
 from app.gui.draft_state import DraftState
 from app.gui.generated.ui_document_column import Ui_DocumentColumn
 from app.gui.text import localized
@@ -46,19 +43,15 @@ class DocumentColumn(QWidget):
 
         self._units = self._load_units()
 
-        self.model = LinesModel(self)
-        self.model.set_unit_names(dict(self._units))
-        self.ui.lines_table.setModel(self.model)
+        self.lines = LinesContainer(session)
+        self.ui.lines_scroll.setWidget(self.lines)
+
+        self.ui.add_button.clicked.connect(self.lines.add_row)
+        self.lines.rows_changed.connect(self._push_rows)
 
         self.ui.date_edit.setDate(QDate.currentDate())
         self._populate_currencies()
 
-        self.ui.add_button.clicked.connect(self.model.add_row)
-        self.ui.remove_button.clicked.connect(self.model.remove_row)
-        self.ui.up_button.clicked.connect(lambda: self._move_selected(1))
-        self.ui.down_button.clicked.connect(lambda: self._move_selected(1))
-
-        self.model.rows_changed.connect(self._push_rows)
         self.ui.date_edit.dateChanged.connect(self._on_date_changed)
         self.ui.currency_combo.currentIndexChanged.connect(self._on_currency_changed)
         draft.changed.connect(self._on_draft_changed)
@@ -71,18 +64,11 @@ class DocumentColumn(QWidget):
 
         if languages != self._languages:
             self._languages = languages
-            self.model.set_languages(languages)
-            self._install_delegates()
+            self.lines.set_context(languages, self._units)
 
         ready = bool(languages)
-        for widget in (
-            self.ui.lines_table,
-            self.ui.add_button,
-            self.ui.remove_button,
-            self.ui.up_button,
-            self.ui.down_button,
-        ):
-            widget.setEnabled(ready)
+        self.ui.lines_scroll.setEnabled(ready)
+        self.ui.add_button.setEnabled(ready)
         self.ui.notice_label.setVisible(not ready)
 
         self._refresh_totals()
@@ -106,32 +92,8 @@ class DocumentColumn(QWidget):
         return ordered or self._draft.languages[:1]
 
 
-    def _install_delegates(self) -> None:
-        table = self.ui.lines_table
-
-        for position, kind in enumerate(self.model.column_kinds()):
-            match kind:
-                case "description":
-                    delegate = DescriptionDelegate(
-                        self._session, self._languages[position], table,
-                    )
-                    delegate.hint_chosen.connect(self.model.fill_row)
-                case "unit":
-                    delegate = UnitDelegate(self._units, table)
-                case "quantity":
-                    delegate = NumberDelegate(decimals=3, parent=table)
-                case "price":
-                    delegate = NumberDelegate(decimals=2, parent=table)
-                case _:
-                    delegate = NumberDelegate(
-                        decimals=2, scale=Decimal(100), parent=table,
-                    )
-
-            table.setItemDelegateForColumn(position, delegate)
-
-
     def _push_rows(self) -> None:
-        self._draft.set_rows(self.model.rows())
+        self._draft.set_rows(self.lines.rows())
 
     def _on_date_changed(self, value: QDate) -> None:
         self._draft.set_issue_date( date(value.year(), value.month(), value.day()))
@@ -140,22 +102,6 @@ class DocumentColumn(QWidget):
         self._draft.set_currency(
             self.ui.currency_combo.itemData(position) if position >= 0 else None
         )
-
-
-    def _remove_selected(self) -> None:
-        index = self.ui.lines_table.currentIndex()
-        if index.isValid():
-            self.model.remove_row(index.row())
-
-    def _move_selected(self, delta: int) -> None:
-        index = self.ui.lines_table.currentIndex()
-        if not index.isValid():
-            return
-
-        if self.model.move_row(index.row(), delta):
-            self.ui.lines_table.setCurrentIndex(
-                self.model.index(index.row() + delta, index.column())
-            )
 
 
     def _refresh_totals(self) -> None:
@@ -167,7 +113,7 @@ class DocumentColumn(QWidget):
             if self._draft.currency_code else None
         )
         valid = [
-            row for row in self.model.rows()
+            row for row in self.lines.rows()
             if primary and not row.is_blank() and not row.problems(primary)
         ]
 
