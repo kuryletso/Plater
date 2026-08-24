@@ -24,7 +24,10 @@ from app.db.models.references.country import Country
 from app.db.models.references.currency import Currency
 from app.db.models.references.language import Language
 from app.db.models.registries.tax_id_system import TaxIdSystemRegistry
+from app.db.models.registries.document_type import DocumentTypeRegistry
+from app.db.models.configs.default_template_config import DefaultTemplateConfig
 from app.gui.text import localized
+
 
 def searchable_combo(items: Sequence[tuple[str, str]]) -> QComboBox:
     """Table store up to 249 rows, thus plain dropdown is unusable. Type-to-filter Combo used instead."""
@@ -97,6 +100,32 @@ def tax_system_items(session: Session) -> list[tuple[str, str]]:
             ).unique()
         ),
         key=lambda item: item[1],
+    )
+
+
+def document_type_items(session: Session) -> list[tuple[str, str]]:
+    return sorted(
+        (
+            (row.code, localized(row.localizations, "name"))
+            for row in session.scalars(
+                select(DocumentTypeRegistry)
+                .where(DocumentTypeRegistry.active.is_(True))
+            ).unique()
+        ),
+        key=lambda item: item[1]
+    )
+
+
+def default_languages(session: Session) -> tuple[str, ...]:
+    config = session.scalars(select(DefaultTemplateConfig)).first()
+    if config is None:
+        return ("ENG",)
+
+    return tuple(
+        code for code in (
+            config.primary_language_code,
+            config.secondary_language_code,
+        ) if code
     )
 
 

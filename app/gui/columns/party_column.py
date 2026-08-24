@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import StrEnum
 
 from PySide6.QtCore import Qt, QSignalBlocker
-from PySide6.QtWidgets import QListWidgetItem, QWidget, QDialog
+from PySide6.QtWidgets import QListWidgetItem, QWidget, QDialog, QComboBox
 from sqlalchemy.orm import Session
 
 from app.gui.text import localized, organization_label
@@ -11,6 +11,10 @@ from app.gui.draft_state import DraftState
 from app.gui.generated.ui_party_column import Ui_PartyColumn
 from app.gui.dialogs.organization import OrganizationDialog
 from app.gui.dialogs.tax_id import TaxIdDialog
+from app.gui.dialogs.bank_account import BankAccountDialog
+from app.gui.dialogs.representative import RepresentativeDialog
+from app.gui.dialogs.sequence import SequenceDialog
+from app.gui.dialogs.widgets import show_code
 from app.services.doc_sequence.repository import SequenceRepository
 from app.services.organization.repository import OrganizationRepository
 
@@ -65,8 +69,6 @@ class PartyColumn(QWidget):
         self._show_selected(None)
 
         self.ui.tax_combo.setPlaceholderText("Select...")
-        self.ui.sequence_combo.setPlaceholderText("Select a template first...")
-        self.ui.sequence_combo.setEnabled(False)
 
         self.ui.search_edit.textChanged.connect(self.refresh_organizations)
         self.ui.organization_list.currentItemChanged.connect(self._on_org_selected)
@@ -79,9 +81,14 @@ class PartyColumn(QWidget):
         self.ui.add_organization_button.clicked.connect(self._add_organization)
         self.ui.add_tax_button.clicked.connect(self._add_tax_id)
 
+        self.ui.add_representative_button.clicked.connect(self._add_representative)
+        self.ui.add_bank_button.clicked.connect(self._add_bank_account)
+        self.ui.add_sequence_button.clicked.connect(self._add_sequence)
+
         draft.changed.connect(self._on_draft_changed)
 
         self.refresh_organizations()
+        self._populate_sequences()      # (!) enables sequence_combo
 
 
     def refresh_organizations(self) -> None:
@@ -192,6 +199,10 @@ class PartyColumn(QWidget):
         document_type = self._draft.document_type
         self._sequence_key = (organization_id, document_type)
 
+        self.ui.add_sequence_button.setEnabled(
+            organization_id is not None and document_type is not None
+        )
+
         combo = self.ui.sequence_combo
         with QSignalBlocker(combo):
             combo.clear()
@@ -260,12 +271,17 @@ class PartyColumn(QWidget):
 
 
     def _show_selected(self, name: str | None) -> None:
-        """The list may be filtered away from the selection, so name it here."""
-
         self.ui.selection_label.setText(name or "Nothing selected")
         self.ui.selection_label.setEnabled(name is not None)
         self.ui.clear_button.setEnabled(name is not None)
         self.ui.add_tax_button.setEnabled(name is not None)
+
+        for button in (
+            self.ui.add_tax_button,
+            self.ui.add_representative_button,
+            self.ui.add_bank_button,
+        ):
+            button.setEnabled(name is not None)
 
 
     def _show_empty_notice(self, search: str | None) -> None:
@@ -295,6 +311,7 @@ class PartyColumn(QWidget):
         dialog = TaxIdDialog(self._session, organization_id, parent=self)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self._populate_pickers(organization_id)
+            self._select_new(self.ui.tax_combo, dialog.tax_id_id)
 
 
     def _select_organization(self, organization_id: int | None) -> None:
@@ -303,3 +320,64 @@ class PartyColumn(QWidget):
             if widget.item(position).data(Qt.ItemDataRole.UserRole) == organization_id:
                 widget.setCurrentRow(position)
                 return
+
+
+    def _add_representative(self) -> None:
+        organization_id = self._get_org()
+        if organization_id is None:
+            return
+
+        dialog = RepresentativeDialog(
+            self._session,
+            organization_id,
+            parent=self,
+        )
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self._populate_pickers(organization_id)
+            self._select_new(self.ui.representative_combo, dialog.representative_id)
+
+    def _add_bank_account(self) -> None:
+        organization_id = self._get_org()
+        if organization_id is None:
+            return
+
+        dialog = BankAccountDialog(
+            self._session,
+            organization_id,
+            parent=self,
+        )
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self._populate_pickers(organization_id)
+            self._select_new(self.ui.bank_combo, dialog.bank_account_id)
+
+
+    def _add_sequence(self) -> None:
+        if self._role is not PartyRole.PROVIDER:
+            return
+
+        organization_id = self._draft.provider_organization_id
+        if organization_id is None:
+            return
+
+        dialog = SequenceDialog(
+            self._session,
+            organization_id,
+            self._draft.document_type,
+            parent=self,
+        )
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.refresh_sequences()
+
+
+    def _select_new(
+            self,
+            combo: QComboBox,
+            value: int | None,
+    ) -> None:
+        """Select a freshly added item outside any blocker, so the handler runs
+        and DraftState follows the combo.
+        """
+
+        position = combo.findData(value)
+        if position >= 0:
+            combo.setCurrentIndex(position)

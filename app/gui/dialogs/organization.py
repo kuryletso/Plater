@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models.configs.default_template_config import DefaultTemplateConfig
-from app.gui.dialogs.widgets import ErrorBanner, LocalizedFields
+from app.gui.dialogs.widgets import ErrorBanner, LocalizedFields, default_languages
 from app.services.errors import ServiceError
 from app.services.organization.repository import OrganizationRepository, OrganizationText
 
@@ -73,7 +73,7 @@ class OrganizationDialog(QDialog):
     def _load(self) -> None:
         if self.organization_id is None:
             self.localizations.set_values({
-                code: {} for code in self._default_languages()
+                code: {} for code in default_languages(self._session)
             })
             return
 
@@ -89,20 +89,21 @@ class OrganizationDialog(QDialog):
             for code, row in organization.localizations.items()
         })
 
+    ######### moved to app.gui.dialogs.widgets as shared function default_languages()
+    #
+    # def _default_languages(self) -> tuple[str, ...]:
+    #     config = self._session.scalars(select(DefaultTemplateConfig)).first()
+    #     if config is None:
+    #         return ("ENG",)
 
-    def _default_languages(self) -> tuple[str, ...]:
-        config = self._session.scalars(select(DefaultTemplateConfig)).first()
-        if config is None:
-            return ("ENG",)
-
-        return tuple(
-            code for code
-            in (
-                config.primary_language_code,
-                config.secondary_language_code,
-            ) if code
-        )
-
+    #     return tuple(
+    #         code for code
+    #         in (
+    #             config.primary_language_code,
+    #             config.secondary_language_code,
+    #         ) if code
+    #     )
+    ############################
 
     def _save(self) -> None:
         self.banner.clear_message()
