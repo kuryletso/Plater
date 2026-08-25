@@ -3,12 +3,13 @@ from __future__ import annotations
 from html import escape
 
 from PySide6.QtCore import Qt, QSignalBlocker
-from PySide6.QtWidgets import QListWidgetItem, QWidget
+from PySide6.QtWidgets import QListWidgetItem, QWidget, QDialog
 from sqlalchemy.orm import Session
 
 from app.gui.generated.ui_template_column import Ui_TemplateColumn
 from app.services.template.repository import TemplateRepository
 from app.gui.draft_state import DraftState
+from app.gui.dialogs.template_import import TemplateImportDialog
 
 
 class TemplateColumn(QWidget):
@@ -23,6 +24,7 @@ class TemplateColumn(QWidget):
 
         super().__init__(parent)
         self._draft = draft
+        self._session = session
         self._repo = TemplateRepository(session)
 
         self.ui = Ui_TemplateColumn()
@@ -31,6 +33,7 @@ class TemplateColumn(QWidget):
         self.ui.search_edit.textChanged.connect(self.refresh)
         self.ui.template_list.currentItemChanged.connect(self._on_selection)
         self.ui.clear_button.clicked.connect(self.clear_selection)
+        self.ui.add_template_button.clicked.connect(self._import_template)
         self._show_selected(None)
 
         self.refresh()
@@ -127,3 +130,16 @@ class TemplateColumn(QWidget):
         item.setFlags(Qt.ItemFlag.NoItemFlags)
         item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
         self.ui.template_list.addItem(item)
+
+
+    def _import_template(self) -> None:
+        dialog = TemplateImportDialog(self._session, parent=self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        self.refresh()
+        for position in range(self.ui.template_list.count()):
+            item = self.ui.template_list.item(position)
+            if item.data(Qt.ItemDataRole.UserRole)[0] == dialog.template_id:
+                self.ui.template_list.setCurrentRow(position)
+                return

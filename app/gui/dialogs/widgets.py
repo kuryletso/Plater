@@ -129,6 +129,11 @@ def default_languages(session: Session) -> tuple[str, ...]:
     )
 
 
+def default_document_type(session: Session) -> str | None:
+    config = session.scalars(select(DefaultTemplateConfig)).first()
+    return config.document_type_code if config is not None else None
+
+
 class ErrorBanner(QLabel):
     """ServiceError's user_message lands here, inside a dialog, not in a second modal on top of it."""
 

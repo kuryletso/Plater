@@ -4,16 +4,17 @@ from decimal import Decimal
 from datetime import date
 
 from PySide6.QtCore import QDate, QSignalBlocker
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QWidget, QDialog
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models.references.currency import Currency
-from app.db.models.registries.measurement_unit import MeasurementUnitRegistry
+from app.services.measurement_unit.repository import MeasurementUnitRepository
 from app.document_engine.rendering.validate import column_languages
 from app.gui.columns.lines_row import LinesContainer
 from app.gui.draft_state import DraftState
+from app.gui.dialogs.measurement_unit import MeasurementUnitDialog
 from app.gui.generated.ui_document_column import Ui_DocumentColumn
 from app.gui.text import localized
 from app.services.invoice.assembler import money_format
@@ -46,6 +47,7 @@ class DocumentColumn(QWidget):
         self.lines = LinesContainer(session)
         self.ui.lines_scroll.setWidget(self.lines)
 
+        self.ui.add_unit_button.clicked.connect(self._add_units)
         self.ui.add_button.clicked.connect(self.lines.add_row)
         self.lines.rows_changed.connect(self._push_rows)
 
@@ -139,13 +141,10 @@ class DocumentColumn(QWidget):
 
 
     def _load_units(self) -> list[tuple[str, str]]:
-        units = self._session.scalars(
-            select(MeasurementUnitRegistry)
-            .where(MeasurementUnitRegistry.active.is_(True))
-            .order_by(MeasurementUnitRegistry.code)
-        ).unique()
-
-        return [ (unit.code, localized(unit.localizations, "name")) for unit in units]
+        return [
+            (unit.code, localized(unit.localizations, "name"))
+            for unit in MeasurementUnitRepository(self._session).list()
+        ]
 
 
     def _populate_currencies(self) -> None:
@@ -162,3 +161,10 @@ class DocumentColumn(QWidget):
                     currency.code,
                 )
             combo.setCurrentIndex(-1)
+
+
+    def _add_units(self) -> None:
+        dialog = MeasurementUnitDialog(self._session, parent=self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self._units = self._load_units()
+            self.lines.set_units(self._units)

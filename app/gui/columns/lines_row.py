@@ -4,7 +4,7 @@ from typing import cast
 
 from decimal import Decimal, InvalidOperation
 
-from PySide6.QtCore import QRegularExpression, Qt, Signal
+from PySide6.QtCore import QRegularExpression, Qt, Signal, QSignalBlocker
 from PySide6.QtGui import QRegularExpressionValidator, QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import (
     QComboBox,
@@ -233,6 +233,18 @@ class LineRowWidget(QWidget):
         self._changed()
 
 
+    def reload_units(self, units: list[tuple[str, str]]) -> None:
+        self._unit_codes = { code.casefold(): code for code, _ in units }
+        self._unit_codes.update( {name.casefold(): code for code, name in units })
+
+        current = self.row.unit_code
+        with QSignalBlocker(self.unit_combo):
+            self.unit_combo.clear()
+            for code, name in units:
+                self.unit_combo.addItem(name, code)
+            self._show_unit(current)
+
+
     def set_number(self, number: int) -> None:
         self.number_label.setText(f"{number}.")
 
@@ -311,6 +323,12 @@ class LinesContainer(QWidget):
         self._insert_widget(self._rows[-1], len(self._widgets))
         self._renumber()
         self.rows_changed.emit()
+
+
+    def set_units(self, units: list[tuple[str, str]]) -> None:
+        self._units = units
+        for widget in self._widgets:
+            widget.reload_units(units)
 
 
     def _remove(self, widget: LineRowWidget) -> None:
