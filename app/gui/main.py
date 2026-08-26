@@ -17,8 +17,10 @@ def main() -> int:
                 border: 1px solid palette(mid);
                 border-radius: 4 px;
             }
+
             CollapsibleColumn[status="complete"] { border-color: #2e7d32; }
-            CollapsibleColumn[status="invalid"] { border-color: #c0392b; }
+
+            CollapsibleColumn[status="invalid"]  { border-color: #c0392b; }
 
             QLineEdit[warn="true"] {
                 background-color: #fff4d6;
@@ -34,6 +36,14 @@ def main() -> int:
                 border: 1px solid #c0392b;
                 border-radius: 3px;
                 padding: 6px;
+            }
+        
+            QLabel[role="warning"] {
+                background-color: #fff4d6;
+                color: #6b4e00;
+                border: 1px solid #e0a800;
+                border-radius: 3px;
+                padding: 4px 8px;
             }
         """,
     )

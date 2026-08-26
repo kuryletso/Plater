@@ -282,6 +282,20 @@ class DraftState(QObject):
         )
 
 
+    def warning(self) -> list[str]:
+        """Warns about non-critical issues, doesn't block generation."""
+
+        out: list[str] = []
+
+        if (
+            self.provider_organization_id is not None
+            and self.provider_organization_id == self.client_organization_id
+        ):
+            out.append("Provider and client are the same organization.")
+
+        return out
+
+
     def _emit(self) -> None:
         for column in COLUMNS:
             if column not in self.missing_by_column():

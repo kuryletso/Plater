@@ -122,6 +122,10 @@ class MainWindow(QMainWindow):
 
 
     def _build_footer(self) -> QWidget:
+        self.warning_label = QLabel()
+        self.warning_label.setProperty("role", "warning")
+        self.warning_label.hide()
+
         self.generate_button = QPushButton("Generate")
         self.generate_button.clicked.connect(self._on_generate)
         self.generate_button.setEnabled(False)
@@ -130,6 +134,7 @@ class MainWindow(QMainWindow):
         footer = QWidget()
         layout = QHBoxLayout(footer)
         layout.setContentsMargins(0,0,0,0)
+        layout.addWidget(self.warning_label)
         layout.addStretch(1)
         layout.addWidget(self.generate_button)
 
@@ -149,6 +154,10 @@ class MainWindow(QMainWindow):
         self.generate_button.setToolTip(
             "Ready to generate." if not gaps else " | ".join(gaps) 
         )
+
+        warnings = self.draft.warning()
+        self.warning_label.setText("   ".join( f"⚠ {text}" for text in warnings ))
+        self.warning_label.setVisible(bool(warnings))
 
 
     def _on_generate(self) -> None:
