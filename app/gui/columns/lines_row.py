@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 from sqlalchemy.orm import Session
 
 from app.gui.draft_state import LineRow
+from app.gui.dialogs.widgets import ReferenceCombo
 from app.gui.errors import MissingUIElement
 from app.services.invoice_line.repository import InvoiceLineRepository
 from app.db.models.core.invoice_line import InvoiceLine
@@ -66,7 +67,7 @@ class LineRowWidget(QWidget):
             self,
             row: LineRow,
             languages: tuple[str, ...],
-            units: list[tuple[str,str]],        # (code, localized name)
+            units: list[tuple[str, str, tuple[str, ...]]],        # (code, localized name)
             session: Session,
             parent: QWidget | None = None,
     ) -> None:
@@ -76,9 +77,6 @@ class LineRowWidget(QWidget):
         self._languages = languages
         self._primary = languages[0] if languages else None
         self._repo = InvoiceLineRepository(session)
-
-        self._unit_codes = { code.casefold(): code for code, _ in units }
-        self._unit_codes.update({ name.casefold(): code for code, name in units })
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0,0,0,0)
@@ -102,15 +100,13 @@ class LineRowWidget(QWidget):
         if self._primary is not None:
             self._attach_completer(self.description_edits[self._primary])
 
-        self.unit_combo = QComboBox()
-        self.unit_combo.setEditable(True)
-        self.unit_combo.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+
+        self.unit_combo = ReferenceCombo(units)     # built-in setEditable(True)
         self.unit_combo.setMinimumWidth(90)
-        for code, name in units:
-            self.unit_combo.addItem(name, code)
         internal_line_edit = cast(QLineEdit, self.unit_combo.lineEdit())      # static checker fails to see self.unit_combo.setEditable(True) that prevents .lineEdit() from returning None
         internal_line_edit.setPlaceholderText("Unit")
-        self._show_unit(row.unit_code)
+        self.unit_combo.set_code(row.unit_code)
+
         self.unit_combo.activated.connect(self._on_unit_picked)
         internal_line_edit.editingFinished.connect(self._on_unit_typed)
         layout.addWidget(self.unit_combo, 1)
@@ -157,20 +153,14 @@ class LineRowWidget(QWidget):
 
 
     def _on_unit_typed(self) -> None:
-        """Typed text resolved against codes and localized names, casefolded.
-        Should only be called after self.unit_combo.setEditable(True).
+        """Typed text is resolved against codes and localized names, casefolded, 
+        does not depend on whatever UI language is selected.
         """
 
-        internal_line_edit = self.unit_combo.lineEdit()
-        if internal_line_edit is None:
-            raise MissingUIElement(
-                "_on_unit_typed() is called before unit_combo.setEditable(True), "
-                "unit_combo.lineEdit() returns None",
-            )
-        code = self._unit_codes.get(internal_line_edit.text().strip().casefold())
+        code = self.unit_combo.code()
         if code != self.row.unit_code:
             self.row.unit_code = code
-            self._show_unit(code)
+            self.unit_combo.set_code(code)
             self._changed()
 
 
@@ -233,16 +223,10 @@ class LineRowWidget(QWidget):
         self._changed()
 
 
-    def reload_units(self, units: list[tuple[str, str]]) -> None:
-        self._unit_codes = { code.casefold(): code for code, _ in units }
-        self._unit_codes.update( {name.casefold(): code for code, name in units })
+    def reload_units(self, units: list[tuple[str, str, tuple[str, ...]]]) -> None:
+        """Replaces selection in-place."""
 
-        current = self.row.unit_code
-        with QSignalBlocker(self.unit_combo):
-            self.unit_combo.clear()
-            for code, name in units:
-                self.unit_combo.addItem(name, code)
-            self._show_unit(current)
+        self.unit_combo.set_items(units)
 
 
     def set_number(self, number: int) -> None:
@@ -250,9 +234,7 @@ class LineRowWidget(QWidget):
 
 
     def _show_unit(self, code: str | None) -> None:
-        self.unit_combo.setCurrentIndex(
-            self.unit_combo.findData(code) if code else -1
-        )
+        self.unit_combo.set_code(code)
 
 
     def _refresh_warnings(self) -> None:
@@ -294,7 +276,7 @@ class LinesContainer(QWidget):
         super().__init__(parent)
         self._session = session
         self._languages: tuple[str, ...] = ()
-        self._units: list[tuple[str, str]] = []
+        self._units: list[tuple[str, str, tuple[str, ...]]] = []
         self._rows: list[LineRow] = [LineRow()]
         self._widgets: list[LineRowWidget] = []
 
@@ -306,7 +288,7 @@ class LinesContainer(QWidget):
     def set_context(
             self,
             languages: tuple[str, ...],
-            units: list[tuple[str, str]],
+            units: list[tuple[str, str, tuple[str, ...]]],
     ) -> None:
         """Rebuild widgets if template changed; the LineRow data survives."""
 
@@ -325,7 +307,7 @@ class LinesContainer(QWidget):
         self.rows_changed.emit()
 
 
-    def set_units(self, units: list[tuple[str, str]]) -> None:
+    def set_units(self, units: list[tuple[str, str, tuple[str, ...]]]) -> None:
         self._units = units
         for widget in self._widgets:
             widget.reload_units(units)

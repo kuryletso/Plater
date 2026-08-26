@@ -67,7 +67,7 @@ class TemplateImportDialog(QDialog):
         self.name_edit = QLineEdit()
         self.type_combo = searchable_combo(document_type_items(session))
         self.primary_combo = searchable_combo(languages)
-        self.secondary_combo = searchable_combo([("", "(none)"), *languages])
+        self.secondary_combo = searchable_combo([("", "(none)", ()), *languages])
         self.currency_check = QCheckBox("Append the currency to money value")
         self.description_edit = QLineEdit()
 

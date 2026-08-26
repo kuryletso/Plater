@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QSignalBlocker
 from PySide6.QtWidgets import (
     QCompleter,
     QComboBox,
@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QToolButton,
     QWidget,
 )
+from PySide6.QtGui import QStandardItem, QStandardItemModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -29,71 +30,70 @@ from app.db.models.configs.default_template_config import DefaultTemplateConfig
 from app.gui.text import localized
 
 
-def searchable_combo(items: Sequence[tuple[str, str]]) -> QComboBox:
-    """Table store up to 249 rows, thus plain dropdown is unusable. Type-to-filter Combo used instead."""
+def searchable_combo(
+        items: Sequence[tuple[str, str, tuple[str, ...]]],
+) -> ReferenceCombo:
 
-    combo = QComboBox()
-    combo.setEditable(True)
-    combo.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
-
-    for code, label in items:
-        combo.addItem(label, code)
-    combo.setCurrentIndex(-1)
-
-    completer = combo.completer()
-    if completer is not None:
-        completer.setCompletionMode(QCompleter.CompletionMode.PopupCompletion)
-        completer.setFilterMode(Qt.MatchFlag.MatchContains)
-        completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
-
-    return combo
+    return ReferenceCombo(items)
 
 
-def selected_code(combo: QComboBox) -> str | None:
-    """Editable combos accept anything, so resolve against the items."""
-
-    position = combo.findText(combo.currentText().strip())
-    return combo.itemData(position) if position >= 0 else None
+def selected_code(combo: ReferenceCombo) -> str | None:
+    return combo.code()
 
 
-def show_code(combo: QComboBox, code: str | None) -> None:
-    combo.setCurrentIndex(combo.findData(code) if code else -1)
+def show_code(combo: ReferenceCombo, code: str | None) -> None:
+    combo.set_code(code)
 
 
-def language_items(session: Session) -> list[tuple[str, str]]:
+def language_items(session: Session) -> list[tuple[str, str, tuple[str, ...]]]:
     return [
-        (row.code, f"{row.label_en} ({row.code})")
+        (
+            row.code,
+            f"{row.label_en} ({row.code})",
+            (row.label_en, row.label_uk, row.code_alpha_2),
+        )
         for row in session.scalars(
             select(Language)
             .order_by(Language.label_en)
         )
     ]
 
-
-def country_items(session: Session) -> list[tuple[str, str]]:
+def country_items(session: Session) -> list[tuple[str, str, tuple[str, ...]]]:
     return sorted(
         (
-            (row.code, localized(row.localizations, "name"))
+            (
+                row.code,
+                localized(row.localizations, "name"),
+                _localized_names(row),
+            )
             for row in session.scalars(select(Country)).unique()
         ),
         key=lambda item: item[1],
     )
 
 
-def currency_items(session: Session) -> list[tuple[str, str]]:
+def currency_items(session: Session) -> list[tuple[str, str, tuple[str, ...]]]:
     return sorted(
         (
-            (row.code, f"{row.code} — {localized(row.localizations, 'name')}")
+            (
+                row.code,
+                f"{row.code} — {localized(row.localizations, 'name')}",
+                _localized_names(row),
+            )
             for row in session.scalars(select(Currency)).unique()
         ),
         key=lambda item: item[1],
     )
 
 
-def tax_system_items(session: Session) -> list[tuple[str, str]]:
+def tax_system_items(session: Session) -> list[tuple[str, str, tuple[str, ...]]]:
     return sorted(
         (
-            (row.code, localized(row.localizations, "name"))
+            (
+                row.code,
+                localized(row.localizations, "name"),
+                _localized_names(row),
+            )
             for row in session.scalars(
                 select(TaxIdSystemRegistry)
                 .where(TaxIdSystemRegistry.active.is_(True))
@@ -103,10 +103,14 @@ def tax_system_items(session: Session) -> list[tuple[str, str]]:
     )
 
 
-def document_type_items(session: Session) -> list[tuple[str, str]]:
+def document_type_items(session: Session) -> list[tuple[str, str, tuple[str, ...]]]:
     return sorted(
         (
-            (row.code, localized(row.localizations, "name"))
+            (
+                row.code,
+                localized(row.localizations, "name"),
+                _localized_names(row),
+            )
             for row in session.scalars(
                 select(DocumentTypeRegistry)
                 .where(DocumentTypeRegistry.active.is_(True))
@@ -132,6 +136,14 @@ def default_languages(session: Session) -> tuple[str, ...]:
 def default_document_type(session: Session) -> str | None:
     config = session.scalars(select(DefaultTemplateConfig)).first()
     return config.document_type_code if config is not None else None
+
+
+def _localized_names(row) -> tuple[str, ...]:
+    return tuple(
+        localization.name
+        for localization in row.localizations.values()
+        if localization.name
+    )
 
 
 class ErrorBanner(QLabel):
@@ -165,7 +177,7 @@ class LocalizedFields(QWidget):
         super().__init__(parent)
         self._fields = fields
         self._languages = language_items(session)
-        self._names = dict(self._languages)
+        self._names = { code: label for code, label, _ in self._languages}
         self._edits: dict[str, dict[str, QLineEdit]] = {}
 
         self.tabs = QTabWidget()
@@ -237,7 +249,7 @@ class LocalizedFields(QWidget):
     def _add_language(self) -> None:
         available = [
             (code, name)
-            for code, name in self._languages
+            for code, name, _ in self._languages
             if code not in self._edits
         ]
 
@@ -268,3 +280,93 @@ class LocalizedFields(QWidget):
 
     def language_name(self, code: str) -> str:
         return self._names.get(code, code)
+
+
+class ReferenceCombo(QComboBox):
+    """Editable, type-to-filter picker over a reference table.
+    
+    Typed text resolves against the code and every localized name, 
+    not just displayed name. So the UI language does not affect user search.
+    """
+
+    def __init__(
+            self,
+            items: Sequence[tuple[str, str, tuple[str, ...]]],       # code, label, aliases
+            parent: QWidget | None = None,
+    ) -> None:
+
+        super().__init__(parent)
+        self.setEditable(True)
+        self.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        self._aliases: dict[str, str] = {}
+
+        self.set_items(items)
+
+        line_edit = self.lineEdit()
+        if line_edit is not None:
+            line_edit.editingFinished.connect(self._normalize)
+
+    def set_items(
+            self,
+            items: Sequence[tuple[str, str, tuple[str, ...]]],
+    ) -> None:
+        """Repopulates in-place to keep current selection."""
+
+        current = self.code()
+
+        with QSignalBlocker(self):
+            self.clear()
+            self._aliases.clear()
+
+            for code, label, aliases in items:
+                self.addItem(label, code)
+                for alias in aliases:
+                    if alias:
+                        self._aliases.setdefault(alias.casefold(), code)
+                self._aliases[label.casefold()] = code
+                self._aliases[code.casefold()] = code
+
+        self._build_completer(items)
+        self.set_code(current)
+
+
+    def code(self) -> str | None:
+        return self._aliases.get(self.currentText().strip().casefold())
+
+
+    def set_code(self, code: str | None) -> None:
+        self.setCurrentIndex(self.findData(code) if code else -1)
+
+
+    def _build_completer(
+            self,
+            items: Sequence[tuple[str, str, tuple[str, ...]]],
+    ) -> None:
+
+        model = QStandardItemModel(self)
+        seen: set[str] = set()
+
+        for code, label, aliases in items:
+            for text in (label, code, *aliases):
+                key = text.casefold()
+                if not text or key in seen:
+                    continue
+
+                seen.add(key)
+                entry = QStandardItem(text)
+                entry.setData(code, Qt.ItemDataRole.UserRole)
+                model.appendRow(entry)
+
+        completer = QCompleter(model, self)
+        completer.setCompletionMode(QCompleter.CompletionMode.PopupCompletion)
+        completer.setFilterMode(Qt.MatchFlag.MatchContains)
+        completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        self.setCompleter(completer)
+
+
+    def _normalize(self) -> None:
+        """Shows canonical label whatever user typed or picked."""
+
+        code = self.code()
+        if code is not None:
+            self.set_code(code)

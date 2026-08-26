@@ -140,9 +140,13 @@ class DocumentColumn(QWidget):
             label.setText(fmt.format(amount, primary, True))
 
 
-    def _load_units(self) -> list[tuple[str, str]]:
+    def _load_units(self) -> list[tuple[str, str, tuple[str, ...]]]:
         return [
-            (unit.code, localized(unit.localizations, "name"))
+            (
+                unit.code,
+                localized(unit.localizations, "name"),
+                tuple(row.name for row in unit.localizations.values()),
+            )
             for unit in MeasurementUnitRepository(self._session).list()
         ]
 
