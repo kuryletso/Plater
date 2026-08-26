@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QListWidget,
     QPushButton,
 )
+from PySide6.QtGui import QDragEnterEvent, QDropEvent
 from sqlalchemy.orm import Session
 
 from app.core.errors import AppError
@@ -48,10 +49,11 @@ class TemplateImportDialog(QDialog):
 
         self.setWindowTitle("Import template")
         self.setMinimumWidth(560)
+        self.setAcceptDrops(True)
 
         self.path_edit = QLineEdit()
         self.path_edit.setReadOnly(True)
-        self.path_edit.setPlaceholderText("Choose a .docx template...")
+        self.path_edit.setPlaceholderText("Browse a .docx template, or drop one here...")
         browse = QPushButton("Browse...")
         browse.clicked.connect(self._browse)
 
@@ -120,11 +122,13 @@ class TemplateImportDialog(QDialog):
             self, "Select a template", "", "Word documents (*.docx)",
         )
         if not chosen:
-            return
+            self._use_file(Path(chosen))
 
-        self.path_edit.setText(chosen)
+
+    def _use_file(self, path: Path) -> None:
+        self.path_edit.setText(str(path))
         if not self.name_edit.text().strip():
-            self.name_edit.setText(Path(chosen).stem)
+            self.name_edit.setText(path.stem)
 
         self._reingest()
 
@@ -198,3 +202,31 @@ class TemplateImportDialog(QDialog):
             return
 
         self.accept()
+
+
+    def dragEnterEvent(self, event: QDragEnterEvent) -> None:
+        if self._dropped_docx(event.mimeData()) is not None:
+            event.acceptProposedAction()
+
+
+    def dropEvent(self, event: QDropEvent) -> None:
+        path = self._dropped_docx(event.mimeData())
+        if path is not None:
+            event.acceptProposedAction()
+            self._use_file(path)
+
+
+    @staticmethod
+    def _dropped_docx(mime) -> Path | None:
+        """Only accepts local .docx, so the cursor says 'no' for anything else."""
+
+        if not mime.hasUrls():
+            return None
+
+        for url in mime.urls():
+            if url.isLocalFile():
+                path = Path(url.toLocalFile())
+                if path.suffix.lower() == ".docx":
+                    return path
+
+        return None
