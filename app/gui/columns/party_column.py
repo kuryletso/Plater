@@ -64,6 +64,7 @@ class PartyColumn(QWidget):
         if role is PartyRole.CLIENT:
             self.ui.sequence_label.hide()
             self.ui.sequence_combo.hide()
+            self.ui.add_sequence_button.hide()
 
         self.ui.clear_button.clicked.connect(self.clear_selection)
         self._show_selected(None)

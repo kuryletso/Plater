@@ -72,7 +72,8 @@ class TemplateImportDialog(QDialog):
         self.description_edit = QLineEdit()
 
         show_code(self.primary_combo, defaults[0] if defaults else None)
-        show_code(self.secondary_combo, defaults[1] if len(defaults) > 1 else "")
+        # show_code(self.secondary_combo, defaults[1] if len(defaults) > 1 else "")     # defaults secondary language to second default language
+        show_code(self.secondary_combo, "")     # defaults secondary language to (none)
         show_code(self.type_combo, default_document_type(session))
         self.currency_check.setChecked(True)
 
