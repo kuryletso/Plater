@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QStandardPaths
+from PySide6.QtCore import Qt, QStandardPaths, QTimer
 from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import (
     QFrame,
@@ -57,14 +57,22 @@ class MainWindow(QMainWindow):
         self.draft = DraftState(self)
         self.draft.changed.connect(self._refresh_readiness)
 
+        self._preview_timer = QTimer(self)
+        self._preview_timer.setSingleShot(True)
+        self._preview_timer.setInterval(300)
+        self._preview_timer.timeout.connect(self._refresh_preview)
+        self.draft.changed.connect(self._preview_timer.start)
+
         self.setWindowTitle("Plater")
         self.resize(1280, 800)
 
         self._build_menu()
 
+        self.preview = PreviewPanel()
+
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.addWidget(self._build_workspace())
-        splitter.addWidget(PreviewPanel())
+        splitter.addWidget(self.preview)
         splitter.setStretchFactor(0, 3)
         splitter.setStretchFactor(1, 2)
 
@@ -249,25 +257,27 @@ class MainWindow(QMainWindow):
 
 
     def _report_success(self, result: GenerationResult, target: Path) -> None:
-        warnings = [
-            item for item in result.diagnostics.items
-            if item.severity == Severity.WARNING
-        ]
+        QMessageBox.information(
+            self,
+            "Document generated",
+            f"Saved {result.number.formatted} to {target.name}.",
+        )
 
-        box = QMessageBox(self)
-        box.setIcon(QMessageBox.Icon.Information)
-        box.setWindowTitle("Document generated")
-        box.setText(f"Saved {result.number.formatted} to {target.name}.")
 
-        if warnings:
-            box.setInformativeText(
-                f"{len(warnings)} warning(s) -- the document rendered, but see details."
-            )
-            box.setDetailedText("\n".join(
-                f"{item.code}: {item.message}" for item in warnings
-            ))
+    def _refresh_preview(self) -> None:
+        """Must run preview() which renders without consuming a number."""
 
-        box.exec()
+        if not self.draft.is_complete():
+            self.preview.show_notice("Finish document setup to preview.")
+            return
+
+        try:
+            result = InvoiceGenerateService(self._session).preview(self.draft.to_draft())
+        except ServiceError as e:
+            self.preview.show_notice(e.user_message or str(e))
+            return
+
+        self.preview.show_result(result.number.formatted, result.diagnostics)
 
 
     def closeEvent(self, event) -> None:
