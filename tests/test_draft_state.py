@@ -5,7 +5,6 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
-from PySide6.QtCore import QCoreApplication
 
 from app.gui.draft_state import (
     CLIENT, COLUMNS, DOCUMENT, PROVIDER, TEMPLATE, ColumnStatus, DraftState, LineRow,
@@ -40,15 +39,10 @@ def row(
     )
 
 
-@pytest.fixture(scope="session", autouse=True)
-def qt_app():
-    """Signals need a QCoreApplication; one per test session is enough."""
-    app = QCoreApplication.instance() or QCoreApplication([])
-    yield app
-
-
 @pytest.fixture
-def draft() -> DraftState:
+def draft(qt_app) -> DraftState:
+    """qt_app comes from conftest: signals need an application object."""
+
     return DraftState()
 
 

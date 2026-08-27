@@ -100,6 +100,23 @@ class FixtureInputProvider:
         }
 
 
+@pytest.fixture(scope="session")
+def qt_app():
+    """One QApplication for the whole run.
+
+    Qt allows a single application object, so this cannot be per-module: the GUI
+    tests need a full QApplication, and DraftState's signals are happy with it.
+    """
+
+    import os
+
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
+    from PySide6.QtWidgets import QApplication
+
+    yield QApplication.instance() or QApplication([])
+
+
 @pytest.fixture
 def fixture_provider() -> FixtureInputProvider:
     return FixtureInputProvider()
