@@ -10,6 +10,8 @@ from app.gui.generated.ui_template_column import Ui_TemplateColumn
 from app.services.template.repository import TemplateRepository
 from app.gui.draft_state import DraftState
 from app.gui.dialogs.template_import import TemplateImportDialog
+from app.services.errors import ServiceError
+from app.db.models.core.template_version import TemplateVersion
 
 
 class TemplateColumn(QWidget):
@@ -98,7 +100,17 @@ class TemplateColumn(QWidget):
         self._show_selected(current.text())
         template_id, document_type = current.data(Qt.ItemDataRole.UserRole)
 
-        version = self._repo.current_version(template_id)
+        try:
+            version = self._repo.current_version(template_id)
+        except ServiceError as e:
+            # an exception escaping a slot is swallowed by Qt
+            self.ui.details_label.setText(
+                f"<b>This template cannot be loaded.</b><br>"
+                f"{escape(e.user_message or str(e))}"
+            )
+            self._draft.set_template(None, None, ())
+            return
+        
         config = version.config
         languages = tuple(
             code for code
@@ -106,12 +118,11 @@ class TemplateColumn(QWidget):
             if code
         )
 
-        self._show_details(template_id)
+        self._show_details(version)
         self._draft.set_template(template_id, document_type, languages)
         
 
-    def _show_details(self, template_id: int) -> None:
-        version = self._repo.current_version(template_id)
+    def _show_details(self, version: TemplateVersion) -> None:
         config = version.config
 
         languages = " / ".join(
