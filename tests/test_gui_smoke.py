@@ -178,6 +178,201 @@ def test_localized_fields_open_the_configured_languages(qt_app, session: Session
     assert dialog.localizations.tabs.count() == 2
 
 
+# --- manager dialogs ---------------------------------------------------------
+
+@pytest.fixture
+def manager(qt_app, session: Session):
+    from app.gui.dialogs.manager_dialog import ManagerDialog
+    from app.gui.dialogs.managers import organization_asset
+
+    return ManagerDialog(organization_asset(session))
+
+
+def labels(dialog) -> list[str]:
+    return [dialog.list.item(i).text() for i in range(dialog.list.count())]
+
+
+def test_the_manager_lists_what_exists(manager, make_org):
+    make_org("Acme")
+    manager.refresh()
+
+    assert any("Acme" in label for label in labels(manager))
+
+
+def test_the_manager_starts_with_nothing_selected(manager, make_org):
+    make_org("Acme")
+    manager.refresh()
+
+    assert not manager.edit_button.isEnabled()
+    assert not manager.delete_button.isEnabled()
+    assert manager.new_button.isEnabled()
+
+
+def test_selecting_enables_edit_and_delete(manager, make_org):
+    make_org("Acme")
+    manager.refresh()
+
+    manager.list.setCurrentRow(0)
+
+    assert manager.edit_button.isEnabled()
+    assert manager.delete_button.isEnabled()
+
+
+def test_the_manager_search_filters(manager, make_org):
+    make_org("Acme")
+    make_org("Globex", tax_value="22222222")
+    manager.refresh()
+
+    manager.search_edit.setText("globex")
+
+    assert len(labels(manager)) == 1
+    assert "Globex" in labels(manager)[0]
+
+
+def test_deleting_removes_the_row(manager, make_org, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+
+    make_org("Acme")
+    manager.refresh()
+    manager.list.setCurrentRow(0)
+
+    monkeypatch.setattr(
+        QMessageBox, "question",
+        staticmethod(lambda *a, **k: QMessageBox.StandardButton.Yes),
+    )
+    manager._delete()
+
+    assert labels(manager) == []
+    assert manager.changed
+
+
+def test_a_refused_delete_reports_instead_of_crashing(qt_app, session: Session,
+                                                      make_org, monkeypatch):
+    """Representatives refuse deletion while still attached — the banner must
+    carry user_message and the list must survive."""
+    from PySide6.QtWidgets import QDialog, QMessageBox
+
+    from app.gui.dialogs.manager_dialog import ManagedAsset, ManagerDialog
+    from app.gui.text import localized
+    from app.services.representative.repository import RepresentativeRepository
+
+    organization = make_org("Acme")          # make_org attaches a representative
+    repository = RepresentativeRepository(session)
+
+    dialog = ManagerDialog(ManagedAsset(
+        title="Representatives",
+        list_items=lambda search: [
+            (row.id, localized(row.localizations, "name"))
+            for row in repository.list(search=search)
+        ],
+        create=lambda parent: None,
+        edit=lambda parent, asset_id: False,
+        delete=lambda asset_id: repository.delete(int(asset_id)),
+    ))
+
+    assert labels(dialog), "make_org should have created a representative"
+    dialog.list.setCurrentRow(0)
+
+    monkeypatch.setattr(
+        QMessageBox, "question",
+        staticmethod(lambda *a, **k: QMessageBox.StandardButton.Yes),
+    )
+    dialog._delete()
+
+    assert "detach" in dialog.banner.text().lower()
+    assert labels(dialog), "the row must remain after a refused delete"
+    assert not dialog.changed
+
+
+def test_cancelling_the_confirmation_deletes_nothing(manager, make_org, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+
+    make_org("Acme")
+    manager.refresh()
+    manager.list.setCurrentRow(0)
+
+    monkeypatch.setattr(
+        QMessageBox, "question",
+        staticmethod(lambda *a, **k: QMessageBox.StandardButton.No),
+    )
+    manager._delete()
+
+    assert len(labels(manager)) == 1
+    assert not manager.changed
+
+
+# --- deleting something the draft points at ----------------------------------
+
+def test_revalidate_clears_a_deleted_organization(window, make_org):
+    organization = make_org("Acme")
+    window.provider_column.refresh_organizations()
+
+    widget = window.provider_column.ui.organization_list
+    for position in range(widget.count()):
+        if "Acme" in widget.item(position).text():
+            widget.setCurrentRow(position)
+            break
+
+    assert window.draft.provider_organization_id == organization.id
+
+    from app.services.organization.repository import OrganizationRepository
+
+    OrganizationRepository(window._session).delete(organization.id)
+    window.provider_column.revalidate()
+
+    assert window.draft.provider_organization_id is None
+    assert window.draft.provider_tax_id is None
+
+
+def test_revalidate_keeps_a_surviving_selection(window, make_org):
+    organization = make_org("Acme")
+    make_org("Globex", tax_value="22222222")
+    window.provider_column.refresh_organizations()
+
+    widget = window.provider_column.ui.organization_list
+    for position in range(widget.count()):
+        if "Acme" in widget.item(position).text():
+            widget.setCurrentRow(position)
+            break
+
+    window.provider_column.revalidate()
+
+    assert window.draft.provider_organization_id == organization.id
+    assert window.draft.provider_tax_id is not None
+
+
+def test_revalidate_clears_a_deleted_template(window, session: Session):
+    """Selection is set directly: a bare Template row has no version, and
+    selecting one through the list would fail for an unrelated reason."""
+    from app.db.models.core.template import Template
+
+    template = Template(name="Throwaway", type="invoice")
+    session.add(template)
+    session.commit()
+
+    window.draft.set_template(template.id, "invoice", ("ENG",))
+    assert window.draft.template_id == template.id
+
+    session.delete(template)
+    session.commit()
+    window.template_column.revalidate()
+
+    assert window.draft.template_id is None
+
+
+def test_revalidate_keeps_a_surviving_template(window, session: Session):
+    from app.db.models.core.template import Template
+
+    template = Template(name="Kept", type="invoice")
+    session.add(template)
+    session.commit()
+
+    window.draft.set_template(template.id, "invoice", ("ENG",))
+    window.template_column.revalidate()
+
+    assert window.draft.template_id == template.id
+
+
 # --- reference pickers -------------------------------------------------------
 
 def test_reference_pickers_resolve_any_language(qt_app, session: Session):
