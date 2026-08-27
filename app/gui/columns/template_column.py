@@ -72,6 +72,18 @@ class TemplateColumn(QWidget):
         self._show_selected(None)
 
 
+    def revalidate(self) -> None:
+        """Drops a selection that no longer exists if assets changed elsewhere."""
+
+        template_id = self._draft.template_id
+        if template_id is not None and template_id not in {
+            template.id for template in self._repo.list(include_inactive=True)
+        }:
+            self.clear_selection()
+
+        self.refresh()
+
+
     def _on_selection(
             self,
             current: QListWidgetItem | None,

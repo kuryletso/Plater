@@ -21,6 +21,8 @@ from app.gui.preview import PreviewPanel
 from app.gui.widgets.collapsible_column import Accordion, CollapsibleColumn
 
 from app.db.session import SessionLocal
+from app.gui.dialogs.manager_dialog import ManagerDialog
+from app.gui.dialogs.managers import organization_asset
 from app.gui.columns.template_column import TemplateColumn
 from app.gui.columns.party_column import PartyColumn, PartyRole
 from app.gui.columns.document_column import DocumentColumn
@@ -94,6 +96,9 @@ class MainWindow(QMainWindow):
     def _build_menu(self) -> None:
         file_menu = self.menuBar().addMenu("&File")
         file_menu.addAction("E&xit", self.close)
+
+        edit_menu = self.menuBar().addMenu("&Edit")
+        edit_menu.addAction("&Organizations...", self._manage_organizations)
 
         settings_menu = self.menuBar().addMenu("&Settings")
         settings_menu.addAction("Template defaults...").setEnabled(False)
@@ -278,6 +283,20 @@ class MainWindow(QMainWindow):
             return
 
         self.preview.show_result(result.number.formatted, result.diagnostics)
+
+
+    def _manage_organizations(self) -> None:
+        dialog = ManagerDialog(organization_asset(self._session), parent=self)
+        dialog.exec()
+
+        if dialog.changed:
+            self._revalidate_columns()
+
+    
+    def _revalidate_columns(self) -> None:
+        self.template_column.revalidate()
+        self.provider_column.revalidate()
+        self.client_column.revalidate()
 
 
     def closeEvent(self, event) -> None:

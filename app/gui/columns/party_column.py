@@ -51,12 +51,18 @@ class PartyColumn(QWidget):
             self._set_representative = draft.set_provider_representative
             self._set_bank = draft.set_provider_bank
             self._get_org = lambda: draft.provider_organization_id
+            self._get_tax = lambda: draft.provider_tax_id
+            self._get_representative = lambda: draft.provider_representative_id
+            self._get_bank = lambda: draft.provider_bank_id
         else:
             self._set_org = draft.set_client_organization
             self._set_tax = draft.set_client_tax
             self._set_representative = draft.set_client_representative
             self._set_bank = draft.set_client_bank
             self._get_org = lambda: draft.client_organization_id
+            self._get_tax = lambda: draft.client_tax_id
+            self._get_representative = lambda: draft.client_representative_id
+            self._get_bank = lambda: draft.client_bank_id
 
         self.ui = Ui_PartyColumn()
         self.ui.setupUi(self)
@@ -128,6 +134,21 @@ class PartyColumn(QWidget):
         self._populate_sequences()
 
 
+    def revalidate(self) -> None:
+        """Drops a selection that no longer exists if assets changed elsewhere."""
+
+        organization_id = self._get_org()
+        if organization_id is not None and organization_id not in {
+            organization.id for organization in self._org_repo.list()
+        }:
+            self.clear_selection()
+            organization_id = None
+
+        self.refresh_organizations()
+        if organization_id is not None:
+            self._populate_pickers(organization_id)
+
+
     def _on_org_selected(
             self,
             current: QListWidgetItem | None,
@@ -186,7 +207,11 @@ class PartyColumn(QWidget):
                     bank.id,
                 )
 
-        if self.ui.tax_combo.count() == 1:
+        self._sync_picker(self.ui.tax_combo, self._get_tax(), self._set_tax)
+        self._sync_picker(self.ui.representative_combo, self._get_representative(), self._set_representative)
+        self._sync_picker(self.ui.bank_combo, self._get_bank(), self._set_bank)
+
+        if self.ui.tax_combo.currentIndex() < 0 and self.ui.tax_combo.count() == 1:
             self.ui.tax_combo.setCurrentIndex(0)
 
         self._populate_sequences()
@@ -375,10 +400,24 @@ class PartyColumn(QWidget):
             combo: QComboBox,
             value: int | None,
     ) -> None:
-        """Select a freshly added item outside any blocker, so the handler runs
+        """Selects a freshly added item outside any blocker, so the handler runs
         and DraftState follows the combo.
         """
 
         position = combo.findData(value)
         if position >= 0:
+            combo.setCurrentIndex(position)
+
+
+    def _sync_picker(self, combo:QComboBox, current, setter) -> None:
+        """Restore the selection if it survived a repopulation, clear it if selected 
+        asset was deleted elsewhere.
+        """
+
+        position = combo.findData(current)
+        if position < 0:
+            setter(None)
+            position = combo.findData(None)      # '--' for optional, -1 for tax
+
+        with QSignalBlocker(combo):
             combo.setCurrentIndex(position)
