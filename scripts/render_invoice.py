@@ -122,7 +122,7 @@ def main() -> int:
                 raise ValueError(
                     f"Couldn't get template {template_id}."
                 )
-            blueprint = repository.get(template_id)
+            blueprint = repository.get_blueprint(template_id)
 
             banner(f"4. {template.code or template.name} — assemble and render")
 

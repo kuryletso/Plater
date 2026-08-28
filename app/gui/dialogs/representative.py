@@ -35,7 +35,8 @@ class RepresentativeDialog(QDialog):
     def __init__(
             self,
             session: Session,
-            organization_id: int,
+            organization_id: int | None = None,
+            representative_id: int | None = None,
             parent: QWidget | None = None,
     ) -> None:
 
@@ -44,9 +45,9 @@ class RepresentativeDialog(QDialog):
         self._repo = RepresentativeRepository(session)
         self._organizations = OrganizationRepository(session)
         self._organization_id = organization_id
-        self.representative_id: int | None = None
+        self._editing = representative_id
 
-        self.setWindowTitle("Add representative")
+        self.setWindowTitle("Edit representative" if representative_id is not None else "Add representative")
         self.setMinimumWidth(460)
 
         # existing representative
@@ -66,6 +67,7 @@ class RepresentativeDialog(QDialog):
         self.tabs = QTabWidget()
         self.tabs.addTab(existing, "Existing")
         self.tabs.addTab(self.localizations, "New")
+        self.tabs.setTabVisible(0, organization_id is not None and representative_id is None)
 
         self.banner = ErrorBanner()
 
@@ -87,6 +89,14 @@ class RepresentativeDialog(QDialog):
             { code: {} for code in default_languages(session) }
         )
 
+        if representative_id is not None:
+            person = self._repo.get(representative_id)
+            self.localizations.set_values({
+                code: {"name": row.name, "title": row.title or ""}
+                for code, row in person.localizations.items()
+            })
+            self.tabs.setCurrentIndex(1)
+
 
     def _refresh_existing(self) -> None:
         search = self.search_edit.text().strip() or None
@@ -104,25 +114,34 @@ class RepresentativeDialog(QDialog):
         self.banner.clear_message()
 
         try:
-            if self.tabs.currentIndex() == 0:
-                self.representative_id = self._chosen_existing()
+            if self._editing is not None:
+                texts = self._collect()
+                if texts is None:
+                    return
+
+                self._repo.update(self._editing, localizations=texts)
+                self.representative_id = self._editing
+
             else:
-                self.representative_id = self._create_new()
+                if self.tabs.currentIndex() == 0:
+                    self.representative_id = self._chosen_existing()
+                else:
+                    self.representative_id = self._create_new()
 
-            if self.representative_id is None:
-                return
+                if self.representative_id is None:
+                    return
 
-            self._organizations.attach_representative(
-                self._organization_id,
-                self.representative_id,
-            )
+                if self._organization_id is not None:
+                    self._organizations.attach_representative(
+                        self._organization_id,
+                        self.representative_id,
+                    )
 
         except ServiceError as e:
             self._session.rollback()
             self.banner.show_message(e.user_message or str(e))
             return
 
-        self.representative_id = self.representative_id
         self.accept()
 
 
@@ -135,7 +154,7 @@ class RepresentativeDialog(QDialog):
         return item.data(Qt.ItemDataRole.UserRole)
 
 
-    def _create_new(self) -> int | None:
+    def _collect(self) -> dict[str, RepresentativeText] | None:
         texts: dict[str, RepresentativeText] = {}
 
         for code, values in self.localizations.values().items():
@@ -154,7 +173,10 @@ class RepresentativeDialog(QDialog):
             self.banner.show_message("Enter a name in at least one language.")
             return None
 
-        return self._repo.create(texts).id
+        return texts
 
+    def _create_new(self) -> int | None:
+        texts = self._collect()
+        return self._repo.create(texts).id if texts is not None else None
 
     

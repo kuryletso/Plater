@@ -22,7 +22,12 @@ from app.gui.widgets.collapsible_column import Accordion, CollapsibleColumn
 
 from app.db.session import SessionLocal
 from app.gui.dialogs.manager_dialog import ManagerDialog
-from app.gui.dialogs.managers import organization_asset
+from app.gui.dialogs.managers import (
+    organization_asset,
+    representative_asset,
+    template_asset,
+    measurement_unit_asset,
+)
 from app.gui.columns.template_column import TemplateColumn
 from app.gui.columns.party_column import PartyColumn, PartyRole
 from app.gui.columns.document_column import DocumentColumn
@@ -99,6 +104,10 @@ class MainWindow(QMainWindow):
 
         edit_menu = self.menuBar().addMenu("&Edit")
         edit_menu.addAction("&Organizations...", self._manage_organizations)
+        edit_menu.addAction("&Representatives...", self._manage_representatives)
+        edit_menu.addAction("&Templates...", self._manage_templates)
+        edit_menu.addSeparator()
+        edit_menu.addAction("&Measurement units...", self._manage_units)
 
         settings_menu = self.menuBar().addMenu("&Settings")
         settings_menu.addAction("Template defaults...").setEnabled(False)
@@ -291,6 +300,30 @@ class MainWindow(QMainWindow):
 
         if dialog.changed:
             self._revalidate_columns()
+
+
+    def _manage_representatives(self) -> None:
+        dialog = ManagerDialog(representative_asset(self._session), parent=self)
+        dialog.exec()
+
+        if dialog.changed:
+            self._revalidate_columns()
+
+
+    def _manage_templates(self) -> None:
+        dialog = ManagerDialog(template_asset(self._session), parent=self)
+        dialog.exec()
+
+        if dialog.changed:
+            self._revalidate_columns()
+
+
+    def _manage_units(self) -> None:
+        dialog = ManagerDialog(measurement_unit_asset(self._session), parent=self)
+        dialog.exec()
+
+        if dialog.changed:
+            self.document_column.reload_units()
 
     
     def _revalidate_columns(self) -> None:

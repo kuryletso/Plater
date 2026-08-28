@@ -26,6 +26,25 @@ class MeasurementUnitRepository:
         self._session = session
 
 
+    def _check_localizations(
+            self,
+            localizations: Mapping[str, MeasurementUnitText],
+    ) -> None:
+
+        if not localizations:
+            raise InvalidSelection(
+                "measurement unit needs at least oen localization",
+                user_message="Enter the unit name in at least one language.",
+            )
+
+        for code in localizations:
+            if self._session.get(Language, code) is None:
+                raise EntityNotFound(
+                    f"language {code!r} not found",
+                    context={"code": code},
+                )
+
+            
     def create(
             self,
             code: str,
@@ -95,20 +114,57 @@ class MeasurementUnitRepository:
         ]
 
 
-    def _check_localizations(
+    def update(
             self,
+            code: str,
             localizations: Mapping[str, MeasurementUnitText],
-    ) -> None:
+    ) -> MeasurementUnitRegistry:
 
-        if not localizations:
-            raise InvalidSelection(
-                "measurement unit needs at least oen localization",
-                user_message="Enter the unit name in at least one language.",
+        unit = self.get(code)
+        self._check_localizations(localizations)
+
+        current = unit.localizations
+
+        for language, text in localizations.items():
+            row = current.get(language)
+            if row is None:
+                current[language] = MeasurementUnitRegistryLocalization(
+                    language_code=language,
+                    name=text.name,
+                )
+            else:
+                row.name = text.name
+
+        for language in set(current) - set(localizations):
+            del current[language]
+
+        self._session.commit()
+        return unit
+
+
+    def activate(self, code: str) -> MeasurementUnitRegistry:
+        unit = self.get(code)
+        unit.active = True
+        self._session.commit()
+
+        return unit
+
+
+    def deactivate(self, code: str) -> MeasurementUnitRegistry:
+        """Units are never deleted. Deactivating hides them from every picker."""
+
+        unit = self.get(code)
+        unit.active = False
+        self._session.commit()
+        return unit
+
+
+    def get(self, code: str) -> MeasurementUnitRegistry:
+        unit = self._session.get(MeasurementUnitRegistry, normalize_code(code))
+        if unit is None:
+            raise EntityNotFound(
+                f"measurement unit {code!r} not found",
+                context={"code": code},
             )
 
-        for code in localizations:
-            if self._session.get(Language, code) is None:
-                raise EntityNotFound(
-                    f"language {code!r} not found",
-                    context={"code": code},
-                )
+        return unit

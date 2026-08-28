@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import cast
+
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -28,9 +30,21 @@ class ManagedAsset:
     title: str
     list_items: Callable[[str | None], list[tuple[AssetId,str]]]
     create: Callable[[QWidget], AssetId | None]
-    edit: Callable[[QWidget, AssetId], bool]
-    delete: Callable[[AssetId], None]
+    edit: Callable[[QWidget, AssetId], bool] | None = None
+    delete: Callable[[AssetId], None] | None = None
+    actions: tuple[AssetAction, ...] = ()
     delete_verb: str = "Delete"
+
+
+@dataclass(slots=True, frozen=True)
+class AssetAction:
+    """One extra button. The label may depend on the selection."""
+
+    label: str | Callable[[AssetId | None], str]
+    run: Callable[[QWidget, AssetId], bool]
+
+    def text(self, asset_id: AssetId | None) -> str:
+        return self.label if isinstance(self.label, str) else self.label(asset_id)
 
 
 class ManagerDialog(QDialog):
@@ -56,16 +70,30 @@ class ManagerDialog(QDialog):
         self.list = QListWidget()
         self.banner = ErrorBanner()
 
-        self.new_button = QPushButton("New...")
-        self.edit_button = QPushButton("Edit...")
-        self.delete_button = QPushButton(asset.delete_verb)
-
         actions = QWidget()
         actions_layout = QHBoxLayout(actions)
         actions_layout.setContentsMargins(0,0,0,0)
+
+        self.new_button = QPushButton("New...")
+
+        self.edit_button = QPushButton("Edit...") if asset.edit is not None else None
+        if self.edit_button is not None:
+            self.edit_button.clicked.connect(self._edit)
+            actions_layout.addWidget(self.edit_button)
+
+        self._extra_buttons: list[QPushButton] = []
+        for action in asset.actions:
+            button = QPushButton(action.text(None) if isinstance(action.label, str) else "")
+            button.clicked.connect(lambda *_, run=action.run: self._run_extra(run))
+            actions_layout.addWidget(button)
+            self._extra_buttons.append(button)
+
+        self.delete_button = QPushButton(asset.delete_verb) if asset.delete else None
+        if self.delete_button is not None:
+            self.delete_button.clicked.connect(self._delete)
+            actions_layout.addWidget(self.delete_button)
+
         actions_layout.addWidget(self.new_button)
-        actions_layout.addWidget(self.edit_button)
-        actions_layout.addWidget(self.delete_button)
         actions_layout.addStretch(1)
 
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
@@ -82,8 +110,6 @@ class ManagerDialog(QDialog):
         self.list.currentItemChanged.connect(self._update_actions)
         self.list.itemDoubleClicked.connect(self._edit)
         self.new_button.clicked.connect(self._create)
-        self.edit_button.clicked.connect(self._edit)
-        self.delete_button.clicked.connect(self._delete)
 
         self.refresh()
 
@@ -110,9 +136,19 @@ class ManagerDialog(QDialog):
 
 
     def _update_actions(self) -> None:
-        has_selection = self._selected() is not None
-        self.edit_button.setEnabled(has_selection)
-        self.delete_button.setEnabled(has_selection)
+        asset_id = self._selected()
+        has_selection = asset_id is not None
+
+        if self.edit_button is not None:
+            self.edit_button.setEnabled(has_selection)
+        if self.delete_button is not None:
+            self.delete_button.setEnabled(has_selection)
+
+
+        for button, action in zip(self._extra_buttons, self._asset.actions):
+            button.setEnabled(has_selection)
+            button.setText(action.text(asset_id))
+
 
 
     def _create(self) -> None:
@@ -129,6 +165,9 @@ class ManagerDialog(QDialog):
 
         asset_id = self._selected()
         if asset_id is None:
+            return
+
+        if self._asset.edit is None:
             return
 
         if self._asset.edit(self, asset_id):
@@ -151,11 +190,31 @@ class ManagerDialog(QDialog):
         if confirmed != QMessageBox.StandardButton.Yes:
             return
 
+
         try:
-            self._asset.delete(item.data(Qt.ItemDataRole.UserRole))
+            if self._asset.delete is not None:      # for static type checking, self._delete() is only called if self._asset.delete isn't None
+                self._asset.delete(item.data(Qt.ItemDataRole.UserRole))
         except ServiceError as e:
             self.banner.show_message(e.user_message or str(e))
             return
 
         self.changed = True
         self.refresh()
+
+
+    def _run_extra(self, action) -> None:
+        self.banner.clear_message()
+
+        asset_id = self._selected()
+        if asset_id is None:
+            return
+
+        try:
+            changed = action(self, asset_id)
+        except ServiceError as e:
+            self.banner.show_message(e.user_message or str(e))
+            return
+
+        if changed:
+            self.changed = True
+            self.refresh()

@@ -86,7 +86,7 @@ class DocumentColumn(QWidget):
             return ()
 
         if template_id != self._blueprint_for:
-            blueprint = TemplateRepository(self._session).get(template_id)
+            blueprint = TemplateRepository(self._session).get_blueprint(template_id)
             self._rendered = column_languages(blueprint, "invl_desc")
             self._blueprint_for = template_id
 
@@ -170,5 +170,9 @@ class DocumentColumn(QWidget):
     def _add_units(self) -> None:
         dialog = MeasurementUnitDialog(self._session, parent=self)
         if dialog.exec() == QDialog.DialogCode.Accepted:
-            self._units = self._load_units()
-            self.lines.set_units(self._units)
+            self.reload_units()
+
+
+    def reload_units(self) -> None:
+        self._units = self._load_units()
+        self.lines.set_units(self._units)

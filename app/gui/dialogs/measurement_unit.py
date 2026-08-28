@@ -24,6 +24,7 @@ class MeasurementUnitDialog(QDialog):
             self,
             session: Session,
             code: str = "",
+            unit_code: str | None = None,
             parent: QWidget | None = None,
     ) -> None:
 
@@ -31,8 +32,9 @@ class MeasurementUnitDialog(QDialog):
         self._session = session
         self._repo = MeasurementUnitRepository(session)
         self.unit_code: str | None = None
+        self._editing = unit_code
 
-        self.setWindowTitle("New measurement unit")
+        self.setWindowTitle("Edit measurement unit" if unit_code else "New measurement unit")
         self.setMinimumWidth(420)
 
         self.code_edit = QLineEdit(code)
@@ -58,7 +60,19 @@ class MeasurementUnitDialog(QDialog):
         layout.addWidget(self.banner)
         layout.addWidget(buttons)
 
-        self.localizations.set_values({ c: {} for c in default_languages(session) })
+        if unit_code is None:
+            self.localizations.set_values({ lang: {} for lang in default_languages(session) })
+            return
+
+
+        existing = self._repo.get(unit_code)
+        self.code_edit.setText(existing.code)
+        self.code_edit.setEnabled(False)
+        self.localizations.set_values({
+            language: {"name": row.name}
+            for language, row in existing.localizations.items()
+        })
+
 
     def _save(self) -> None:
         self.banner.clear_message()
@@ -72,11 +86,14 @@ class MeasurementUnitDialog(QDialog):
             return
 
         try:
-            created = self._repo.create(self.code_edit.text(), texts)
+            if self._editing is not None:
+                changed = self._repo.update(self._editing, texts)
+            else:
+                changed = self._repo.create(self.code_edit.text(), texts)
         except ServiceError as e:
             self._session.rollback()
             self.banner.show_message(e.user_message or str(e))
             return
 
-        self.unit_code = created.code
+        self.unit_code = changed.code
         self.accept()

@@ -145,6 +145,17 @@ class TemplateRepository:
         return version
 
 
+    def get(self, template_id: int) -> Template:
+        template = self._session.get(Template, template_id)
+        if template is None:
+            raise EntityNotFound(
+                f"template {template_id!r} not found",
+                context={"template_id": template_id},
+            )
+
+        return template
+
+
     def current_version(self, template_id: int) -> TemplateVersion:
         row = self._session.scalars(
             select(TemplateVersion)
@@ -161,7 +172,7 @@ class TemplateRepository:
         return row
 
 
-    def get(self, template_id: int) -> TemplateBlueprint:
+    def get_blueprint(self, template_id: int) -> TemplateBlueprint:
         row = self.current_version(template_id)
         return load_blueprint(row.sections, row.placeholders, row.config)
 

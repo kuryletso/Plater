@@ -87,7 +87,7 @@ def main() -> int:
     for template_id in template_ids:
         with SessionLocal() as session:
             template = session.get(Template, template_id)
-            blueprint = TemplateRepository(session).get(template_id)
+            blueprint = TemplateRepository(session).get_blueprint(template_id)
             label = template.code or template.name
 
             banner(f"3. {label} — raw render")
