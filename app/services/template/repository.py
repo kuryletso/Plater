@@ -11,10 +11,12 @@ from app.db.associations import template_version_asset_m2m
 from app.db.models.core.assets import Asset
 from app.db.models.core.template import Template
 from app.db.models.core.template_version import TemplateVersion
+from app.db.models.registries.document_type import DocumentTypeRegistry
 from app.document_engine.blueprint.models.template import TemplateBlueprint
 from app.document_engine.blueprint.assets import collect_assets_ids
 from app.document_engine.blueprint.serialize import dump_blueprint, load_blueprint
 from app.services.errors import EntityNotFound, InvalidSelection
+from app.services.sentinel import Unset, UNSET
 
 class TemplateRepository:
 
@@ -228,6 +230,56 @@ class TemplateRepository:
         self._session.commit()
 
 
+    def update_metadata(
+            self,
+            template_id: int,
+            *,
+            name: str | Unset = UNSET,
+            document_type: str | Unset = UNSET,
+            description: str | Unset = UNSET,
+            append_currency: bool | Unset = UNSET,
+    ) -> Template:
+        """Edits name, type and description etc. without touching its blueprint.
+        
+        Languages are deliberately absent: they are baked in at ingestion. 
+        Changing them is only supported via new version (add_version() method).
+        """
+
+        template = self.get(template_id)
+
+        if template.system:
+            raise InvalidSelection(
+                f"template {template_id} us built in and cannot be edited",
+                user_message="This is a built-int template. Make a copy of it to edit.",
+                context={"template_id": template_id},
+            )
+
+        if not isinstance(document_type, Unset):
+            self._check_document_type(document_type)
+
+        version = self.current_version(template_id)
+        config = dict(version.config)
+
+        if not isinstance(name, Unset):
+            template.name = name
+            config["name"] = name
+
+        if not isinstance(document_type, Unset):
+            template.type = document_type
+            config["type"] = document_type
+
+        if not isinstance(description, Unset):
+            config["description"] = description
+
+        if not isinstance(append_currency, Unset):
+            config["append_currency"] = append_currency
+
+        version.config = config
+        self._session.commit()
+
+        return template
+
+
     def _prune(self, template_id: int) -> None:
         versions = self._session.scalars(
             select(TemplateVersion)
@@ -389,3 +441,20 @@ class TemplateRepository:
             query = query.where(Template.name.icontains(search))
 
         return list(self._session.scalars(query).all())
+
+
+    def _check_document_type(self, code: str) -> None:
+        row = self._session.get(DocumentTypeRegistry, code)
+
+        if row is None:
+            raise EntityNotFound(
+                f"document type {code!r} not found",
+                context={"code": code},
+            )
+
+        if not row.active:
+            raise InvalidSelection(
+                f"document type {code!r} is disabled",
+                user_message="Selected document type is no longer available.",
+                context={"code": code},
+            )

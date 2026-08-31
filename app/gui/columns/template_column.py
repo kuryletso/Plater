@@ -85,6 +85,10 @@ class TemplateColumn(QWidget):
 
         self.refresh()
 
+        current = self.ui.template_list.currentItem()
+        if current is not None:
+            self._on_selection(current)
+
 
     def _on_selection(
             self,

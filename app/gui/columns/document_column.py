@@ -20,6 +20,7 @@ from app.gui.text import localized
 from app.services.invoice.assembler import money_format
 from app.services.invoice.totals import compute_totals
 from app.services.template.repository import TemplateRepository
+from app.services.errors import ServiceError
 
 
 class DocumentColumn(QWidget):
@@ -86,9 +87,13 @@ class DocumentColumn(QWidget):
             return ()
 
         if template_id != self._blueprint_for:
-            blueprint = TemplateRepository(self._session).get_blueprint(template_id)
-            self._rendered = column_languages(blueprint, "invl_desc")
             self._blueprint_for = template_id
+            try:
+                blueprint = TemplateRepository(self._session).get_blueprint(template_id)
+            except ServiceError as e:
+                self._rendered = set()
+            else:
+                self._rendered = column_languages(blueprint, "invl_desc")
 
         ordered = tuple( c for c in self._draft.languages if c in self._rendered )
         return ordered or self._draft.languages[:1]

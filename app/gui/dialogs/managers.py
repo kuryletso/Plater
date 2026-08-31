@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.gui.dialogs.manager_dialog import AssetId, AssetAction, ManagedAsset
 from app.gui.dialogs.organization import OrganizationDialog
 from app.gui.dialogs.template_import import TemplateImportDialog
+from app.gui.dialogs.template_edit import TemplateEditDialog
 from app.gui.dialogs.representative import RepresentativeDialog
 from app.gui.dialogs.measurement_unit import MeasurementUnitDialog
 from app.gui.text import organization_label, localized
@@ -100,11 +101,15 @@ def template_asset(session: Session) -> ManagedAsset:
             if asset_id is None or repository.get(int(asset_id)).active \
             else "Show again"
 
+    def edit(parent: QWidget, asset_id: AssetId) -> bool:
+        dialog = TemplateEditDialog(session, int(asset_id), parent=parent)
+        return dialog.exec() == QDialog.DialogCode.Accepted
+
     return ManagedAsset(
         title="Templates",
         list_items=list_items,
         create=create,
-        edit=None,      # editing means importing a new version
+        edit=edit,
         actions=(
             AssetAction(label="Duplicate", run=duplicate),
             AssetAction(label=toggle_label, run=toggle),
@@ -188,4 +193,4 @@ def measurement_unit_asset(session: Session) -> ManagedAsset:
         actions=(AssetAction(label=toggle_label, run=toggle),),
         delete=None,
         delete_verb="Hide",
-    )   
+    )
