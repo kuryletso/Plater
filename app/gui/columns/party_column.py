@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from enum import StrEnum
 
-from PySide6.QtCore import Qt, QSignalBlocker
+from PySide6.QtCore import Qt, QSignalBlocker, QRegularExpression
 from PySide6.QtWidgets import QListWidgetItem, QWidget, QDialog, QComboBox
+from PySide6.QtGui import QRegularExpressionValidator
 from sqlalchemy.orm import Session
 
 from app.gui.text import localized, organization_label
@@ -17,6 +18,7 @@ from app.gui.dialogs.sequence import SequenceDialog
 from app.gui.dialogs.widgets import show_code
 from app.services.doc_sequence.repository import SequenceRepository
 from app.services.organization.repository import OrganizationRepository
+from app.services.errors import ServiceError
 
 
 class PartyRole(StrEnum):
@@ -70,6 +72,7 @@ class PartyColumn(QWidget):
         if role is PartyRole.CLIENT:
             self.ui.sequence_label.hide()
             self.ui.sequence_combo.hide()
+            self.ui.next_number_edit.hide()
             self.ui.add_sequence_button.hide()
 
         self.ui.clear_button.clicked.connect(self.clear_selection)
@@ -91,6 +94,13 @@ class PartyColumn(QWidget):
         self.ui.add_representative_button.clicked.connect(self._add_representative)
         self.ui.add_bank_button.clicked.connect(self._add_bank_account)
         self.ui.add_sequence_button.clicked.connect(self._add_sequence)
+
+        self.ui.next_number_edit.setValidator(QRegularExpressionValidator(
+            QRegularExpression(r"\d{0,12}"),
+            self.ui.next_number_edit,
+        ))
+        self.ui.next_number_edit.setEnabled(False)
+        self.ui.next_number_edit.editingFinished.connect(self._on_number_edited)
 
         draft.changed.connect(self._on_draft_changed)
 
@@ -248,10 +258,8 @@ class PartyColumn(QWidget):
 
         with QSignalBlocker(combo):
             for sequence in sequences:
-                preview = f"{sequence.prefix or ''}" \
-                          f"{str(sequence.counter + 1).zfill(sequence.padding)}"
                 combo.addItem(
-                    f"{sequence.prefix or '(no prefix)'} — next {preview}",
+                    sequence.prefix or "(no prefix)",
                     sequence.id,
                 )
 
@@ -265,6 +273,8 @@ class PartyColumn(QWidget):
 
         if combo.count() == 1:
             combo.setCurrentIndex(0)
+
+        self._refresh_number()
 
 
     def _on_tax_changed(self, index: int) -> None:
@@ -280,6 +290,7 @@ class PartyColumn(QWidget):
         self._draft.set_sequence(
             self.ui.sequence_combo.itemData(index) if index >= 0 else None
         )
+        self._refresh_number()
 
 
     def _on_draft_changed(self) -> None:
@@ -421,3 +432,62 @@ class PartyColumn(QWidget):
 
         with QSignalBlocker(combo):
             combo.setCurrentIndex(position)
+
+
+    def _refresh_number(self) -> None:
+        """Edits next Sequence number the document will get."""
+
+        sequence_id = self._draft.sequence_id
+        enabled = self._role is PartyRole.PROVIDER and sequence_id is not None
+
+        self.ui.next_number_edit.setEnabled(enabled)
+        self._set_number_warning(False)
+
+        if not enabled:
+            self.ui.next_number_edit.clear()
+            return
+
+        if sequence_id is None:     # for static type check on following self._req_repo.peek(sequence_id)
+            return
+        
+        self.ui.next_number_edit.setText(self._seq_repo.peek(sequence_id).number)
+
+
+    def _on_number_edited(self) -> None:
+        """Editing sequence number updates whole sequence, not just single document."""
+
+        sequence_id = self._draft.sequence_id
+        if sequence_id is None:
+            return
+
+        text = self.ui.next_number_edit.text().strip()
+        if not text.isdigit() or int(text) < 1:
+            self._refresh_number()
+            return
+
+        wanted = int(text)
+        previous = self._seq_repo.get(sequence_id).counter
+        if wanted == previous + 1:
+            return
+
+        try:
+            self._seq_repo.update(sequence_id, counter=wanted - 1)
+        except ServiceError as e:
+            self._refresh_number()
+            self.ui.next_number_edit.setToolTip(e.user_message or str(e))
+            return
+
+        self._refresh_number()
+        self._set_number_warning(wanted <= previous)
+
+
+    def _set_number_warning(self, warn: bool) -> None:
+        """Warns that sequence numbering went backwards."""
+
+        edit = self.ui.next_number_edit
+        edit.setProperty("warn", warn)
+        edit.setToolTip(
+            "This number may already have been issued." if warn else ""
+        )
+        edit.style().unpolish(edit)
+        edit.style().polish(edit)
