@@ -355,6 +355,140 @@ class OrganizationRepository:
         self._session.commit()
 
 
+    def update_tax_id(
+            self,
+            organization_id: int,
+            tax_id_id: int,
+            *,
+            tax_id_system: str | Unset = UNSET,
+            country: str | Unset = UNSET,
+            value: str | Unset = UNSET,
+    ) -> TaxId:
+
+        organization = self.get(organization_id)
+
+        tax_id = next(
+            ( t for t in organization.tax_ids if t.id == tax_id_id ),
+            None,
+        )
+        if tax_id is None:
+            raise InvalidSelection(
+                f"organization {organization_id} has no tax id {tax_id_id}",
+                context={"organization_id": organization_id, "tax_id_id": tax_id_id},
+            )
+
+        new_system = (
+            tax_id.tax_id_system_code if isinstance(tax_id_system, Unset)
+            else tax_id_system
+        )
+        new_country = tax_id.country_code if isinstance(country, Unset) else country
+
+        if new_system != tax_id.tax_id_system_code:
+            self._check_tax_id_system(new_system)
+        if new_country != tax_id.country_code:
+            self._check_country(new_country)
+
+        clash = any(
+            other.id != tax_id_id
+            and other.tax_id_system_code == new_system
+            and other.country_code == new_country
+            for other in organization.tax_ids
+        )
+        if clash:
+            raise InvalidSelection(
+                f"organization {organization_id} already has a {new_system} "
+                f"identifier for {new_country}",
+                user_message="That tax identifier is already recorded.",
+                context={"tax_id_system": new_system, "country": new_country},
+            )
+
+        tax_id.tax_id_system_code = new_system
+        tax_id.country_code = new_country
+        if not isinstance(value, Unset):
+            tax_id.value = value
+
+        self._session.commit()
+
+        return tax_id
+
+
+    def update_bank_account(
+            self,
+            organization_id: int,
+            bank_account_id: int,
+            *,
+            iban: str | Unset = UNSET,
+            swift: str | None | Unset = UNSET,
+            currency: str | Unset = UNSET,
+            country: str | Unset = UNSET,
+            localizations: Mapping[str, BankText] | Unset = UNSET,
+    ) -> BankAccount:
+
+        organization = self.get(organization_id)
+
+        account = next(
+            ( b for b in organization.bank_accounts if b.id == bank_account_id ),
+            None,
+        )
+        if account is None:
+            raise InvalidSelection(
+                f"organization {organization_id} has no bank account {bank_account_id}",
+                context={
+                    "organization_id": organization_id,
+                    "bank_account_id": bank_account_id,
+                },
+            )
+
+        if not isinstance(currency, Unset) and currency != account.currency_code:
+            self._check_currency(currency)
+        if not isinstance(country, Unset) and country != account.country_code:
+            self._check_country(country)
+
+        if not isinstance(iban, Unset) and iban != account.iban:
+            taken = self._session.scalar(
+                select(BankAccount).where(
+                    BankAccount.iban == iban,
+                    BankAccount.id != bank_account_id,
+                )
+            )
+            if taken is not None:
+                raise InvalidSelection(
+                    f"IBAN {iban} is already recorded",
+                    user_message="Provided IBAN is already used by another account.",
+                    context={"iban": iban},
+                )
+            account.iban = iban
+
+        if not isinstance(swift, Unset):
+            account.swift = swift
+        if not isinstance(currency, Unset):
+            account.currency_code = currency
+        if not isinstance(country, Unset):
+            account.country_code = country
+
+        if not isinstance(localizations, Unset):
+            current = account.localizations
+
+            for code, text in localizations.items():
+                row = current.get(code)
+                if row is None:
+                    current[code] = BankAccountLocalization(
+                        language_code=code,
+                        bank_name=text.bank_name,
+                        bank_info=text.bank_info,
+                    )
+                else:
+                    row.bank_name = text.bank_name
+                    row.bank_info = text.bank_info
+
+            for code in set(current) - set(localizations):
+                del current[code]
+
+        self._session.commit()
+
+        return account
+
+
     def _check_localizations(
             self,
             localizations: Mapping[str, OrganizationText],

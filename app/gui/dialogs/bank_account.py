@@ -17,6 +17,7 @@ from app.gui.dialogs.widgets import (
     searchable_combo,
     selected_code,
     default_languages,
+    show_code,
 )
 from app.services.organization.repository import BankText, OrganizationRepository
 from app.services.errors import ServiceError
@@ -35,6 +36,7 @@ class BankAccountDialog(QDialog):
             self,
             session: Session,
             organization_id: int,
+            bank_account_id: int | None = None,
             parent: QWidget | None = None,
     ) -> None:
 
@@ -43,6 +45,7 @@ class BankAccountDialog(QDialog):
         self._repo = OrganizationRepository(session)
         self._organization_id = organization_id
         self.bank_account_id: int | None = None
+        self._editing = bank_account_id
 
         self.setWindowTitle("Add bank account")
         self.setMinimumWidth(460)
@@ -76,13 +79,37 @@ class BankAccountDialog(QDialog):
         layout.addWidget(self.banner)
         layout.addWidget(buttons)
 
-        self.localizations.set_values({ code: {} for code in default_languages(session) })
+        if bank_account_id is None:
+            self.localizations.set_values({ code: {} for code in default_languages(session) })
+            return
+
+        existing = next(
+            (
+                b for b in self._repo.get(organization_id).bank_accounts
+                if b.id == bank_account_id
+            ),
+            None,
+        )
+        if existing is not None:
+            self.iban_edit.setText(existing.iban)
+            self.swift_edit.setText(existing.swift or "")
+            show_code(self.currency_combo, existing.currency_code)
+            show_code(self.country_combo, existing.country_code)
+            self.localizations.set_values(
+                {
+                    code: {
+                        "bank_name": row.bank_name or "",
+                        "bank_info": row.bank_info or "",
+                    } for code, row in existing.localizations.items()
+                } or { code: {} for code in default_languages(session) }
+            )
 
 
     def _save(self) -> None:
         self.banner.clear_message()
 
         iban = self.iban_edit.text().strip()
+        swift = self.swift_edit.text().strip() or None
         currency = selected_code(self.currency_combo)
         country = selected_code(self.country_combo)
 
@@ -101,18 +128,28 @@ class BankAccountDialog(QDialog):
         }
 
         try:
-            created = self._repo.add_bank_account(
-                self._organization_id,
-                iban=iban,
-                currency=currency,
-                country=country,
-                swift=self.swift_edit.text().strip() or None,
-                localizations=texts or None,
-            )
+            if self._editing is not None:
+                self._repo.update_bank_account(
+                    self._organization_id,
+                    self._editing,
+                    iban=iban,
+                    currency=currency,
+                    swift=swift,
+                    localizations=texts,
+                )
+                self.bank_account_id = self._editing
+            else:
+                self.bank_account_id = self._repo.add_bank_account(
+                    self._organization_id,
+                    iban=iban,
+                    currency=currency,
+                    country=country,
+                    swift=swift,
+                    localizations=texts or None,
+                ).id
         except ServiceError as e:
             self._session.rollback()
             self.banner.show_message(e.user_message or str(e))
             return
 
-        self.bank_account_id = created.id
         self.accept()

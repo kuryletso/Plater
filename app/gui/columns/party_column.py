@@ -82,17 +82,21 @@ class PartyColumn(QWidget):
 
         self.ui.search_edit.textChanged.connect(self.refresh_organizations)
         self.ui.organization_list.currentItemChanged.connect(self._on_org_selected)
+        self.ui.add_organization_button.clicked.connect(self._add_organization)
+
         self.ui.tax_combo.currentIndexChanged.connect(self._on_tax_changed)
+        self.ui.add_tax_button.clicked.connect(self._add_tax_id)
+        self.ui.edit_tax_button.clicked.connect(self._edit_tax_id)
 
         self.ui.representative_combo.currentIndexChanged.connect(self._on_representative_changed)
-        self.ui.bank_combo.currentIndexChanged.connect(self._on_bank_changed)
-        self.ui.sequence_combo.currentIndexChanged.connect(self._on_sequence_changed)
-
-        self.ui.add_organization_button.clicked.connect(self._add_organization)
-        self.ui.add_tax_button.clicked.connect(self._add_tax_id)
-
         self.ui.add_representative_button.clicked.connect(self._add_representative)
+        self.ui.edit_representative_button.clicked.connect(self._edit_representative)
+
+        self.ui.bank_combo.currentIndexChanged.connect(self._on_bank_changed)
         self.ui.add_bank_button.clicked.connect(self._add_bank_account)
+        self.ui.edit_bank_button.clicked.connect(self._edit_bank_account)
+
+        self.ui.sequence_combo.currentIndexChanged.connect(self._on_sequence_changed)
         self.ui.add_sequence_button.clicked.connect(self._add_sequence)
 
         self.ui.next_number_edit.setValidator(QRegularExpressionValidator(
@@ -106,6 +110,7 @@ class PartyColumn(QWidget):
 
         self.refresh_organizations()
         self._populate_sequences()      # (!) enables sequence_combo
+        self._update_edit_buttons()
 
 
     def refresh_organizations(self) -> None:
@@ -225,6 +230,7 @@ class PartyColumn(QWidget):
             self.ui.tax_combo.setCurrentIndex(0)
 
         self._populate_sequences()
+        self._update_edit_buttons()
 
 
     def _populate_sequences(self) -> None:
@@ -275,16 +281,20 @@ class PartyColumn(QWidget):
             combo.setCurrentIndex(0)
 
         self._refresh_number()
+        self._update_edit_buttons()
 
 
     def _on_tax_changed(self, index: int) -> None:
         self._set_tax(self.ui.tax_combo.itemData(index) if index >= 0 else None)
+        self._update_edit_buttons()
 
     def _on_representative_changed(self, index: int) -> None:
         self._set_representative(self.ui.representative_combo.itemData(index) if index >= 0 else None)
+        self._update_edit_buttons()
 
     def _on_bank_changed(self, index: int) -> None:
         self._set_bank(self.ui.bank_combo.itemData(index) if index >= 0 else None)
+        self._update_edit_buttons()
 
     def _on_sequence_changed(self, index: int) -> None:
         self._draft.set_sequence(
@@ -491,3 +501,46 @@ class PartyColumn(QWidget):
         )
         edit.style().unpolish(edit)
         edit.style().polish(edit)
+
+
+    def _edit_tax_id(self) -> None:
+        organization_id, tax_id = self._get_org(), self._get_tax()
+        if organization_id is None or tax_id is None:
+            return
+
+        dialog = TaxIdDialog(self._session, organization_id, tax_id, parent=self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self._populate_pickers(organization_id)
+            self._select_new(self.ui.tax_combo, tax_id)
+
+
+    def _edit_representative(self) -> None:
+        organization_id = self._get_org()
+        representative_id = self._get_representative()
+        if organization_id is None or representative_id is None:
+            return
+
+        dialog = RepresentativeDialog(
+            self._session, representative_id=representative_id, parent=self,
+        )
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self._populate_pickers(organization_id)
+            self._select_new(self.ui.representative_combo, representative_id)
+
+
+    def _edit_bank_account(self) -> None:
+        organization_id, bank_id = self._get_org(), self._get_bank()
+        if organization_id is None or bank_id is None:
+            return
+
+        dialog = BankAccountDialog(self._session, organization_id, bank_id, parent=self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self._populate_pickers(organization_id)
+            self._select_new(self.ui.bank_combo, bank_id)
+
+
+    def _update_edit_buttons(self) -> None:
+        """Disables edit buttons if no asset is selected."""
+        self.ui.edit_tax_button.setEnabled(self._get_tax() is not None)
+        self.ui.edit_representative_button.setEnabled(self._get_representative() is not None)
+        self.ui.edit_bank_button.setEnabled(self._get_bank() is not None)
