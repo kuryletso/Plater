@@ -191,6 +191,39 @@ def test_generate_rejects_a_sequence_of_another_document_type(service, template_
                                     sequence_id=akt_sequence.id))
 
 
+def test_the_check_follows_the_template_column_not_the_ingested_config(
+        service, template_id, scenario, session: Session):
+    """Retyping a template must change what generation accepts. While the check
+    read blueprint.config.type, an edited type was silently ignored here."""
+    from app.services.template.repository import TemplateRepository
+
+    session.add(DocumentTypeRegistry(code="akt", system=True, active=True))
+    session.commit()
+    TemplateRepository(session).update_metadata(template_id, document_type="akt")
+
+    # the scenario's sequence still numbers invoices
+    with pytest.raises(InvalidSelection):
+        service.generate(make_draft(template_id, scenario))
+
+
+def test_a_retyped_template_generates_against_a_matching_sequence(
+        service, template_id, scenario, session: Session):
+    from app.services.doc_sequence.repository import SequenceRepository
+    from app.services.template.repository import TemplateRepository
+
+    provider, _, _, _ = scenario
+    session.add(DocumentTypeRegistry(code="akt", system=True, active=True))
+    session.commit()
+    TemplateRepository(session).update_metadata(template_id, document_type="akt")
+    akt_sequence = SequenceRepository(session).create(provider.id, "akt", prefix="AKT-")
+
+    result = service.generate(
+        make_draft(template_id, scenario, sequence_id=akt_sequence.id)
+    )
+
+    assert result.succeeded
+
+
 def test_generate_raises_for_an_unknown_sequence(service, template_id, scenario):
     with pytest.raises(EntityNotFound):
         service.generate(make_draft(template_id, scenario, sequence_id=9999))

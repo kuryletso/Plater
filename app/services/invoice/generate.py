@@ -74,8 +74,10 @@ class InvoiceGenerateService:
             number: IssuedNumber,
     ) -> GenerationResult:
 
+        template = self._templates.get(draft.template_id)
+        self._check_document_type(draft, template.type)
+        
         blueprint = self._templates.get_blueprint(draft.template_id)
-        self._check_document_type(draft, blueprint.config.type)
 
         languages = resolve_languages(self._session, blueprint.config)
         codes = tuple( lang.code for lang in languages )

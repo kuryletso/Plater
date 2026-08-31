@@ -199,7 +199,18 @@ def test_update_metadata_renames_the_template(session: Session, ingested):
     updated = repo.update_metadata(template_id, name="Renamed")
 
     assert updated.name == "Renamed"
-    assert repo.current_version(template_id).config["name"] == "Renamed"
+
+
+def test_the_config_keeps_the_name_it_was_ingested_with(session: Session, ingested):
+    """config seeds Template.name at create and is history thereafter — the
+    column is what the rest of the app reads."""
+    bp, bundle, source = ingested
+    repo = TemplateRepository(session)
+    template_id = repo.create(bp, bundle, source)
+
+    repo.update_metadata(template_id, name="Renamed")
+
+    assert repo.current_version(template_id).config["name"] == bp.config.name
 
 
 def test_metadata_changes_survive_a_reload(session: Session, ingested):
@@ -219,8 +230,9 @@ def test_metadata_changes_survive_a_reload(session: Session, ingested):
     assert config["append_currency"] is False
 
 
-def test_the_type_moves_in_both_places(session: Session, ingested):
-    """list() filters on Template.type, but generate() checks config['type']."""
+def test_the_type_moves_on_the_template_column(session: Session, ingested):
+    """Template.type is the single source of truth; config['type'] only seeded
+    it at create and stays as the ingestion record."""
     session.add(DocumentTypeRegistry(code="akt", system=True, active=True))
     session.commit()
     bp, bundle, source = ingested
@@ -230,7 +242,20 @@ def test_the_type_moves_in_both_places(session: Session, ingested):
     updated = repo.update_metadata(template_id, document_type="akt")
 
     assert updated.type == "akt"
-    assert repo.current_version(template_id).config["type"] == "akt"
+    assert repo.current_version(template_id).config["type"] == bp.config.type
+
+
+def test_a_retyped_template_is_found_by_the_new_type(session: Session, ingested):
+    session.add(DocumentTypeRegistry(code="akt", system=True, active=True))
+    session.commit()
+    bp, bundle, source = ingested
+    repo = TemplateRepository(session)
+    template_id = repo.create(bp, bundle, source)
+
+    repo.update_metadata(template_id, document_type="akt")
+
+    assert [t.id for t in repo.list(document_type="akt")] == [template_id]
+    assert repo.list(document_type=bp.config.type) == []
 
 
 def test_update_metadata_changes_only_what_was_passed(session: Session, ingested):

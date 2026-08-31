@@ -249,8 +249,8 @@ class TemplateRepository:
 
         if template.system:
             raise InvalidSelection(
-                f"template {template_id} us built in and cannot be edited",
-                user_message="This is a built-int template. Make a copy of it to edit.",
+                f"template {template_id} is built in and cannot be edited",
+                user_message="This is a built-in template. Make a copy of it to edit.",
                 context={"template_id": template_id},
             )
 
@@ -262,11 +262,9 @@ class TemplateRepository:
 
         if not isinstance(name, Unset):
             template.name = name
-            config["name"] = name
 
         if not isinstance(document_type, Unset):
             template.type = document_type
-            config["type"] = document_type
 
         if not isinstance(description, Unset):
             config["description"] = description
