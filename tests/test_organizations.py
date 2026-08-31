@@ -217,6 +217,79 @@ def test_removing_a_tax_id_from_the_wrong_organization_is_refused(repo, organiza
         repo.remove_tax_id(organization.id, tax_id.id)
 
 
+def test_update_tax_id_changes_the_number_in_place(repo, organization):
+    """In place, because a draft may already point at this id."""
+    tax_id = repo.add_tax_id(organization.id, tax_id_system="ua_edrpou",
+                             country="UKR", value="12345678")
+
+    updated = repo.update_tax_id(organization.id, tax_id.id, value="87654321")
+
+    assert updated.id == tax_id.id
+    assert updated.value == "87654321"
+
+
+def test_update_tax_id_changes_only_what_was_passed(repo, organization):
+    tax_id = repo.add_tax_id(organization.id, tax_id_system="ua_edrpou",
+                             country="UKR", value="12345678")
+
+    updated = repo.update_tax_id(organization.id, tax_id.id, value="1")
+
+    assert updated.tax_id_system_code == "ua_edrpou"
+    assert updated.country_code == "UKR"
+
+
+def test_update_tax_id_can_change_the_system(repo, organization, session: Session):
+    session.add(TaxIdSystemRegistry(code="de_ust_id", system=True, active=True))
+    session.commit()
+    tax_id = repo.add_tax_id(organization.id, tax_id_system="ua_edrpou",
+                             country="UKR", value="12345678")
+
+    updated = repo.update_tax_id(organization.id, tax_id.id, tax_id_system="de_ust_id")
+
+    assert updated.tax_id_system_code == "de_ust_id"
+
+
+def test_update_tax_id_keeping_its_own_pair_is_not_a_clash(repo, organization):
+    tax_id = repo.add_tax_id(organization.id, tax_id_system="ua_edrpou",
+                             country="UKR", value="12345678")
+
+    updated = repo.update_tax_id(
+        organization.id, tax_id.id, tax_id_system="ua_edrpou", country="UKR",
+    )
+
+    assert updated.id == tax_id.id
+
+
+def test_update_tax_id_refuses_a_pair_another_one_holds(repo, organization,
+                                                        session: Session):
+    session.add(TaxIdSystemRegistry(code="de_ust_id", system=True, active=True))
+    session.commit()
+    first = repo.add_tax_id(organization.id, tax_id_system="ua_edrpou",
+                            country="UKR", value="12345678")
+    repo.add_tax_id(organization.id, tax_id_system="de_ust_id",
+                    country="UKR", value="DE999999")
+
+    with pytest.raises(InvalidSelection):
+        repo.update_tax_id(organization.id, first.id, tax_id_system="de_ust_id")
+
+
+def test_update_tax_id_rejects_an_unknown_system(repo, organization):
+    tax_id = repo.add_tax_id(organization.id, tax_id_system="ua_edrpou",
+                             country="UKR", value="12345678")
+
+    with pytest.raises(EntityNotFound):
+        repo.update_tax_id(organization.id, tax_id.id, tax_id_system="nope")
+
+
+def test_update_tax_id_from_the_wrong_organization_is_refused(repo, organization):
+    other = repo.create({"ENG": text("Globex")})
+    tax_id = repo.add_tax_id(other.id, tax_id_system="ua_edrpou",
+                             country="UKR", value="87654321")
+
+    with pytest.raises(InvalidSelection):
+        repo.update_tax_id(organization.id, tax_id.id, value="1")
+
+
 # --- bank accounts -----------------------------------------------------------
 
 def test_add_bank_account_with_localizations(repo, organization):
@@ -269,6 +342,96 @@ def test_remove_bank_account(repo, organization, session: Session):
 
     assert repo.get(organization.id).bank_accounts == []
     assert session.scalars(select(BankAccount)).all() == []
+
+
+def test_update_bank_account_adds_a_missing_language(repo, organization):
+    """The gap that prompted this: an account saved with only English names had
+    no way to gain the Ukrainian ones a bilingual template prints."""
+    account = repo.add_bank_account(
+        organization.id, iban="UA1", currency="UAH", country="UKR",
+        localizations={"ENG": BankText(bank_name="PrivatBank",
+                                       bank_info="MFO 305299")},
+    )
+
+    updated = repo.update_bank_account(
+        organization.id, account.id,
+        localizations={
+            "ENG": BankText(bank_name="PrivatBank", bank_info="MFO 305299"),
+            "UKR": BankText(bank_name="ПриватБанк", bank_info="МФО 305299"),
+        },
+    )
+
+    assert updated.id == account.id
+    assert updated.localizations["UKR"].bank_name == "ПриватБанк"
+    assert updated.localizations["ENG"].bank_name == "PrivatBank"
+
+
+def test_update_bank_account_drops_languages_left_out(repo, organization):
+    account = repo.add_bank_account(
+        organization.id, iban="UA1", currency="UAH", country="UKR",
+        localizations={
+            "ENG": BankText(bank_name="PrivatBank", bank_info=None),
+            "UKR": BankText(bank_name="ПриватБанк", bank_info=None),
+        },
+    )
+
+    updated = repo.update_bank_account(
+        organization.id, account.id,
+        localizations={"UKR": BankText(bank_name="ПриватБанк", bank_info=None)},
+    )
+
+    assert set(updated.localizations) == {"UKR"}
+
+
+def test_update_bank_account_changes_only_what_was_passed(repo, organization):
+    account = repo.add_bank_account(
+        organization.id, iban="UA1", currency="UAH", country="UKR", swift="PBANUA2X",
+    )
+
+    updated = repo.update_bank_account(organization.id, account.id, swift=None)
+
+    assert updated.swift is None
+    assert updated.iban == "UA1"
+    assert updated.currency_code == "UAH"
+
+
+def test_an_account_may_keep_its_own_iban(repo, organization):
+    """Re-saving without touching the IBAN must not read as a duplicate."""
+    account = repo.add_bank_account(
+        organization.id, iban="UA1", currency="UAH", country="UKR",
+    )
+
+    updated = repo.update_bank_account(organization.id, account.id, iban="UA1")
+
+    assert updated.iban == "UA1"
+
+
+def test_update_bank_account_refuses_an_iban_another_account_holds(repo, organization):
+    other = repo.create({"ENG": text("Globex")})
+    repo.add_bank_account(other.id, iban="UA2", currency="UAH", country="UKR")
+    account = repo.add_bank_account(
+        organization.id, iban="UA1", currency="UAH", country="UKR",
+    )
+
+    with pytest.raises(InvalidSelection):
+        repo.update_bank_account(organization.id, account.id, iban="UA2")
+
+
+def test_update_bank_account_rejects_an_unknown_currency(repo, organization):
+    account = repo.add_bank_account(
+        organization.id, iban="UA1", currency="UAH", country="UKR",
+    )
+
+    with pytest.raises(EntityNotFound):
+        repo.update_bank_account(organization.id, account.id, currency="XXX")
+
+
+def test_update_bank_account_from_the_wrong_organization_is_refused(repo, organization):
+    other = repo.create({"ENG": text("Globex")})
+    account = repo.add_bank_account(other.id, iban="UA2", currency="UAH", country="UKR")
+
+    with pytest.raises(InvalidSelection):
+        repo.update_bank_account(organization.id, account.id, swift="X")
 
 
 # --- representatives ---------------------------------------------------------

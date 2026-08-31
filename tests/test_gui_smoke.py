@@ -515,6 +515,98 @@ def test_revalidate_keeps_a_surviving_template(window, session: Session):
     assert window.draft.template_id == template.id
 
 
+# --- editing an organization's sub-assets ------------------------------------
+
+@pytest.fixture
+def organization_with_details(session: Session, make_org):
+    """An organization whose bank account has English names only — the state
+    that had no way forward before update_bank_account existed."""
+    from app.services.organization.repository import BankText, OrganizationRepository
+
+    organization = make_org("Acme", with_bank=False)
+    repository = OrganizationRepository(session)
+    account = repository.add_bank_account(
+        organization.id,
+        iban="UA1", currency="UAH", country="UKR",
+        localizations={"ENG": BankText(bank_name="PrivatBank", bank_info=None)},
+    )
+
+    return organization, organization.tax_ids[0], account
+
+
+def test_the_bank_dialog_loads_an_account_for_editing(qt_app, session: Session,
+                                                      organization_with_details):
+    from app.gui.dialogs.bank_account import BankAccountDialog
+
+    organization, _, account = organization_with_details
+    dialog = BankAccountDialog(session, organization.id, account.id)
+
+    assert dialog.iban_edit.text() == "UA1"
+    assert dialog.currency_combo.code() == "UAH"
+    assert dialog.country_combo.code() == "UKR"
+    assert dialog.localizations._edits["ENG"]["bank_name"].text() == "PrivatBank"
+
+
+def test_the_bank_dialog_can_add_the_missing_language(qt_app, session: Session,
+                                                      organization_with_details):
+    from app.gui.dialogs.bank_account import BankAccountDialog
+    from app.services.organization.repository import OrganizationRepository
+
+    organization, _, account = organization_with_details
+    dialog = BankAccountDialog(session, organization.id, account.id)
+
+    dialog.localizations._add_tab("UKR")
+    dialog.localizations._edits["UKR"]["bank_name"].setText("ПриватБанк")
+    dialog._save()
+
+    stored = OrganizationRepository(session).get(organization.id).bank_accounts[0]
+    assert stored.id == account.id                  # edited, not replaced
+    assert stored.localizations["UKR"].bank_name == "ПриватБанк"
+
+
+def test_the_tax_dialog_loads_an_identifier_for_editing(qt_app, session: Session,
+                                                        organization_with_details):
+    from app.gui.dialogs.tax_id import TaxIdDialog
+
+    organization, tax_id, _ = organization_with_details
+    dialog = TaxIdDialog(session, organization.id, tax_id.id)
+
+    assert dialog.value_edit.text() == tax_id.value
+    assert dialog.system_combo.code() == "ua_edrpou"
+
+
+def test_editing_a_tax_id_keeps_its_identity(qt_app, session: Session,
+                                             organization_with_details):
+    from app.gui.dialogs.tax_id import TaxIdDialog
+
+    organization, tax_id, _ = organization_with_details
+    dialog = TaxIdDialog(session, organization.id, tax_id.id)
+
+    dialog.value_edit.setText("99999999")
+    dialog._save()
+
+    assert dialog.tax_id_id == tax_id.id
+    assert tax_id.value == "99999999"
+
+
+def test_edit_buttons_need_something_selected(window, organization_with_details):
+    column = window.provider_column
+
+    assert not column.ui.edit_tax_button.isEnabled()
+    assert not column.ui.edit_bank_button.isEnabled()
+    assert not column.ui.edit_representative_button.isEnabled()
+
+    column.refresh_organizations()
+    widget = column.ui.organization_list
+    for position in range(widget.count()):
+        if "Acme" in widget.item(position).text():
+            widget.setCurrentRow(position)
+            break
+
+    assert column.ui.edit_tax_button.isEnabled()    # a lone tax id auto-selects
+    assert not column.ui.edit_bank_button.isEnabled()
+
+
 # --- the editable next-number field ------------------------------------------
 
 @pytest.fixture
