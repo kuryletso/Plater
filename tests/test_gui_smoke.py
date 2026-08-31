@@ -192,6 +192,148 @@ def labels(dialog) -> list[str]:
     return [dialog.list.item(i).text() for i in range(dialog.list.count())]
 
 
+def asset_names() -> list[str]:
+    return ["organization", "representative", "template", "measurement_unit"]
+
+
+def build_asset(session: Session, name: str):
+    from app.gui.dialogs import managers
+
+    return {
+        "organization": managers.organization_asset,
+        "representative": managers.representative_asset,
+        "template": managers.template_asset,
+        "measurement_unit": managers.measurement_unit_asset,
+    }[name](session)
+
+
+@pytest.mark.parametrize("name", asset_names())
+def test_every_manager_constructs(qt_app, session: Session, name: str):
+    from app.gui.dialogs.manager_dialog import ManagerDialog
+
+    dialog = ManagerDialog(build_asset(session, name))
+
+    assert dialog.windowTitle()
+    assert dialog.new_button.isEnabled()
+
+
+@pytest.mark.parametrize("name", asset_names())
+def test_manager_widgets_are_all_in_a_layout(qt_app, session: Session, name: str):
+    from app.gui.dialogs.manager_dialog import ManagerDialog
+
+    assert orphans(ManagerDialog(build_asset(session, name))) == []
+
+
+@pytest.mark.parametrize("name", asset_names())
+def test_manager_actions_need_a_selection(qt_app, session: Session, name: str):
+    from app.gui.dialogs.manager_dialog import ManagerDialog
+
+    dialog = ManagerDialog(build_asset(session, name))
+
+    for button in (dialog.edit_button, dialog.delete_button):
+        if button is not None:              # both are optional per asset kind
+            assert not button.isEnabled()
+
+    assert all(not button.isEnabled() for button in dialog._extra_buttons)
+
+
+def test_templates_have_no_edit_but_can_be_duplicated(qt_app, session: Session):
+    """A template is a versioned blueprint: 'edit' would mean importing a new
+    version, so the button is absent rather than lying."""
+    from app.gui.dialogs.manager_dialog import ManagerDialog
+
+    dialog = ManagerDialog(build_asset(session, "template"))
+
+    assert dialog.edit_button is None
+    assert [button.text() for button in dialog._extra_buttons] == ["Duplicate", "Hide"]
+
+
+def test_units_are_hidden_rather_than_deleted(qt_app, session: Session):
+    """invoice_lines reference the unit code, so deletion is not an option."""
+    from app.gui.dialogs.manager_dialog import ManagerDialog
+
+    dialog = ManagerDialog(build_asset(session, "measurement_unit"))
+
+    assert dialog.delete_button is None
+    assert [button.text() for button in dialog._extra_buttons] == ["Hide"]
+
+
+def test_dynamic_labels_are_never_blank_before_a_selection(qt_app, session: Session):
+    """A callable label still has to answer for 'nothing selected'."""
+    from app.gui.dialogs.manager_dialog import ManagerDialog
+
+    for name in ("template", "measurement_unit"):
+        dialog = ManagerDialog(build_asset(session, name))
+        assert all(button.text() for button in dialog._extra_buttons), name
+
+
+def test_the_hide_button_becomes_show_again_for_a_hidden_unit(qt_app, session: Session):
+    """One button, two meanings — the label follows the selection."""
+    from PySide6.QtCore import Qt
+
+    from app.gui.dialogs.manager_dialog import ManagerDialog
+    from app.services.measurement_unit.repository import MeasurementUnitRepository
+
+    dialog = ManagerDialog(build_asset(session, "measurement_unit"))
+    toggle = dialog._extra_buttons[0]
+
+    def select(code: str) -> None:
+        for position in range(dialog.list.count()):
+            if dialog.list.item(position).data(Qt.ItemDataRole.UserRole) == code:
+                dialog.list.setCurrentRow(position)
+                return
+        raise AssertionError(f"{code} not listed")
+
+    select("hour")
+    assert toggle.text() == "Hide"
+
+    MeasurementUnitRepository(session).deactivate("hour")
+    dialog.refresh()
+    select("hour")
+
+    assert toggle.text() == "Show again"
+
+
+def test_the_unit_manager_lists_hidden_units(qt_app, session: Session):
+    from app.gui.dialogs.manager_dialog import ManagerDialog
+    from app.services.measurement_unit.repository import MeasurementUnitRepository
+
+    MeasurementUnitRepository(session).deactivate("hour")
+    dialog = ManagerDialog(build_asset(session, "measurement_unit"))
+
+    assert any("hidden" in label for label in labels(dialog))
+
+
+def test_hiding_a_unit_removes_it_from_the_line_pickers(window, session: Session):
+    from app.services.measurement_unit.repository import MeasurementUnitRepository
+
+    document = window.document_column
+    document.lines.set_context(("ENG",), document._units)
+    combo = document.lines._widgets[0].unit_combo
+    assert combo.findData("hour") >= 0
+
+    MeasurementUnitRepository(session).deactivate("hour")
+    document.reload_units()
+
+    assert combo.findData("hour") < 0
+
+
+def test_a_row_already_using_a_hidden_unit_keeps_it(window, session: Session):
+    """The assembler renders disabled units on purpose, so an existing row must
+    not silently lose its unit when the unit is hidden."""
+    from app.services.measurement_unit.repository import MeasurementUnitRepository
+
+    document = window.document_column
+    document.lines.set_context(("ENG",), document._units)
+    widget = document.lines._widgets[0]
+    widget.row.unit_code = "hour"
+
+    MeasurementUnitRepository(session).deactivate("hour")
+    document.reload_units()
+
+    assert widget.row.unit_code == "hour"
+
+
 def test_the_manager_lists_what_exists(manager, make_org):
     make_org("Acme")
     manager.refresh()
@@ -371,6 +513,102 @@ def test_revalidate_keeps_a_surviving_template(window, session: Session):
     window.template_column.revalidate()
 
     assert window.draft.template_id == template.id
+
+
+# --- the editable next-number field ------------------------------------------
+
+@pytest.fixture
+def provider_with_sequence(window, make_org, make_sequence):
+    """Sets the document type without a template: _grid_languages would
+    otherwise load a blueprint, and this test needs no rendering."""
+
+    organization = make_org("Acme")
+    sequence = make_sequence(organization, prefix="INV-", counter=41, padding=5)
+
+    window.draft.set_template(None, "invoice", ())
+
+    column = window.provider_column
+    column.refresh_organizations()
+    widget = column.ui.organization_list
+    for position in range(widget.count()):
+        if "Acme" in widget.item(position).text():
+            widget.setCurrentRow(position)
+            break
+
+    return column, sequence
+
+
+def set_number(column, text: str) -> None:
+    column.ui.next_number_edit.setText(text)
+    column.ui.next_number_edit.editingFinished.emit()
+
+
+def test_the_number_field_is_empty_without_a_sequence(window):
+    field = window.provider_column.ui.next_number_edit
+
+    assert not field.isEnabled()
+    assert field.text() == ""
+
+
+def test_the_number_field_shows_the_padded_next_number(provider_with_sequence):
+    column, _ = provider_with_sequence
+
+    assert column.ui.next_number_edit.isEnabled()
+    assert column.ui.next_number_edit.text() == "00042"
+
+
+def test_the_sequence_combo_shows_only_the_prefix(provider_with_sequence):
+    """The number moved to its own field, so showing it twice would be noise."""
+    column, _ = provider_with_sequence
+
+    assert column.ui.sequence_combo.currentText() == "INV-"
+
+
+def test_editing_the_number_moves_the_counter(provider_with_sequence, session: Session):
+    column, sequence = provider_with_sequence
+
+    set_number(column, "100")
+
+    assert sequence.counter == 99
+    assert column.ui.next_number_edit.text() == "00100"
+
+
+def test_going_backwards_is_allowed_but_warned(provider_with_sequence):
+    """Re-issuing a lost document is the reason the field exists."""
+    column, sequence = provider_with_sequence
+
+    set_number(column, "10")
+
+    assert sequence.counter == 9
+    assert column.ui.next_number_edit.property("warn") is True
+    assert "already" in column.ui.next_number_edit.toolTip().lower()
+
+
+def test_going_forwards_raises_no_warning(provider_with_sequence):
+    column, _ = provider_with_sequence
+
+    set_number(column, "100")
+
+    assert column.ui.next_number_edit.property("warn") is False
+
+
+@pytest.mark.parametrize("typed", ["", "0", "   "])
+def test_unusable_input_restores_the_real_number(provider_with_sequence, typed: str):
+    column, sequence = provider_with_sequence
+
+    set_number(column, typed)
+
+    assert column.ui.next_number_edit.text() == "00042"
+    assert sequence.counter == 41
+
+
+def test_retyping_the_same_number_changes_nothing(provider_with_sequence):
+    column, sequence = provider_with_sequence
+
+    set_number(column, "00042")
+
+    assert sequence.counter == 41
+    assert column.ui.next_number_edit.property("warn") is False
 
 
 # --- reference pickers -------------------------------------------------------

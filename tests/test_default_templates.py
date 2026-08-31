@@ -94,7 +94,7 @@ def test_seeded_template_starts_at_version_one_and_is_loadable(session: Session,
 
     repo = TemplateRepository(session)
     assert repo.current_version(result.template_id).version == 1
-    assert "org_name" in repo.get(result.template_id).placeholders
+    assert "org_name" in repo.get_blueprint(result.template_id).placeholders
 
 
 # --- re-running --------------------------------------------------------------

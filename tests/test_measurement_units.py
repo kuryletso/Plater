@@ -150,3 +150,109 @@ def test_search_excludes_non_matches(repo):
     create(repo, "kilogram")
 
     assert repo.list(search="parsec") == []
+
+
+# --- get ---------------------------------------------------------------------
+
+def test_get_normalizes_the_code(repo):
+    create(repo, "square_metre")
+
+    assert repo.get("  Square Metre ").code == "square_metre"
+
+
+def test_get_raises_for_an_unknown_unit(repo):
+    with pytest.raises(EntityNotFound):
+        repo.get("parsec")
+
+
+# --- update ------------------------------------------------------------------
+
+def test_update_renames_in_every_language(repo):
+    create(repo, "kilogram")
+
+    updated = repo.update("kilogram", {
+        "ENG": MeasurementUnitText(name="Kilo"),
+        "UKR": MeasurementUnitText(name="Кіло"),
+    })
+
+    assert updated.localizations["ENG"].name == "Kilo"
+    assert updated.localizations["UKR"].name == "Кіло"
+
+
+def test_update_adds_and_drops_languages(repo, session: Session):
+    create(repo, "kilogram")
+
+    updated = repo.update("kilogram", {"ENG": MeasurementUnitText(name="Kilo")})
+
+    assert set(updated.localizations) == {"ENG"}
+    assert session.scalars(                     # scoped: 'hour' is seeded with UKR too
+        select(MeasurementUnitRegistryLocalization)
+        .where(
+            MeasurementUnitRegistryLocalization.measurement_unit_code == "kilogram",
+            MeasurementUnitRegistryLocalization.language_code == "UKR",
+        )
+    ).all() == []
+
+
+def test_update_cannot_remove_the_last_localization(repo):
+    create(repo, "kilogram")
+
+    with pytest.raises(InvalidSelection):
+        repo.update("kilogram", {})
+
+
+def test_update_raises_for_an_unknown_unit(repo):
+    with pytest.raises(EntityNotFound):
+        repo.update("parsec", {"ENG": MeasurementUnitText(name="Parsec")})
+
+
+def test_update_does_not_change_the_code(repo):
+    """The code is the identity — invoice lines store it, so it is immutable."""
+    created = create(repo, "kilogram")
+
+    assert repo.update("kilogram", {"ENG": MeasurementUnitText(name="Kilo")}).code \
+        == created.code
+
+
+# --- hide and show -----------------------------------------------------------
+
+def test_deactivating_hides_a_unit_from_pickers(repo):
+    create(repo, "kilogram")
+
+    repo.deactivate("kilogram")
+
+    assert "kilogram" not in {unit.code for unit in repo.list()}
+    assert "kilogram" in {unit.code for unit in repo.list(include_inactive=True)}
+
+
+def test_activating_brings_it_back(repo):
+    create(repo, "kilogram")
+    repo.deactivate("kilogram")
+
+    repo.activate("kilogram")
+
+    assert "kilogram" in {unit.code for unit in repo.list()}
+
+
+def test_a_hidden_unit_is_still_stored(repo, session: Session):
+    """Units are hidden rather than deleted because invoice_lines reference the
+    code; a cached hint using one must keep working."""
+    create(repo, "kilogram")
+
+    repo.deactivate("kilogram")
+
+    assert session.get(MeasurementUnitRegistry, "kilogram") is not None
+
+
+def test_deactivate_raises_for_an_unknown_unit(repo):
+    with pytest.raises(EntityNotFound):
+        repo.deactivate("parsec")
+
+
+def test_a_hidden_code_still_blocks_a_new_one(repo):
+    """Hidden or not, the registry is one namespace."""
+    create(repo, "kilogram")
+    repo.deactivate("kilogram")
+
+    with pytest.raises(InvalidSelection):
+        create(repo, "kilogram")

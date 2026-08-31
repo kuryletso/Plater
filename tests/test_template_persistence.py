@@ -185,7 +185,7 @@ def test_saved_blueprint_round_trips_through_the_database(session: Session, inge
     template_id = repo.create(bp, bundle, source)
     session.expunge_all()                       # force a real reload, not identity-map cache
 
-    assert repo.get(template_id) == bp
+    assert repo.get_blueprint(template_id) == bp
 
 
 # --- list --------------------------------------------------------------------
@@ -368,7 +368,7 @@ def test_a_source_shared_by_two_templates_survives_the_first_delete(session: Ses
 
 def test_get_raises_for_unknown_template(session: Session):
     with pytest.raises(EntityNotFound):
-        TemplateRepository(session).get(9999)
+        TemplateRepository(session).get_blueprint(9999)
 
 
 def test_current_version_raises_when_there_are_none(session: Session):
@@ -400,7 +400,7 @@ def test_get_returns_the_newest_version(session: Session, ingested, other_ingest
     repo.add_version(template_id, other_bp, other_bundle, other_source)
     session.expunge_all()
 
-    assert repo.get(template_id) == other_bp
+    assert repo.get_blueprint(template_id) == other_bp
 
 
 def test_each_version_links_its_own_assets(session: Session, ingested, other_ingested):
@@ -474,7 +474,7 @@ def test_restore_copies_an_old_version_forward(session: Session, ingested, other
 
     assert version == 3
     assert versions_of(session, template_id) == [1, 2, 3]
-    assert repo.get(template_id) == bp
+    assert repo.get_blueprint(template_id) == bp
 
 
 def test_restore_carries_the_original_source_hash(session: Session, ingested, other_ingested):
@@ -540,7 +540,7 @@ def test_copy_takes_the_current_version_of_the_origin(session: Session,
     copy_id = repo.copy(origin, "My invoice")
     session.expunge_all()
 
-    copied = repo.get(copy_id)                    # the newest, not the original v1
+    copied = repo.get_blueprint(copy_id)                    # the newest, not the original v1
     assert copied.sections == other_bp.sections
     assert copied.placeholders == other_bp.placeholders
 
@@ -554,7 +554,7 @@ def test_copy_renames_the_config_to_match_the_template(session: Session, ingeste
     copy_id = repo.copy(origin, "My invoice")
     session.expunge_all()
 
-    assert repo.get(copy_id).config.name == "My invoice"
+    assert repo.get_blueprint(copy_id).config.name == "My invoice"
 
 
 def test_copy_shares_asset_blobs_rather_than_duplicating_them(session: Session, ingested):
@@ -590,7 +590,7 @@ def test_deleting_the_origin_leaves_the_copy_intact(session: Session, ingested):
     repo.delete(origin)
     session.expunge_all()
 
-    copied = repo.get(copy_id)
+    copied = repo.get_blueprint(copy_id)
     assert copied.sections == bp.sections          # only config.name is rewritten
     assert copied.placeholders == bp.placeholders
     assert repo.get_source(copy_id).data == source.data
@@ -847,7 +847,7 @@ def test_commit_persists_the_reviewed_draft(session: Session, seeded_inputs,
 
     assert session.get(Template, template_id) is not None
     assert len(session.scalars(select(Asset)).all()) == 2      # the image + the source .docx
-    assert "org_name" in TemplateRepository(session).get(template_id).placeholders
+    assert "org_name" in TemplateRepository(session).get_blueprint(template_id).placeholders
 
 
 def test_commit_can_mark_a_shipped_default(session: Session, seeded_inputs, make_docx):
