@@ -237,15 +237,37 @@ def test_manager_actions_need_a_selection(qt_app, session: Session, name: str):
     assert all(not button.isEnabled() for button in dialog._extra_buttons)
 
 
-def test_templates_have_no_edit_but_can_be_duplicated(qt_app, session: Session):
-    """A template is a versioned blueprint: 'edit' would mean importing a new
-    version, so the button is absent rather than lying."""
+def test_templates_offer_edit_duplicate_and_hide(qt_app, session: Session):
+    """Edit covers metadata only — content changes are a new version."""
     from app.gui.dialogs.manager_dialog import ManagerDialog
 
     dialog = ManagerDialog(build_asset(session, "template"))
 
-    assert dialog.edit_button is None
+    assert dialog.edit_button is not None
     assert [button.text() for button in dialog._extra_buttons] == ["Duplicate", "Hide"]
+
+
+def test_the_template_edit_dialog_loads_and_fixes_languages(qt_app, session: Session,
+                                                            stored_template: int):
+    from app.gui.dialogs.template_edit import TemplateEditDialog
+
+    dialog = TemplateEditDialog(session, stored_template)
+
+    assert dialog.name_edit.text()
+    assert dialog.type_combo.code() == "invoice"
+    assert "re-import" in dialog.languages_label.text().lower()
+    assert not dialog.languages_label.isEnabled()
+
+
+def test_editing_a_template_renames_it(qt_app, session: Session, stored_template: int):
+    from app.gui.dialogs.template_edit import TemplateEditDialog
+    from app.services.template.repository import TemplateRepository
+
+    dialog = TemplateEditDialog(session, stored_template)
+    dialog.name_edit.setText("Renamed")
+    dialog._save()
+
+    assert TemplateRepository(session).get(stored_template).name == "Renamed"
 
 
 def test_units_are_hidden_rather_than_deleted(qt_app, session: Session):
@@ -502,17 +524,43 @@ def test_revalidate_clears_a_deleted_template(window, session: Session):
     assert window.draft.template_id is None
 
 
-def test_revalidate_keeps_a_surviving_template(window, session: Session):
+@pytest.fixture
+def stored_template(session: Session, make_docx, fixture_provider) -> int:
+    """A real template with a version — a bare Template row cannot be loaded, so
+    the columns rightly refuse it."""
+    from app.document_engine.orchestration.pipeline import TemplateIngestionPipeline
+    from app.services.template.repository import TemplateRepository
+
+    pipeline = TemplateIngestionPipeline(fixture_provider)
+    result = pipeline.ingest(make_docx(paragraphs=["Invoice for {{ org_name }}"]))
+    blueprint = pipeline.finalize(result.draft)
+
+    return TemplateRepository(session).create(blueprint, result.assets, result.source)
+
+
+def test_revalidate_keeps_a_surviving_template(window, session: Session,
+                                               stored_template: int):
+    window.draft.set_template(stored_template, "invoice", ("ENG",))
+    window.template_column.revalidate()
+
+    assert window.draft.template_id == stored_template
+
+
+def test_an_unloadable_template_is_dropped_rather_than_crashing(window,
+                                                                session: Session):
+    """A Template row with no version cannot render; selecting it must not raise
+    inside a Qt slot, where the exception would vanish into stderr."""
     from app.db.models.core.template import Template
 
-    template = Template(name="Kept", type="invoice")
+    template = Template(name="Versionless", type="invoice")
     session.add(template)
     session.commit()
 
     window.draft.set_template(template.id, "invoice", ("ENG",))
     window.template_column.revalidate()
 
-    assert window.draft.template_id == template.id
+    assert window.draft.template_id is None
+    assert "cannot be loaded" in window.template_column.ui.details_label.text().lower()
 
 
 # --- editing an organization's sub-assets ------------------------------------

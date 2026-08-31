@@ -12,6 +12,7 @@ from app.db.associations import template_version_asset_m2m
 from app.db.models.core.assets import Asset
 from app.db.models.core.template import Template
 from app.db.models.core.template_version import TemplateVersion
+from app.db.models.registries.document_type import DocumentTypeRegistry
 from app.document_engine.blueprint.assets import collect_assets_ids
 from app.document_engine.blueprint.models.paragraph import ParagraphBlueprint
 from app.document_engine.blueprint.models.segment import (
@@ -186,6 +187,94 @@ def test_saved_blueprint_round_trips_through_the_database(session: Session, inge
     session.expunge_all()                       # force a real reload, not identity-map cache
 
     assert repo.get_blueprint(template_id) == bp
+
+
+# --- metadata ----------------------------------------------------------------
+
+def test_update_metadata_renames_the_template(session: Session, ingested):
+    bp, bundle, source = ingested
+    repo = TemplateRepository(session)
+    template_id = repo.create(bp, bundle, source)
+
+    updated = repo.update_metadata(template_id, name="Renamed")
+
+    assert updated.name == "Renamed"
+    assert repo.current_version(template_id).config["name"] == "Renamed"
+
+
+def test_metadata_changes_survive_a_reload(session: Session, ingested):
+    """config is a plain JSON column: an in-place edit would be dropped, so this
+    is the test that actually proves the write happened."""
+    bp, bundle, source = ingested
+    repo = TemplateRepository(session)
+    template_id = repo.create(bp, bundle, source)
+
+    repo.update_metadata(
+        template_id, description="Now with a description", append_currency=False,
+    )
+    session.expunge_all()
+
+    config = repo.current_version(template_id).config
+    assert config["description"] == "Now with a description"
+    assert config["append_currency"] is False
+
+
+def test_the_type_moves_in_both_places(session: Session, ingested):
+    """list() filters on Template.type, but generate() checks config['type']."""
+    session.add(DocumentTypeRegistry(code="akt", system=True, active=True))
+    session.commit()
+    bp, bundle, source = ingested
+    repo = TemplateRepository(session)
+    template_id = repo.create(bp, bundle, source)
+
+    updated = repo.update_metadata(template_id, document_type="akt")
+
+    assert updated.type == "akt"
+    assert repo.current_version(template_id).config["type"] == "akt"
+
+
+def test_update_metadata_changes_only_what_was_passed(session: Session, ingested):
+    bp, bundle, source = ingested
+    repo = TemplateRepository(session)
+    template_id = repo.create(bp, bundle, source)
+    before = repo.current_version(template_id).config
+
+    repo.update_metadata(template_id, name="Renamed")
+
+    after = repo.current_version(template_id).config
+    assert after["primary_language"] == before["primary_language"]
+    assert after["append_currency"] == before["append_currency"]
+
+
+def test_update_metadata_leaves_the_blueprint_alone(session: Session, ingested):
+    """Metadata is not content: the placeholders must not move."""
+    bp, bundle, source = ingested
+    repo = TemplateRepository(session)
+    template_id = repo.create(bp, bundle, source)
+
+    repo.update_metadata(template_id, name="Renamed")
+
+    assert repo.get_blueprint(template_id).placeholders == bp.placeholders
+    assert versions_of(session, template_id) == [1]      # no new version
+
+
+def test_update_metadata_rejects_an_unknown_document_type(session: Session, ingested):
+    bp, bundle, source = ingested
+    repo = TemplateRepository(session)
+    template_id = repo.create(bp, bundle, source)
+
+    with pytest.raises(EntityNotFound):
+        repo.update_metadata(template_id, document_type="nope")
+
+
+def test_a_built_in_template_refuses_metadata_edits(session: Session, ingested):
+    """Same rule as add_version: shipped defaults are read-only, copy to edit."""
+    bp, bundle, source = ingested
+    repo = TemplateRepository(session)
+    template_id = repo.create(bp, bundle, source, code="default_invoice", system=True)
+
+    with pytest.raises(InvalidSelection):
+        repo.update_metadata(template_id, name="Renamed")
 
 
 # --- list --------------------------------------------------------------------
