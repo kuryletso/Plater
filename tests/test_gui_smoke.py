@@ -237,14 +237,128 @@ def test_manager_actions_need_a_selection(qt_app, session: Session, name: str):
     assert all(not button.isEnabled() for button in dialog._extra_buttons)
 
 
-def test_templates_offer_edit_duplicate_and_hide(qt_app, session: Session):
+def test_templates_offer_edit_versions_duplicate_and_hide(qt_app, session: Session):
     """Edit covers metadata only — content changes are a new version."""
     from app.gui.dialogs.manager_dialog import ManagerDialog
 
     dialog = ManagerDialog(build_asset(session, "template"))
 
     assert dialog.edit_button is not None
-    assert [button.text() for button in dialog._extra_buttons] == ["Duplicate", "Hide"]
+    assert [button.text() for button in dialog._extra_buttons] == [
+        "Versions...", "Duplicate", "Hide",
+    ]
+
+
+# --- template versions -------------------------------------------------------
+
+def versions_dialog(session: Session, template_id: int):
+    from app.gui.dialogs.manager_dialog import ManagerDialog
+    from app.gui.dialogs.managers import template_version_asset
+
+    return ManagerDialog(template_version_asset(session, template_id))
+
+
+def test_the_versions_list_marks_the_current_one(qt_app, session: Session,
+                                                 stored_template: int):
+    dialog = versions_dialog(session, stored_template)
+
+    assert labels(dialog) == [
+        label for label in labels(dialog) if "Version 1" in label
+    ]
+    assert "current" in labels(dialog)[0]
+
+
+def test_versions_are_append_only_so_there_is_no_delete(qt_app, session: Session,
+                                                        stored_template: int):
+    dialog = versions_dialog(session, stored_template)
+
+    assert dialog.delete_button is None
+    assert dialog.edit_button is None
+    assert [button.text() for button in dialog._extra_buttons] == ["Restore"]
+
+
+def test_the_versions_list_hides_its_search_box(qt_app, session: Session,
+                                                stored_template: int):
+    """A handful of versions needs no filtering, and a dead box reads as broken."""
+    dialog = versions_dialog(session, stored_template)
+
+    assert not dialog.search_edit.isVisibleTo(dialog)
+
+
+def test_restoring_appends_rather_than_rewinds(qt_app, session: Session,
+                                               stored_template: int, make_docx,
+                                               fixture_provider):
+    """History stays append-only, so 'latest is current' keeps meaning what it says."""
+    from app.document_engine.orchestration.pipeline import TemplateIngestionPipeline
+    from app.services.template.repository import TemplateRepository
+
+    repository = TemplateRepository(session)
+
+    pipeline = TemplateIngestionPipeline(fixture_provider)
+    result = pipeline.ingest(make_docx(paragraphs=["Revised {{ org_name }}"],
+                                       name="v2.docx"))
+    repository.add_version(
+        stored_template, pipeline.finalize(result.draft), result.assets, result.source,
+    )
+    assert repository.current_version(stored_template).version == 2
+
+    repository.restore(stored_template, 1)
+
+    assert repository.current_version(stored_template).version == 3
+    assert [v.version for v in repository.versions(stored_template)] == [3, 2, 1]
+
+
+def test_the_version_dialog_inherits_the_template_config(qt_app, session: Session,
+                                                         stored_template: int):
+    """A new version must resolve placeholders against the original languages."""
+    from app.gui.dialogs.template_import import TemplateImportDialog
+    from app.services.template.repository import TemplateRepository
+
+    dialog = TemplateImportDialog(session, template_id=stored_template)
+    original = TemplateRepository(session).current_version(stored_template).config
+
+    inherited = dialog._inherited_config(stored_template)
+
+    assert inherited.primary_language == original["primary_language"]
+    assert inherited.secondary_language == original.get("secondary_language")
+    assert dialog.inherited_label.text()
+
+
+def test_the_version_dialog_hides_the_inherited_fields(qt_app, session: Session,
+                                                       stored_template: int):
+    from app.gui.dialogs.template_import import TemplateImportDialog
+
+    dialog = TemplateImportDialog(session, template_id=stored_template)
+
+    assert not dialog.primary_combo.isVisibleTo(dialog)
+    assert not dialog.name_edit.isVisibleTo(dialog)
+    assert dialog.path_edit.isVisibleTo(dialog)
+
+
+def test_the_import_dialog_still_shows_them_for_a_new_template(qt_app,
+                                                               session: Session):
+    from app.gui.dialogs.template_import import TemplateImportDialog
+
+    dialog = TemplateImportDialog(session)
+
+    assert dialog.primary_combo.isVisibleTo(dialog)
+    assert not dialog.inherited_label.isVisibleTo(dialog)
+
+
+def test_an_unloadable_template_reports_instead_of_failing_to_open(qt_app,
+                                                                   session: Session):
+    """A constructor that raises takes the whole dialog down."""
+    from app.db.models.core.template import Template
+    from app.gui.dialogs.template_import import TemplateImportDialog
+
+    template = Template(name="Versionless", type="invoice")
+    session.add(template)
+    session.commit()
+
+    dialog = TemplateImportDialog(session, template_id=template.id)
+
+    assert dialog.banner.text()
+    assert not dialog.path_edit.isEnabled()
 
 
 def test_the_template_edit_dialog_loads_and_fixes_languages(qt_app, session: Session,
