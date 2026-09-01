@@ -3,7 +3,7 @@ from __future__ import annotations
 from PySide6.QtWidgets import QWidget, QDialog, QInputDialog
 from sqlalchemy.orm import Session
 
-from app.gui.dialogs.manager_dialog import AssetId, AssetAction, ManagedAsset
+from app.gui.dialogs.manager_dialog import AssetId, AssetAction, ManagedAsset, ManagerDialog
 from app.gui.dialogs.organization import OrganizationDialog
 from app.gui.dialogs.template_import import TemplateImportDialog
 from app.gui.dialogs.template_edit import TemplateEditDialog
@@ -55,6 +55,14 @@ def organization_asset(session: Session) -> ManagedAsset:
 
 def template_asset(session: Session) -> ManagedAsset:
     repository = TemplateRepository(session)
+
+    def versions(parent: QWidget, asset_id: AssetId) -> bool:
+        dialog = ManagerDialog(
+            template_version_asset(session, int(asset_id)),
+            parent=parent,
+        )
+        dialog.exec()
+        return dialog.changed
 
     def list_items(search: str | None) -> list[tuple[AssetId, str]]:
         return [
@@ -111,6 +119,7 @@ def template_asset(session: Session) -> ManagedAsset:
         create=create,
         edit=edit,
         actions=(
+            AssetAction(label="Versions...", run=versions),
             AssetAction(label="Duplicate", run=duplicate),
             AssetAction(label=toggle_label, run=toggle),
         ),
@@ -193,4 +202,43 @@ def measurement_unit_asset(session: Session) -> ManagedAsset:
         actions=(AssetAction(label=toggle_label, run=toggle),),
         delete=None,
         delete_verb="Hide",
+    )
+
+
+def template_version_asset(session: Session, template_id: int) -> ManagedAsset:
+    repository = TemplateRepository(session)
+
+    def list_items(search) -> list[tuple[AssetId, str]]:
+        current = repository.current_version(template_id).version
+
+        return [
+            (
+                version.version,
+                f"Version {version.version} — "
+                f"{version.created_at:%Y-%m-%d %H:%M}"
+                + (" | current" if version.version == current else ""),
+            )
+            for version in repository.versions(template_id)
+        ]
+
+    def create(parent: QWidget) -> AssetId | None:
+        dialog = TemplateImportDialog(
+            session=session,
+            template_id=template_id,
+            parent=parent,
+        )
+        return dialog.version if dialog.exec() == QDialog.DialogCode.Accepted else None
+
+    def restore(parent: QWidget, asset_id: AssetId) -> bool:
+        repository.restore(template_id, int(asset_id))
+        return True
+
+    return ManagedAsset(
+        title=f"Versions of {repository.get(template_id).name}",
+        list_items=list_items,
+        create=create,
+        edit=None,
+        delete=None,
+        actions=(AssetAction(label="Restore", run=restore),),
+        searchable=False,
     )

@@ -77,3 +77,17 @@ class TemplateImportService:
         return self._repo.sync_system_version(
             template_id, blueprint, result.assets, result.source,
         )
+
+
+    def commit_version(
+            self,
+            template_id: int,
+            result: IngestionResult,
+    ) -> int:
+        """Appends the reviewed draft as a new version of an existing Template."""
+
+        blueprint = self._pipeline.finalize(result.draft)
+
+        return self._repo.add_version(
+            template_id, blueprint, result.assets, result.source,
+        )

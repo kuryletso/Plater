@@ -278,6 +278,18 @@ class TemplateRepository:
         return template
 
 
+    def versions(self, template_id: int) -> list[TemplateVersion]:
+        """Lists all versions owned by Template, newest first."""
+
+        self.get(template_id)
+
+        return list(self._session.scalars(
+            select(TemplateVersion)
+            .where(TemplateVersion.template_id == template_id)
+            .order_by(TemplateVersion.version.desc())
+        ).all())
+
+
     def _prune(self, template_id: int) -> None:
         versions = self._session.scalars(
             select(TemplateVersion)

@@ -34,6 +34,7 @@ class ManagedAsset:
     delete: Callable[[AssetId], None] | None = None
     actions: tuple[AssetAction, ...] = ()
     delete_verb: str = "Delete"
+    searchable: bool = True
 
 
 @dataclass(slots=True, frozen=True)
@@ -66,6 +67,7 @@ class ManagerDialog(QDialog):
         self.search_edit = QLineEdit()
         self.search_edit.setPlaceholderText("Search...")
         self.search_edit.setClearButtonEnabled(True)
+        self.search_edit.setVisible(asset.searchable)
 
         self.list = QListWidget()
         self.banner = ErrorBanner()

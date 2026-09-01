@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QListWidget,
     QPushButton,
+    QLabel
 )
 from PySide6.QtGui import QDragEnterEvent, QDropEvent
 from sqlalchemy.orm import Session
@@ -32,12 +33,15 @@ from app.gui.dialogs.widgets import (
 )
 from app.services.template.db_input_provider import DbTemplateInputProvider
 from app.services.template.import_service import TemplateImportService
+from app.services.template.repository import TemplateRepository
+from app.services.errors import ServiceError
 
 
 class TemplateImportDialog(QDialog):
     def __init__(
             self,
             session: Session,
+            template_id: int | None = None,     # adding new version to existing template if set, else creating new template
             parent: QWidget | None = None,
     ) -> None:
 
@@ -46,8 +50,10 @@ class TemplateImportDialog(QDialog):
         self._result = None
         self._service: TemplateImportService | None = None
         self.template_id: int | None = None
+        self._template_id = template_id
+        self.version: int | None = None
 
-        self.setWindowTitle("Import template")
+        self.setWindowTitle("Add template version" if template_id is not None else "Import template")
         self.setMinimumWidth(560)
         self.setAcceptDrops(True)
 
@@ -56,6 +62,9 @@ class TemplateImportDialog(QDialog):
         self.path_edit.setPlaceholderText("Browse a .docx template, or drop one here...")
         browse = QPushButton("Browse...")
         browse.clicked.connect(self._browse)
+
+        self.inherited_label = QLabel()
+        self.inherited_label.setEnabled(False)
 
         file_row = QWidget()
         file_layout = QHBoxLayout(file_row)
@@ -84,6 +93,7 @@ class TemplateImportDialog(QDialog):
         form.setContentsMargins(0,0,0,0)
         form.addRow("File", file_row)
         form.addRow("Name", self.name_edit)
+        form.addRow("Template", self.inherited_label)
         form.addRow("Document type", self.type_combo)
         form.addRow("Primary language", self.primary_combo)
         form.addRow("Secondary language", self.secondary_combo)
@@ -112,6 +122,31 @@ class TemplateImportDialog(QDialog):
         self.secondary_combo.currentIndexChanged.connect(self._reingest)
         self.currency_check.toggled.connect(self._reingest)
 
+        if template_id is None:
+            form.setRowVisible(self.inherited_label, False)
+        else:
+            for widget in (
+                self.name_edit,
+                self.type_combo,
+                self.primary_combo,
+                self.secondary_combo,
+                self.description_edit,
+                self.currency_check,
+            ):
+                form.setRowVisible(widget, False)
+
+            try:
+                config = self._inherited_config(template_id)
+            except ServiceError as e:
+                self.banner.show_message(e.user_message or str(e))
+                self.path_edit.setEnabled(False)
+                return
+            
+            self.inherited_label.setText(
+                f"{config.name} | {config.type} | "
+                f"{' / '.join( c for c in (config.primary_language, config.secondary_language) if c )}"
+            )
+
 
     def _save_button(self):
         return self.buttons.button(QDialogButtonBox.StandardButton.Save)
@@ -134,19 +169,23 @@ class TemplateImportDialog(QDialog):
 
 
     def _config(self) -> TemplateConfig | None:
-        primary = selected_code(self.primary_combo)
-        document_type = selected_code(self.type_combo)
-        if primary is None or document_type is None:
-            return None
+        if self._template_id is not None:
+            return self._inherited_config(self._template_id)
+        
+        else:
+            primary = selected_code(self.primary_combo)
+            document_type = selected_code(self.type_combo)
+            if primary is None or document_type is None:
+                return None
 
-        return TemplateConfig(
-            primary_language=primary,
-            secondary_language=selected_code(self.secondary_combo) or None,
-            type=document_type,
-            name=self.name_edit.text().strip() or Path(self.path_edit.text()).stem,
-            description=self.description_edit.text().strip(),
-            append_currency=self.currency_check.isChecked(),
-        )
+            return TemplateConfig(
+                primary_language=primary,
+                secondary_language=selected_code(self.secondary_combo) or None,
+                type=document_type,
+                name=self.name_edit.text().strip() or Path(self.path_edit.text()).stem,
+                description=self.description_edit.text().strip(),
+                append_currency=self.currency_check.isChecked(),
+            )
 
 
     def _reingest(self) -> None:
@@ -157,9 +196,13 @@ class TemplateImportDialog(QDialog):
         self.banner.clear_message()
 
         path = self.path_edit.text().strip()
-        config = self._config()
+        try:
+            config = self._config()
+        except ServiceError as e:
+            self.banner.show_message(e.user_message or str(e))
+            return
 
-        if config is None:
+        if not path or config is None:
             self.banner.show_message("Choose a document type and primary language.")
             return
 
@@ -195,13 +238,37 @@ class TemplateImportDialog(QDialog):
             return
 
         try:
-            self.template_id = self._service.commit(self._result)
+            if self._template_id is not None:
+                self.version = self._service.commit_version(
+                    self._template_id, self._result,
+                )
+            else:
+                self.template_id = self._service.commit(self._result)
         except AppError as e:
             self._session.rollback()
             self.banner.show_message(e.user_message or str(e))
             return
 
         self.accept()
+
+
+    def _inherited_config(self, template_id: int) -> TemplateConfig:
+        """New version resolves against the same languages as the original, 
+        so the config comes from the template rather than the form.
+        """
+
+        repository = TemplateRepository(self._session)
+        template = repository.get(template_id)
+        config = repository.current_version(template_id).config
+
+        return TemplateConfig(
+            primary_language=config["primary_language"],
+            secondary_language=config.get("secondary_language"),
+            type=template.type,
+            name=template.name,
+            description=config.get("description") or "",
+            append_currency=bool(config.get("append_currency")),
+        )
 
 
     def dragEnterEvent(self, event: QDragEnterEvent) -> None:
