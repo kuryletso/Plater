@@ -677,6 +677,147 @@ def test_an_unloadable_template_is_dropped_rather_than_crashing(window,
     assert "cannot be loaded" in window.template_column.ui.details_label.text().lower()
 
 
+# --- column edit and delete buttons ------------------------------------------
+
+def select_organization(column, fragment: str) -> None:
+    column.refresh_organizations()
+    widget = column.ui.organization_list
+    for position in range(widget.count()):
+        if fragment.lower() in widget.item(position).text().lower():
+            widget.setCurrentRow(position)
+            return
+    raise AssertionError(f"{fragment} not listed")
+
+
+def confirm(monkeypatch, answer: bool) -> None:
+    from PySide6.QtWidgets import QMessageBox
+
+    button = (
+        QMessageBox.StandardButton.Yes if answer else QMessageBox.StandardButton.No
+    )
+    monkeypatch.setattr(QMessageBox, "question", staticmethod(lambda *a, **k: button))
+    monkeypatch.setattr(QMessageBox, "warning", staticmethod(lambda *a, **k: 0))
+
+
+def test_organization_buttons_need_a_selection(window, make_org):
+    column = window.provider_column
+
+    assert not column.ui.edit_organization_button.isEnabled()
+    assert not column.ui.delete_organization_button.isEnabled()
+
+    make_org("Acme")
+    select_organization(column, "Acme")
+
+    assert column.ui.edit_organization_button.isEnabled()
+    assert column.ui.delete_organization_button.isEnabled()
+
+
+def test_template_buttons_need_a_selection(window, stored_template: int):
+    column = window.template_column
+
+    assert not column.ui.edit_template_button.isEnabled()
+    assert not column.ui.delete_template_button.isEnabled()
+
+    column.refresh()
+    column.ui.template_list.setCurrentRow(0)
+
+    assert column.ui.edit_template_button.isEnabled()
+    assert column.ui.delete_template_button.isEnabled()
+
+
+def test_deleting_an_organization_clears_the_draft(window, make_org, monkeypatch):
+    organization = make_org("Acme")
+    column = window.provider_column
+    select_organization(column, "Acme")
+    assert window.draft.provider_organization_id == organization.id
+
+    confirm(monkeypatch, True)
+    column._delete_organization()
+
+    assert window.draft.provider_organization_id is None
+    assert window.draft.provider_tax_id is None
+
+
+def test_deleting_in_one_column_refreshes_the_other(window, make_org, monkeypatch):
+    """The reason catalog_changed exists: Client lists the same organizations."""
+    make_org("Acme")
+    make_org("Globex", tax_value="22222222")
+
+    provider, client = window.provider_column, window.client_column
+    select_organization(provider, "Acme")
+    select_organization(client, "Globex")
+    assert client.ui.organization_list.count() == 2
+
+    confirm(monkeypatch, True)
+    provider._delete_organization()
+
+    listed = [
+        client.ui.organization_list.item(i).text()
+        for i in range(client.ui.organization_list.count())
+    ]
+    assert len(listed) == 1
+    assert "Globex" in listed[0]
+    assert window.draft.client_organization_id is not None    # untouched
+
+
+def test_deleting_the_organization_the_other_column_selected_clears_it(
+        window, make_org, monkeypatch):
+    make_org("Acme")
+    provider, client = window.provider_column, window.client_column
+    select_organization(provider, "Acme")
+    select_organization(client, "Acme")          # both sides, same organization
+
+    confirm(monkeypatch, True)
+    provider._delete_organization()
+
+    assert window.draft.provider_organization_id is None
+    assert window.draft.client_organization_id is None
+
+
+def test_declining_the_confirmation_deletes_nothing(window, make_org, monkeypatch):
+    organization = make_org("Acme")
+    column = window.provider_column
+    select_organization(column, "Acme")
+
+    confirm(monkeypatch, False)
+    column._delete_organization()
+
+    assert window.draft.provider_organization_id == organization.id
+
+
+def test_a_built_in_template_refuses_deletion(window, session: Session,
+                                              make_docx, fixture_provider,
+                                              monkeypatch):
+    """The repository refuses; the column must report it, not crash."""
+    from app.document_engine.orchestration.pipeline import TemplateIngestionPipeline
+    from app.services.template.repository import TemplateRepository
+
+    pipeline = TemplateIngestionPipeline(fixture_provider)
+    result = pipeline.ingest(make_docx(paragraphs=["A {{ org_name }}"]))
+    template_id = TemplateRepository(session).create(
+        pipeline.finalize(result.draft), result.assets, result.source,
+        code="default_invoice", system=True,
+    )
+
+    column = window.template_column
+    column.refresh()
+    column.ui.template_list.setCurrentRow(0)
+    assert window.draft.template_id == template_id
+
+    warnings: list = []
+    confirm(monkeypatch, True)
+    from PySide6.QtWidgets import QMessageBox
+    monkeypatch.setattr(
+        QMessageBox, "warning",
+        staticmethod(lambda parent, title, text, *a, **k: warnings.append(text)),
+    )
+    column._delete_template()
+
+    assert warnings, "the refusal must be reported, not swallowed"
+    assert window.draft.template_id == template_id       # still selected
+    assert TemplateRepository(session).get(template_id) is not None
+
+
 # --- editing an organization's sub-assets ------------------------------------
 
 @pytest.fixture
