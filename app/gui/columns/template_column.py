@@ -2,20 +2,23 @@ from __future__ import annotations
 
 from html import escape
 
-from PySide6.QtCore import Qt, QSignalBlocker
-from PySide6.QtWidgets import QListWidgetItem, QWidget, QDialog
+from PySide6.QtCore import Qt, QSignalBlocker, Signal
+from PySide6.QtWidgets import QListWidgetItem, QWidget, QDialog, QMessageBox
 from sqlalchemy.orm import Session
 
 from app.gui.generated.ui_template_column import Ui_TemplateColumn
 from app.services.template.repository import TemplateRepository
 from app.gui.draft_state import DraftState
 from app.gui.dialogs.template_import import TemplateImportDialog
+from app.gui.dialogs.template_edit import TemplateEditDialog
 from app.services.errors import ServiceError
 from app.db.models.core.template_version import TemplateVersion
 
 
 class TemplateColumn(QWidget):
     """Pick the template. Its document type will drive sequence filtering."""
+
+    catalog_changed = Signal()
 
     def __init__(
             self,
@@ -34,8 +37,10 @@ class TemplateColumn(QWidget):
 
         self.ui.search_edit.textChanged.connect(self.refresh)
         self.ui.template_list.currentItemChanged.connect(self._on_selection)
-        self.ui.clear_button.clicked.connect(self.clear_selection)
         self.ui.add_template_button.clicked.connect(self._import_template)
+        self.ui.edit_template_button.clicked.connect(self._edit_template)
+        self.ui.delete_template_button.clicked.connect(self._delete_template)
+        self.ui.clear_button.clicked.connect(self.clear_selection)
         self._show_selected(None)
 
         self.refresh()
@@ -147,6 +152,8 @@ class TemplateColumn(QWidget):
     def _show_selected(self, name: str | None) -> None:
         self.ui.selection_label.setText(name or "Nothing selected")
         self.ui.selection_label.setEnabled(name is not None)
+        self.ui.edit_template_button.setEnabled(name is not None)
+        self.ui.delete_template_button.setEnabled(name is not None)
         self.ui.clear_button.setEnabled(name is not None)
 
 
@@ -170,3 +177,37 @@ class TemplateColumn(QWidget):
             if item.data(Qt.ItemDataRole.UserRole)[0] == dialog.template_id:
                 self.ui.template_list.setCurrentRow(position)
                 return
+
+
+    def _edit_template(self) -> None:
+        template_id = self._draft.template_id
+        if template_id is None:
+            return
+
+        dialog = TemplateEditDialog(self._session, template_id, parent=self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.catalog_changed.emit()
+
+
+    def _delete_template(self) -> None:
+        template_id = self._draft.template_id
+        if template_id is None:
+            return
+
+        confirmed = QMessageBox.question(
+            self, "Delete tempalte",
+            f'Delete "{self.ui.selection_label.text()}"?',
+        )
+        if confirmed != QMessageBox.StandardButton.Yes:
+            return
+
+        try:
+            self._repo.delete(template_id)
+        except ServiceError as e:
+            QMessageBox.warning(
+                self, "Cannot delete",
+                e.user_message or str(e),
+            )
+            return
+
+        self.catalog_changed.emit()

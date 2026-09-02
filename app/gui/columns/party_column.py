@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from enum import StrEnum
 
-from PySide6.QtCore import Qt, QSignalBlocker, QRegularExpression
-from PySide6.QtWidgets import QListWidgetItem, QWidget, QDialog, QComboBox
+from PySide6.QtCore import Qt, QSignalBlocker, QRegularExpression, Signal
+from PySide6.QtWidgets import QListWidgetItem, QWidget, QDialog, QComboBox, QMessageBox
 from PySide6.QtGui import QRegularExpressionValidator
 from sqlalchemy.orm import Session
 
@@ -30,6 +30,8 @@ class PartyColumn(QWidget):
     """Pick an organization and its details. The provider also picks
     the numbering sequence, filtered by organization + template document type.
     """
+
+    catalog_changed = Signal()
 
     def __init__(
             self,
@@ -75,6 +77,8 @@ class PartyColumn(QWidget):
             self.ui.next_number_edit.hide()
             self.ui.add_sequence_button.hide()
 
+        self.ui.edit_organization_button.clicked.connect(self._edit_organization)
+        self.ui.delete_organization_button.clicked.connect(self._delete_organization)
         self.ui.clear_button.clicked.connect(self.clear_selection)
         self._show_selected(None)
 
@@ -320,6 +324,8 @@ class PartyColumn(QWidget):
     def _show_selected(self, name: str | None) -> None:
         self.ui.selection_label.setText(name or "Nothing selected")
         self.ui.selection_label.setEnabled(name is not None)
+        self.ui.edit_organization_button.setEnabled(name is not None)
+        self.ui.delete_organization_button.setEnabled(name is not None)
         self.ui.clear_button.setEnabled(name is not None)
         self.ui.add_tax_button.setEnabled(name is not None)
 
@@ -348,6 +354,7 @@ class PartyColumn(QWidget):
 
         self.refresh_organizations()
         self._select_organization(dialog.organization_id)
+        self.catalog_changed.emit()
 
 
     def _add_tax_id(self) -> None:
@@ -544,3 +551,37 @@ class PartyColumn(QWidget):
         self.ui.edit_tax_button.setEnabled(self._get_tax() is not None)
         self.ui.edit_representative_button.setEnabled(self._get_representative() is not None)
         self.ui.edit_bank_button.setEnabled(self._get_bank() is not None)
+
+
+    def _edit_organization(self) -> None:
+        organization_id = self._get_org()
+        if organization_id is None:
+            return
+
+        dialog = OrganizationDialog(self._session, organization_id, parent=self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.catalog_changed.emit()
+
+
+    def _delete_organization(self) -> None:
+        organization_id = self._get_org()
+        if organization_id is None:
+            return
+
+        confirmed = QMessageBox.question(
+            self, "Delete organization",
+            f'Delete "{self.ui.selection_label.text()}" and everything attached to it?',
+        )
+        if confirmed != QMessageBox.StandardButton.Yes:
+            return
+
+        try:
+            self._org_repo.delete(organization_id)
+        except ServiceError as e:
+            QMessageBox.warning(
+                self, "Cannot delete",
+                e.user_message or str(e),
+            )
+            return
+
+        self.catalog_changed.emit()

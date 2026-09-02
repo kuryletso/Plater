@@ -42,9 +42,12 @@ from app.services.invoice_line.repository import InvoiceLineRepository, InvoiceL
 
 
 def _stub_content(title: str) -> QWidget:
-    """Filler page until the real column content lands."""
+    """Filler content for the column in case column content was unable to load.
+    
+    Previously used as filler page until the real column content lands.
+    """
 
-    label = QLabel(f"{title} column")
+    label = QLabel(f"{title} column was unable to load.")
     label.setAlignment(Qt.AlignmentFlag.AlignCenter)
     label.setEnabled(False)
 
@@ -94,6 +97,13 @@ class MainWindow(QMainWindow):
         layout.addWidget(self._build_footer())
 
         self.setCentralWidget(central)
+
+        for column in (
+            self.template_column,
+            self.provider_column,
+            self.client_column,
+        ):
+            column.catalog_changed.connect(self._revalidate_columns)
 
         self._refresh_readiness()
 
