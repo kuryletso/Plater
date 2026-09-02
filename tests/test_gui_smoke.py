@@ -1006,6 +1006,115 @@ def test_retyping_the_same_number_changes_nothing(provider_with_sequence):
     assert column.ui.next_number_edit.property("warn") is False
 
 
+# --- the settings dialog -----------------------------------------------------
+
+@pytest.fixture
+def settings_file(tmp_path, monkeypatch):
+    monkeypatch.setenv("PLATER_SETTINGS", str(tmp_path / "plater.ini"))
+    return tmp_path / "plater.ini"
+
+
+def test_the_settings_dialog_loads_both_stores(qt_app, session: Session,
+                                               seeded_inputs, settings_file):
+    from app.gui.dialogs.settings import SettingsDialog
+
+    dialog = SettingsDialog(session)
+
+    assert dialog.language_combo.currentData() == "ENG"      # the ini
+    assert dialog.primary_combo.code() == "ENG"              # the database
+    assert dialog.type_combo.code() == "invoice"
+    assert dialog.name_edit.text()
+
+
+def test_settings_widgets_are_all_in_a_layout(qt_app, session: Session,
+                                              seeded_inputs, settings_file):
+    from app.gui.dialogs.settings import SettingsDialog
+
+    assert orphans(SettingsDialog(session)) == []
+
+
+def test_saving_the_language_writes_the_file(qt_app, session: Session,
+                                             seeded_inputs, settings_file):
+    from app.gui.dialogs.settings import SettingsDialog
+    from app.gui.settings import ui_language
+
+    dialog = SettingsDialog(session)
+    dialog.language_combo.setCurrentIndex(dialog.language_combo.findData("UKR"))
+    dialog._save()
+
+    assert dialog.language_changed
+    assert ui_language() == "UKR"
+
+
+def test_leaving_the_language_alone_reports_no_change(qt_app, session: Session,
+                                                      seeded_inputs, settings_file):
+    from app.gui.dialogs.settings import SettingsDialog
+
+    dialog = SettingsDialog(session)
+    dialog._save()
+
+    assert not dialog.language_changed
+
+
+def test_saving_updates_the_template_defaults(qt_app, session: Session,
+                                              seeded_inputs, settings_file):
+    from app.gui.dialogs.settings import SettingsDialog
+    from app.services.settings import TemplateDefaultService
+
+    dialog = SettingsDialog(session)
+    dialog.name_edit.setText("Rakhunok")
+    dialog.currency_check.setChecked(False)
+    dialog._save()
+
+    row = TemplateDefaultService(session).get()
+    assert row.name == "Rakhunok"
+    assert row.append_currency is False
+
+
+def test_the_secondary_language_can_be_cleared(qt_app, session: Session,
+                                               seeded_inputs, settings_file):
+    from app.gui.dialogs.settings import SettingsDialog
+    from app.services.settings import TemplateDefaultService
+
+    dialog = SettingsDialog(session)
+    dialog.secondary_combo.set_code("")
+    dialog._save()
+
+    assert TemplateDefaultService(session).get().secondary_language_code is None
+
+
+def test_a_rejected_default_leaves_the_language_file_untouched(qt_app,
+                                                               session: Session,
+                                                               seeded_inputs,
+                                                               settings_file):
+    """The database write runs first, so a refused update must not half-save."""
+    from app.gui.dialogs.settings import SettingsDialog
+    from app.gui.settings import ui_language
+
+    dialog = SettingsDialog(session)
+    dialog.language_combo.setCurrentIndex(dialog.language_combo.findData("UKR"))
+    dialog.secondary_combo.set_code("ENG")           # same as primary: refused
+
+    dialog._save()
+
+    assert dialog.result() != dialog.DialogCode.Accepted
+    assert dialog.banner.text()
+    assert ui_language() == "ENG"                    # not written
+    assert not dialog.language_changed
+
+
+def test_an_incomplete_form_is_refused(qt_app, session: Session, seeded_inputs,
+                                       settings_file):
+    from app.gui.dialogs.settings import SettingsDialog
+
+    dialog = SettingsDialog(session)
+    dialog.name_edit.setText("   ")
+    dialog._save()
+
+    assert dialog.result() != dialog.DialogCode.Accepted
+    assert dialog.banner.text()
+
+
 # --- reference pickers -------------------------------------------------------
 
 def test_reference_pickers_resolve_any_language(qt_app, session: Session):
