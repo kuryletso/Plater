@@ -9,6 +9,12 @@ def main() -> int:
     from app.db.session import init_db
     init_db()
 
+
+    from app.gui.settings import display_languages
+    from app.gui.text import set_preferred_languages
+    set_preferred_languages(display_languages())
+
+
     app = QApplication(sys.argv)
     app.setApplicationName("Plater")
     app.setStyleSheet("""

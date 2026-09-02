@@ -32,4 +32,9 @@ def assets_dir() -> Path:
     return user_data_dir() / "assets"
 
 
+def settings_path() -> Path:
+    override = os.environ.get("PLATER_SETTINGS")
+    return Path(override) if override else user_data_dir() / "plater.ini"
+
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent

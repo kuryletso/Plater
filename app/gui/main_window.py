@@ -15,12 +15,14 @@ from PySide6.QtWidgets import (
     QPushButton,
     QSplitter,
     QFileDialog,
+    QDialog,
 )
 
 from app.gui.preview import PreviewPanel
 from app.gui.widgets.collapsible_column import Accordion, CollapsibleColumn
 
 from app.db.session import SessionLocal
+from app.gui.dialogs.settings import SettingsDialog
 from app.gui.dialogs.manager_dialog import ManagerDialog
 from app.gui.dialogs.managers import (
     organization_asset,
@@ -28,6 +30,8 @@ from app.gui.dialogs.managers import (
     template_asset,
     measurement_unit_asset,
 )
+from app.gui.text import set_preferred_languages
+from app.gui.settings import display_languages
 from app.gui.columns.template_column import TemplateColumn
 from app.gui.columns.party_column import PartyColumn, PartyRole
 from app.gui.columns.document_column import DocumentColumn
@@ -120,7 +124,7 @@ class MainWindow(QMainWindow):
         edit_menu.addAction("&Measurement units...", self._manage_units)
 
         settings_menu = self.menuBar().addMenu("&Settings")
-        settings_menu.addAction("Template defaults...").setEnabled(False)
+        settings_menu.addAction("&Preferences...", self._open_settings)
 
         help_menu = self.menuBar().addMenu("&Help")
         help_menu.addAction("&About", self._about)
@@ -340,6 +344,17 @@ class MainWindow(QMainWindow):
         self.template_column.revalidate()
         self.provider_column.revalidate()
         self.client_column.revalidate()
+
+
+    def _open_settings(self) -> None:
+        dialog = SettingsDialog(self._session, parent=self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        if dialog.language_changed:
+            set_preferred_languages(display_languages())
+            self._revalidate_columns()
+            self.document_column.reload_units()
 
 
     def closeEvent(self, event) -> None:

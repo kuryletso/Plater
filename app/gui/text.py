@@ -3,11 +3,22 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-PREFERRED_LANGUAGES = ("ENG", "UKR")
+_preferred: tuple[str, ...] = ("ENG", "UKR")
+
+
+def set_preferred_languages(codes: tuple[str, ...]) -> None:
+    """Sets preferred languages global since localized() is called from everywhere."""
+
+    global _preferred
+    _preferred = codes or ("ENG",)
+
+
+def preferred_languages() -> tuple[str, ...]:
+    return _preferred
 
 
 def localized(localizations: Mapping[str, Any], attr: str) -> str:
-    for code in PREFERRED_LANGUAGES:
+    for code in _preferred:
         row = localizations.get(code)
         if row is not None and getattr(row, attr):
             return getattr(row, attr)
@@ -22,7 +33,7 @@ def localized(localizations: Mapping[str, Any], attr: str) -> str:
 def ordered_localizations(localizations: Mapping[str, Any]) -> list[tuple[str, Any]]:
     """Preferred languages first, then anything else the entity happens to have."""
 
-    codes  = [ code for code in PREFERRED_LANGUAGES if code in localizations ]
+    codes  = [ code for code in _preferred if code in localizations ]
     codes += [ code for code in localizations if code not in codes ]
     return [ (code, localizations[code]) for code in codes ]
 
