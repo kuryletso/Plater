@@ -156,7 +156,7 @@ class TemplateImportDialog(QDialog):
         chosen, _ = QFileDialog.getOpenFileName(
             self, "Select a template", "", "Word documents (*.docx)",
         )
-        if not chosen:
+        if chosen:
             self._use_file(Path(chosen))
 
 
