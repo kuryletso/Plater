@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from decimal import Decimal
 from datetime import date
 
 from PySide6.QtCore import QDate, QSignalBlocker
@@ -37,7 +36,7 @@ class DocumentColumn(QWidget):
         self._session = session
         self._draft = draft
         self._languages: tuple[str, ...] = ()
-        self.rendered: set[str] = set()
+        self._rendered: set[str] = set()
         self._blueprint_for: int | None = None
 
         self.ui = Ui_DocumentColumn()
@@ -60,6 +59,18 @@ class DocumentColumn(QWidget):
         draft.changed.connect(self._on_draft_changed)
 
         self._on_draft_changed()
+
+
+    def revalidate(self) -> None:
+        """Re-reads the template's blueprint."""
+
+        self._blueprint_for = None
+        self._on_draft_changed()
+
+
+    def reload_units(self) -> None:
+        self._units = self._load_units()
+        self.lines.set_units(self._units)
 
 
     def _on_draft_changed(self) -> None:
@@ -90,7 +101,7 @@ class DocumentColumn(QWidget):
             self._blueprint_for = template_id
             try:
                 blueprint = TemplateRepository(self._session).get_blueprint(template_id)
-            except ServiceError as e:
+            except ServiceError:
                 self._rendered = set()
             else:
                 self._rendered = column_languages(blueprint, "invl_desc")
@@ -176,8 +187,3 @@ class DocumentColumn(QWidget):
         dialog = MeasurementUnitDialog(self._session, parent=self)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self.reload_units()
-
-
-    def reload_units(self) -> None:
-        self._units = self._load_units()
-        self.lines.set_units(self._units)

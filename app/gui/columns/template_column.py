@@ -176,7 +176,9 @@ class TemplateColumn(QWidget):
             item = self.ui.template_list.item(position)
             if item.data(Qt.ItemDataRole.UserRole)[0] == dialog.template_id:
                 self.ui.template_list.setCurrentRow(position)
-                return
+                break
+
+        self.catalog_changed.emit()
 
 
     def _edit_template(self) -> None:

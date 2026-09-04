@@ -3,7 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QStandardPaths, QTimer
-from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import (
     QFrame,
     QWidget,
@@ -37,7 +36,6 @@ from app.gui.columns.party_column import PartyColumn, PartyRole
 from app.gui.columns.document_column import DocumentColumn
 from app.gui.draft_state import COLUMNS, DraftState
 
-from app.core.errors import Severity
 from app.services.doc_sequence.repository import SequenceRepository
 from app.services.errors import ServiceError
 from app.services.invoice.generate import InvoiceGenerateService, GenerationResult
@@ -344,6 +342,7 @@ class MainWindow(QMainWindow):
         self.template_column.revalidate()
         self.provider_column.revalidate()
         self.client_column.revalidate()
+        self.document_column.revalidate()
 
 
     def _open_settings(self) -> None:
