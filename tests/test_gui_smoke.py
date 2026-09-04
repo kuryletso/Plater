@@ -1151,7 +1151,6 @@ def test_reference_pickers_offer_aliases_as_completions(qt_app, session: Session
 TASK = "open task from the 2026-09-04 manual test pass"
 
 
-@pytest.mark.xfail(strict=True, reason=f"Task 1 — {TASK}: the `if not chosen` is inverted")
 def test_browsing_for_a_template_fills_the_path(qt_app, session: Session, monkeypatch,
                                                 seeded_inputs, make_docx):
     """File > Browse opened the picker and then threw the choice away."""
@@ -1169,7 +1168,6 @@ def test_browsing_for_a_template_fills_the_path(qt_app, session: Session, monkey
     assert dialog.path_edit.text() == str(chosen)
 
 
-@pytest.mark.xfail(strict=True, reason=f"Task 1 — {TASK}: cancelling ingests Path('')")
 def test_cancelling_the_browse_dialog_changes_nothing(qt_app, session: Session,
                                                       monkeypatch, seeded_inputs):
     from PySide6.QtWidgets import QFileDialog
@@ -1185,7 +1183,6 @@ def test_cancelling_the_browse_dialog_changes_nothing(qt_app, session: Session,
     assert dialog.path_edit.text() == ""
 
 
-@pytest.mark.xfail(strict=True, reason=f"Task 2 — {TASK}: the combo is never re-synced")
 def test_refreshing_sequences_keeps_the_selected_one_visible(window, session: Session,
                                                              make_org, make_sequence,
                                                              stored_template: int):
@@ -1262,7 +1259,6 @@ def bilingual_template(session: Session, make_docx):
     return template_id, add_secondary_version
 
 
-@pytest.mark.xfail(strict=True, reason=f"Task 3 — {TASK}: the blueprint cache keys on id alone")
 def test_a_new_template_version_updates_the_description_columns(window, session: Session,
                                                                 bilingual_template):
     """Adding a version that places {{ invl_desc.UKR }} must give the lines grid a
@@ -1280,6 +1276,16 @@ def test_a_new_template_version_updates_the_description_columns(window, session:
     window._revalidate_columns()
 
     assert column._grid_languages() == ("ENG", "UKR")
+
+
+def test_revalidating_the_document_column_without_a_template_is_a_no_op(window):
+    """_revalidate_columns() now reaches this column, and it fires on any manager
+    change — including before a template has ever been picked."""
+
+    window.document_column.revalidate()
+
+    assert window.document_column._grid_languages() == ()
+    assert not window.document_column.ui.add_button.isEnabled()
 
 
 def test_a_template_declaring_a_language_it_never_places_stays_single(window,
