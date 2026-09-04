@@ -1141,3 +1141,154 @@ def test_reference_pickers_offer_aliases_as_completions(qt_app, session: Session
 
     completer.setCompletionPrefix("Ukrai")
     assert completer.completionCount() >= 1
+
+
+# --- 2026-09-04 manual test pass: open tasks ---------------------------------
+#
+# Each xfail(strict=True) below is an open task. Fixing it turns the test into an
+# XPASS failure, which is the signal to drop the marker.
+
+TASK = "open task from the 2026-09-04 manual test pass"
+
+
+@pytest.mark.xfail(strict=True, reason=f"Task 1 — {TASK}: the `if not chosen` is inverted")
+def test_browsing_for_a_template_fills_the_path(qt_app, session: Session, monkeypatch,
+                                                seeded_inputs, make_docx):
+    """File > Browse opened the picker and then threw the choice away."""
+    from PySide6.QtWidgets import QFileDialog
+    from app.gui.dialogs.template_import import TemplateImportDialog
+
+    chosen = make_docx(paragraphs=["Invoice for {{ org_name }}"])
+    monkeypatch.setattr(
+        QFileDialog, "getOpenFileName", staticmethod(lambda *a, **k: (str(chosen), "")),
+    )
+
+    dialog = TemplateImportDialog(session)
+    dialog._browse()
+
+    assert dialog.path_edit.text() == str(chosen)
+
+
+@pytest.mark.xfail(strict=True, reason=f"Task 1 — {TASK}: cancelling ingests Path('')")
+def test_cancelling_the_browse_dialog_changes_nothing(qt_app, session: Session,
+                                                      monkeypatch, seeded_inputs):
+    from PySide6.QtWidgets import QFileDialog
+    from app.gui.dialogs.template_import import TemplateImportDialog
+
+    monkeypatch.setattr(
+        QFileDialog, "getOpenFileName", staticmethod(lambda *a, **k: ("", "")),
+    )
+
+    dialog = TemplateImportDialog(session)
+    dialog._browse()
+
+    assert dialog.path_edit.text() == ""
+
+
+@pytest.mark.xfail(strict=True, reason=f"Task 2 — {TASK}: the combo is never re-synced")
+def test_refreshing_sequences_keeps_the_selected_one_visible(window, session: Session,
+                                                             make_org, make_sequence,
+                                                             stored_template: int):
+    """After a generate the combo repopulates. It used to come back blank while
+    DraftState still held the sequence, so the two disagreed on screen.
+    """
+
+    column = window.provider_column
+    organization = make_org("Acme")
+    make_sequence(organization, prefix="INV-")
+    make_sequence(organization, prefix="ACT-")
+
+    window.draft.set_template(stored_template, "invoice", ("ENG",))
+    select_organization(column, "Acme")
+    column.ui.sequence_combo.setCurrentIndex(0)
+    selected = window.draft.sequence_id
+
+    assert selected is not None, "picking a prefix must reach the draft"
+
+    column.refresh_sequences()
+
+    assert window.draft.sequence_id == selected
+    assert column.ui.sequence_combo.currentIndex() >= 0
+    assert column.ui.sequence_combo.currentData() == selected
+
+
+def bilingual_column_provider():
+    """A provider knowing invl_desc as a COLUMN in two languages."""
+    from app.document_engine.blueprint.models.template import TemplateConfig
+    from app.document_engine.enums.enums import PlaceholderType
+    from tests.conftest import FixtureInputProvider
+
+    return FixtureInputProvider(
+        placeholders={
+            "org_name": {"active": True, "required": True, "type": PlaceholderType.SCALAR},
+            "invl_desc": {"active": True, "required": True, "type": PlaceholderType.COLUMN},
+        },
+        config=TemplateConfig(
+            primary_language="ENG",
+            secondary_language="UKR",
+            type="invoice",
+            name="bilingual",
+            description="",
+            append_currency=False,
+        ),
+    )
+
+
+@pytest.fixture
+def bilingual_template(session: Session, make_docx):
+    """A template whose v1 renders descriptions in ENG only, plus a factory that
+    appends a v2 placing the UKR column too."""
+
+    from app.document_engine.orchestration.pipeline import TemplateIngestionPipeline
+    from app.services.template.repository import TemplateRepository
+
+    provider = bilingual_column_provider()
+    repository = TemplateRepository(session)
+
+    def ingest(table):
+        pipeline = TemplateIngestionPipeline(provider)
+        result = pipeline.ingest(make_docx(table=table, name=f"v{len(table[0])}.docx"))
+        return pipeline.finalize(result.draft), result.assets, result.source
+
+    blueprint, assets, source = ingest([["{{ invl_desc.ENG }}"]])
+    template_id = repository.create(blueprint, assets, source)
+
+    def add_secondary_version() -> None:
+        blueprint, assets, source = ingest(
+            [["{{ invl_desc.ENG }}", "{{ invl_desc.UKR }}"]]
+        )
+        repository.add_version(template_id, blueprint, assets, source)
+
+    return template_id, add_secondary_version
+
+
+@pytest.mark.xfail(strict=True, reason=f"Task 3 — {TASK}: the blueprint cache keys on id alone")
+def test_a_new_template_version_updates_the_description_columns(window, session: Session,
+                                                                bilingual_template):
+    """Adding a version that places {{ invl_desc.UKR }} must give the lines grid a
+    second description column. The id does not change, so the cache never expired
+    and only a restart picked it up.
+    """
+
+    template_id, add_secondary_version = bilingual_template
+    column = window.document_column
+
+    window.draft.set_template(template_id, "invoice", ("ENG", "UKR"))
+    assert column._grid_languages() == ("ENG",)
+
+    add_secondary_version()
+    window._revalidate_columns()
+
+    assert column._grid_languages() == ("ENG", "UKR")
+
+
+def test_a_template_declaring_a_language_it_never_places_stays_single(window,
+                                                                     bilingual_template):
+    """The other half of the same report, and this one is correct behaviour:
+    languages come from what the blueprint renders, not from the config.
+    """
+
+    template_id, _ = bilingual_template
+    window.draft.set_template(template_id, "invoice", ("ENG", "UKR"))
+
+    assert window.document_column._grid_languages() == ("ENG",)

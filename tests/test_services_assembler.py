@@ -503,3 +503,78 @@ def test_append_currency_disabled_strips_symbols(invoice):
     context = InvoiceMapper(LANGS, labels={}, append_currency=False).map(data)
 
     assert context.scalars["total"] == {"UKR": "1 506,00", "ENG": "1 506,00"}
+
+
+# --- 2026-09-04 manual test pass: the tax column ------------------------------
+
+@pytest.fixture
+def mixed_tax_invoice(session, make_org, make_line_input, make_sequence, assembler):
+    """Two lines, one taxed and one not — the shape that exposes the empty cell."""
+    provider = make_org("Provider Co", tax_value="11111111")
+    client = make_org("Client Co", tax_value="22222222")
+    lines = (
+        make_line_input(tax_rate="0.20000"),
+        make_line_input(description="Consulting", tax_rate="0"),
+    )
+    sequence = make_sequence(provider)
+
+    draft = make_draft(provider, client, sequence, lines)
+    number = SequenceRepository(session).peek(sequence.id)
+    return assembler.assemble(draft, number)
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="Task 8 — open task from the 2026-09-04 manual test pass: "
+           "_row omits invl_tax when the rate is zero",
+)
+def test_an_untaxed_line_still_carries_a_tax_value(mixed_tax_invoice):
+    """An untaxed line printed a blank cell rather than a zero.
+
+    Worse than cosmetic: a template placing {{ invl_tax }} as a row placeholder
+    makes validate_context raise `missing_column_value`, which refuses to generate.
+    """
+
+    context = InvoiceMapper(LANGS, labels={}, append_currency=True).map(mixed_tax_invoice)
+    taxed, untaxed = context.table.rows
+
+    assert taxed.values["invl_tax"]["ENG"] == "251,00 UAH"
+    assert "invl_tax" in untaxed.values
+    assert untaxed.values["invl_tax"]["ENG"] == "0,00 UAH"
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="Task 8 — open task from the 2026-09-04 manual test pass",
+)
+def test_a_mixed_tax_invoice_passes_column_validation(mixed_tax_invoice, session,
+                                                      make_docx, fixture_provider):
+    """The end-to-end consequence: a row-placeholder tax column must validate."""
+    from app.core.diagnostics import DiagnosticCollector
+    from app.document_engine.enums.enums import PlaceholderType
+    from app.document_engine.orchestration.pipeline import TemplateIngestionPipeline
+    from app.document_engine.rendering.validate import validate_context
+    from tests.conftest import FixtureInputProvider
+
+    provider = FixtureInputProvider(
+        placeholders={
+            key: {"active": True, "required": True, "type": PlaceholderType.COLUMN}
+            for key in ("invl_desc", "invl_tax")
+        },
+        config=TemplateConfig(
+            primary_language="ENG", secondary_language=None, type="invoice",
+            name="tax", description="", append_currency=True,
+        ),
+    )
+    pipeline = TemplateIngestionPipeline(provider)
+    result = pipeline.ingest(make_docx(table=[["{{ invl_desc }}", "{{ invl_tax }}"]]))
+    blueprint = pipeline.finalize(result.draft)
+
+    context = InvoiceMapper(
+        (LanguageSpec(code="ENG", alpha_2="en"),), labels={}, append_currency=True,
+    ).map(mixed_tax_invoice)
+
+    diagnostics = DiagnosticCollector()
+    validate_context(blueprint, context, diagnostics)
+
+    assert [item.code for item in diagnostics.items if item.severity == "error"] == []

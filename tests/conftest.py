@@ -559,3 +559,82 @@ def make_context() -> Callable[..., TemplateBuilderContext]:
         )
 
     return _make
+
+
+# --- real-document fixtures --------------------------------------------------
+
+REAL_TEMPLATES = Path(__file__).parent / "fixtures" / "real_templates"
+PLACEHOLDER_SEED = (
+    Path(__file__).parents[1] / "app" / "db" / "seed_data" / "placeholder.json"
+)
+
+
+def real_placeholder_defaults() -> dict[str, dict[str, Any]]:
+    """The shipped placeholder vocabulary, shaped like DbTemplateInputProvider's.
+
+    Read from the seed file rather than a hand-written dict so a template that
+    ingests in the test suite ingests in the real app too. ``type`` is stored as
+    a SQLEnum, i.e. by member NAME, which is what the JSON carries.
+    """
+
+    import json
+
+    return {
+        row["key"]: {
+            "active": row["active"],
+            "required": row["required"],
+            "type": PlaceholderType[row["type"]],
+        }
+        for row in json.loads(PLACEHOLDER_SEED.read_text(encoding="utf-8"))
+    }
+
+
+@pytest.fixture
+def real_template() -> Callable[[str], Path]:
+    """Locate one of tests/fixtures/real_templates by stem."""
+
+    def _get(name: str) -> Path:
+        path = REAL_TEMPLATES / f"{name}.docx"
+        if not path.exists():
+            raise FileNotFoundError(
+                f"No real template fixture named {name!r}; "
+                f"have {sorted(p.stem for p in REAL_TEMPLATES.glob('*.docx'))}"
+            )
+        return path
+
+    return _get
+
+
+@pytest.fixture
+def ingest_real(real_template):
+    """Ingest a real fixture through the production pipeline; no database.
+
+    Returns ``(blueprint, diagnostics)``. Ingestion is the interesting half for
+    most of these files, so the draft is finalized eagerly.
+    """
+
+    from app.document_engine.orchestration.pipeline import TemplateIngestionPipeline
+
+    def _ingest(
+        name: str,
+        *,
+        primary: str = "ENG",
+        secondary: str | None = None,
+        document_type: str = "invoice",
+    ):
+        provider = FixtureInputProvider(
+            placeholders=real_placeholder_defaults(),
+            config=TemplateConfig(
+                primary_language=primary,
+                secondary_language=secondary,
+                type=document_type,
+                name=name,
+                description="",
+                append_currency=True,
+            ),
+        )
+        pipeline = TemplateIngestionPipeline(provider)
+        result = pipeline.ingest(real_template(name))
+        return pipeline.finalize(result.draft), result.diagnostics
+
+    return _ingest
