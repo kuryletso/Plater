@@ -281,7 +281,9 @@ class PartyColumn(QWidget):
             else "No sequences for this organization"
         )
 
-        if combo.count() == 1:
+        self._sync_picker(combo, self._draft.sequence_id, self._draft.set_sequence)
+
+        if combo.currentIndex() < 0 and combo.count() == 1:
             combo.setCurrentIndex(0)
 
         self._refresh_number()
