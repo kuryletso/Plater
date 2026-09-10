@@ -1,3 +1,5 @@
+from typing import IO
+
 from collections.abc import Mapping
 from pathlib import Path
 
@@ -22,10 +24,12 @@ type ParsedBlock = ParagraphNode | TableNode | SectionBreakNode
 class DocxParser:
     def __init__(
             self,
-            path: Path,
+            source: Path | IO[bytes],
             diagnostics: DiagnosticCollector,
+            *,
+            name: str | None = None,
         ) -> None:
-        self.archive = DocxArchive(path)
+        self.archive = DocxArchive(source, name=name)
         self.document_root = self.archive.read_xml(DocxPaths.document)
 
         try:

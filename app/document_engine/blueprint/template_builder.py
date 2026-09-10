@@ -3,15 +3,22 @@ from __future__ import annotations
 from typing import Any
 from dataclasses import dataclass
 
-from app.core.diagnostics import DiagnosticCollector
+from app.document_engine.version import ENGINE_VERSION
 
+from app.core.diagnostics import DiagnosticCollector
+from app.core.errors import Layer
 from app.document_engine.blueprint.models.template import TemplateBlueprint, PlaceholderDefinition, TemplateConfig
 from app.document_engine.blueprint.models.section import SectionBlueprint
+from app.document_engine.blueprint.models.paragraph import ParagraphBlueprint
+from app.document_engine.blueprint.models.segment import (
+    GroupedPlaceholderSegment,
+    JoinedPlaceholderSegment,
+    PlaceholderSegment,
+)
+from app.document_engine.blueprint.models.table import CellBlueprint, TableBlueprint
 from app.document_engine.blueprint.errors import PlaceholderSyntaxError
-
 from app.document_engine.normalization.models.sections import NormalizedSection
 from app.document_engine.enums.enums import PlaceholderType
-
 from app.services.template.repository import TemplateRepository
 
 
@@ -47,6 +54,7 @@ class TemplateDraftConfig:
             name=self.name,
             description=self.description,
             append_currency=self.append_currency,
+            engine_version=ENGINE_VERSION,
         )
 
 
@@ -86,6 +94,50 @@ class TemplateDraft:
     config: TemplateDraftConfig
 
 
+def _warn_misplaced_columns(sections: list[SectionBlueprint], diagnostics: DiagnosticCollector) -> None:
+    """Warns about COLUMN type placeholder that survived row promotion and sits outside a table row."""
+
+    def placeholders(segment):
+        if isinstance(segment, PlaceholderSegment):
+            yield segment
+        elif isinstance(segment, JoinedPlaceholderSegment):
+            yield from (
+                i for i in segment.items if isinstance(i, PlaceholderSegment)
+            )
+        elif isinstance(segment, GroupedPlaceholderSegment):
+            for group in segment.items:
+                yield from (
+                    i for i in group if isinstance(i, PlaceholderSegment)
+                )
+
+    def walk(blocks) -> None:
+        for block in blocks:
+            if isinstance(block, ParagraphBlueprint):
+                for segment in block.segments:
+                    for item in placeholders(segment):
+                        if item.ph_type is PlaceholderType.COLUMN:
+                            diagnostics.warn(
+                                Layer.BLUEPRINT,
+                                "column_placeholder_outside_table",
+                                f"'{item.key}' is an invoice-line placeholder and only "
+                                f"works inside a table row; it will render empty.",
+                                key=item.key,
+                            )
+            elif isinstance(block, TableBlueprint):
+                for row in block.rows:
+                    for cell in row.cells:
+                        if isinstance(cell, CellBlueprint):
+                            walk(cell.blocks)
+
+    for section in sections:
+        walk(section.blocks)
+        for group in (section.headers, section.footers):
+            for hf in (group.default, group.first, group.even):
+                if hf is not None:
+                    walk(hf.blocks)
+
+
+
 class TemplateBuilder:
 
     def build_draft(
@@ -115,6 +167,8 @@ class TemplateBuilder:
             section_bp_from_normalized(section, context)
             for section in normalized
         ]
+
+        _warn_misplaced_columns(sections, diagnostics)
 
         return TemplateDraft(
             sections=sections,

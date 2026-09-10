@@ -1,3 +1,5 @@
+from typing import IO
+
 from dataclasses import dataclass
 from zipfile import ZipFile, BadZipFile
 from pathlib import Path
@@ -17,14 +19,23 @@ class DocxPaths:
 
 
 class DocxArchive:
-    def __init__(self, path: str | PathLike[str]) -> None:
-        self.path = Path(path)
+    def __init__(
+            self,
+            source: str | PathLike[str] | IO[bytes],
+            *,
+            name: str | None = None,
+        ) -> None:
+        self.name = name or (
+            Path(source).name
+            if isinstance(source, (str, PathLike))
+            else "<in-memory document>"
+        )
 
         try:
-            self.zip = ZipFile(path)
+            self.zip = ZipFile(source)
         except BadZipFile as e:
             raise ParserFormatError(
-                f"Not a valid .docx (unreadable zip archive): {self.path.name}."
+                f"Not a valid .docx (unreadable zip archive): {self.name}."
             ) from e
 
     def __enter__(self):

@@ -67,11 +67,11 @@ class DocxEmitter:
             
             section_blocks = self._blocks(section.blocks)
             
-            header_refs, footer_refs, title_pg, even = self._headers_footers(section)
+            header_refs, footer_refs, even = self._headers_footers(section)
 
             has_even |= even
 
-            sect_pr = build_sect_pr(section.style, header_refs, footer_refs, title_pg)
+            sect_pr = build_sect_pr(section.style, header_refs, footer_refs)
 
             body.extend(section_blocks)
             if is_last:
@@ -86,33 +86,6 @@ class DocxEmitter:
         self._pkg.add_xml("word/document.xml", build_document(body, last_sect_pr), CT_DOCUMENT)
 
         return self._pkg.to_bytes()
-
-
-        # # --------------------------------------------
-        # # TODO: update build_paragraph() to add sectPr for support of multi-section documents; then replace following block 
-        # if len(document.sections) > 1:
-        #     self._diag.warn(
-        #         Layer.RENDER,
-        #         "multi_section_flattened",
-        #         "Multiple sections flattented into one; intermediate section breaks dropped.",
-        #     )
-
-        # self._owner = "word/document.xml"
-        # blocks: list[etree._Element] = []
-        # for section in document.sections:
-        #     blocks.extend(self._blocks(section.blocks))
-        # # -------------------------------------------
-
-        # last = document.sections[-1]
-        # header_refs, footer_refs, title_pg, has_even = self._headers_footers(last)
-
-        # if has_even:
-        #     self._pkg.add_xml("word/settings.xml", build_settings(True), CT_SETTINGS)
-        #     self._pkg.add_document_relationship(REL_SETTINGS, "settings.xml")
-
-        # sect_pr = build_sect_pr(last.style, header_refs, footer_refs, title_pg)
-        # self._pkg.add_xml("word/document.xml", build_document(blocks, sect_pr), CT_DOCUMENT)
-        # return self._pkg.to_bytes()
     
 
     def _blocks(
@@ -239,5 +212,4 @@ class DocxEmitter:
             footer_refs.append((ftype, self._pkg.add_document_relationship(REL_FOOTER, target)))
             has_even |= ftype == "even"
 
-        title_pg = section.headers.first is not None or section.footers.first is not None
-        return header_refs, footer_refs, title_pg, has_even
+        return header_refs, footer_refs, has_even

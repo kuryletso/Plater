@@ -42,6 +42,12 @@ def parse_section(section: _Element, context: ParserContext) -> SectionBreakNode
         margin_left = get_int_attr(page_margins, "left")
         margin_right = get_int_attr(page_margins, "right")
 
+    title_page_node = section.find("w:titlePg", NS)
+    title_page = (
+        title_page_node is not None
+        and get_attr(title_page_node, "val") not in ("0", "false")
+    )
+
     headers: dict[HeaderFooterType, HeaderFooterNode] = {}
     footers: dict[HeaderFooterType, HeaderFooterNode] = {}
 
@@ -97,6 +103,7 @@ def parse_section(section: _Element, context: ParserContext) -> SectionBreakNode
                 left=margin_left,
                 right=margin_right,
             ),
+            title_page=title_page,
         ),
         headers=headers,
         footers=footers,

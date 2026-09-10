@@ -81,6 +81,7 @@ class SectionStyle:
     margin_header: Optional[int] = None
     margin_footer: Optional[int] = None
     margins: Optional[Margins] = None
+    title_page: Optional[bool] = None
     
 
 @dataclass(slots=True, frozen=True)

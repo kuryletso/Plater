@@ -8,17 +8,17 @@ from app.document_engine.normalization.normalizers.tables import normalize_table
 from app.document_engine.normalization.normalizers.shared import normalize_margins
 from app.document_engine.normalization.style_defaults import DEFAULT_SECTION_STYLE, DEFAULT_SECTION_MARGINS
 from app.document_engine.normalization.errors import NormalizationFormatError
-
 from app.document_engine.parser.models.blocks import SectionBreakNode, ParagraphNode, TableNode
 from app.document_engine.parser.models.header_footer import HeaderFooterNode
 from app.document_engine.parser.models.styles import SectionStyle
-
 from app.document_engine.enums.enums import SectionType, PageOrientation, HeaderFooterType
 from app.document_engine.utils.overlay_dataclass import overlay_dataclass_strict
+from app.core.diagnostics import DiagnosticCollector
 
 
 def normalize_headers_footers(
     obj: dict[HeaderFooterType, HeaderFooterNode],
+    diagnostics: DiagnosticCollector,
 ) -> NormalizedHeaderFooterGroup:
 
     preset = {}
@@ -42,7 +42,7 @@ def normalize_headers_footers(
 
                 elif isinstance(block, TableNode):
                     blocks.append(
-                        normalize_table(block),
+                        normalize_table(block, diagnostics),
                     )
 
                 else:
@@ -87,6 +87,7 @@ def _validate_section_style_attributes(section_style: SectionStyle) -> None:
 def normalize_section(
     ancestor: SectionBreakNode,
     blocks: list[NormalizedBlock],
+    diagnostics: DiagnosticCollector,
 ) -> NormalizedSection:
     
     _validate_section_style_attributes(ancestor.style)
@@ -122,6 +123,7 @@ def normalize_section(
             margins=ancestor.style.margins,
             default=DEFAULT_SECTION_MARGINS,
         ),
+        title_page=cast(bool, ancestor.style.title_page),
     )
 
     normalized_style = overlay_dataclass_strict(
@@ -131,7 +133,7 @@ def normalize_section(
 
     return NormalizedSection(
         blocks=tuple(blocks),
-        headers=normalize_headers_footers(ancestor.headers),
-        footers=normalize_headers_footers(ancestor.footers),
+        headers=normalize_headers_footers(ancestor.headers, diagnostics),
+        footers=normalize_headers_footers(ancestor.footers, diagnostics),
         style=normalized_style,
     )

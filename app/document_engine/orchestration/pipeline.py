@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from io import BytesIO
+
 from app.core.diagnostics import DiagnosticCollector
 from app.core.errors import AppError, Severity
 from app.assets.hashing import hash_bytes
@@ -36,17 +38,26 @@ class TemplateIngestionPipeline:
         self,
         path: Path,
     ) -> IngestionResult:
+
+        return self.ingest_bytes(Path(path).read_bytes(), name=Path(path).name)
+
+
+    def ingest_bytes(
+            self,
+            data: bytes,
+            *,
+            name: str = "template.docx",
+    ) -> IngestionResult:
         
         diagnostics = DiagnosticCollector()
-        source_bytes = Path(path).read_bytes()
         source = AssetBlob(
-            sha256=hash_bytes(source_bytes),
-            mime_type=detect_mime_type(Path(path).name),
-            data=source_bytes,
+            sha256=hash_bytes(data),
+            mime_type=detect_mime_type(name),
+            data=data,
         )
 
         try:
-            with DocxParser(path, diagnostics=diagnostics) as parser:
+            with DocxParser(BytesIO(data), diagnostics=diagnostics, name=name) as parser:
                 parsed = parser.parse()
                 assets = dict(parser.assets)
 
@@ -65,7 +76,7 @@ class TemplateIngestionPipeline:
             raise IngestionError(
                 f"Template ingestion failed in {e.layer}: {e}.",
                 user_message="The template could not be processed.",
-                context={"path": str(path), "cause": e.code},
+                context={"source": name, "cause": e.code},
             ) from e
         
         return IngestionResult(
@@ -74,6 +85,7 @@ class TemplateIngestionPipeline:
             source=source,
             diagnostics=diagnostics,
         )
+
     
     def finalize(
         self,

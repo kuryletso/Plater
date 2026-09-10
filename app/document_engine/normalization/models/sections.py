@@ -16,6 +16,7 @@ class NormalizedSectionStyle:
     margin_header: int          # twips
     margin_footer: int          # twips
     margins: NormalizedMargins
+    title_page: bool
 
 
 @dataclass(slots=True, frozen=True)

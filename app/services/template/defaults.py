@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+
+from app.document_engine.version import ENGINE_VERSION
 
 from app.assets.hashing import hash_bytes
 from app.core.errors import AppError
@@ -15,6 +16,7 @@ from app.document_engine.blueprint.models.template import TemplateConfig
 from app.services.template.db_input_provider import DbTemplateInputProvider
 from app.services.template.import_service import TemplateImportService
 from app.services.template.repository import TemplateRepository
+from app.services.template.rebuild_service import TemplateRebuildService
 
 MANIFEST = SEED_DIR / "templates.json"
 TEMPLATE_DIR = SEED_DIR / "templates"
@@ -23,7 +25,7 @@ TEMPLATE_DIR = SEED_DIR / "templates"
 @dataclass(slots=True, frozen=True)
 class TemplateSeedResult:
     code: str
-    action: str         # created | updated | unchanged | skipped | failed
+    action: str         # created | updated | unchanged | skipped | failed | rebuilt
     template_id: int | None = None
     detail: str | None = None
 
@@ -40,10 +42,11 @@ def _config(entry: dict) -> TemplateConfig:
 
 
 def seed_default_templates(session: Session) -> list[TemplateSeedResult]:
-    """Ingest the shipped .docx defaults, re-ingesting only what changed."""
+    """Ingest the shipped .docx defaults, re-ingesting only what changed.
 
-    # a broken default must never stop the app from starting, so ingestion failures
-    # are only reported rather than raised
+    Broken default must never stop the app from starting, so ingestion failures
+    are only reported rather than raised.
+    """
 
     entries = json.loads(MANIFEST.read_text(encoding="UTF-8"))
     repo = TemplateRepository(session)
@@ -70,9 +73,21 @@ def seed_default_templates(session: Session) -> list[TemplateSeedResult]:
                 ))
                 continue
 
-            if repo.current_version(template.id).source_sha256 == source_sha256:
+            current = repo.current_version(template.id)
+
+            if current.source_sha256 == source_sha256:
+                if current.config.get("engine_version", 0) == ENGINE_VERSION:
+                    results.append(TemplateSeedResult(
+                        code, "unchanged", template.id,
+                    ))
+                    continue
+
+                outcome = TemplateRebuildService(session).rebuild(template.id)
                 results.append(TemplateSeedResult(
-                    code, "unchanged", template.id,
+                    code,
+                    "rebuilt" if outcome.action == "rebuilt" else "failed",
+                    template.id,
+                    outcome.detail,
                 ))
                 continue
 

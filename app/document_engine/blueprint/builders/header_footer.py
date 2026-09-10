@@ -10,6 +10,7 @@ from app.document_engine.normalization.models.blocks import NormalizedParagraph,
 def hf_bp_from_normalized(
     header_footer: NormalizedHeaderFooter | None,
     context: TemplateBuilderContext,
+    usable_width: int,
 ) -> HeaderFooterBlueprint | None:
     
     if header_footer is None:
@@ -24,6 +25,7 @@ def hf_bp_from_normalized(
                     context,
                 ),
                 context,
+                usable_width,
             ))
 
         elif isinstance(block, NormalizedTable):
@@ -43,10 +45,11 @@ def hf_bp_from_normalized(
 def hf_group_bp_from_normalized(
     hf_group: NormalizedHeaderFooterGroup,
     context: TemplateBuilderContext,
+    usable_width: int,
 ) -> HeaderFooterGroupBlueprint:
 
     return HeaderFooterGroupBlueprint(
-        default=hf_bp_from_normalized(hf_group.default, context),
-        first=hf_bp_from_normalized(hf_group.first, context),
-        even=hf_bp_from_normalized(hf_group.even, context),
+        default=hf_bp_from_normalized(hf_group.default, context, usable_width),
+        first=hf_bp_from_normalized(hf_group.first, context, usable_width),
+        even=hf_bp_from_normalized(hf_group.even, context, usable_width),
     )

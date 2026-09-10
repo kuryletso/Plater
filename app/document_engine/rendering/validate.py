@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from app.core.diagnostics import DiagnosticCollector, Diagnostic
 from app.core.errors import Layer, Severity
-
 from app.document_engine.blueprint.models.template import TemplateBlueprint
 from app.document_engine.blueprint.models.section import SectionBlueprint
 from app.document_engine.blueprint.models.paragraph import ParagraphBlueprint
@@ -14,8 +13,8 @@ from app.document_engine.blueprint.models.table import (
 from app.document_engine.blueprint.models.segment import (
     PlaceholderSegment, JoinedPlaceholderSegment, GroupedPlaceholderSegment,
 )
-
 from app.document_engine.rendering.context import RenderContext
+from app.document_engine.enums.enums import PlaceholderType
 
 
 def blueprint_uses_table(
@@ -181,17 +180,23 @@ def _collect_usage(
     uses_table = False
 
     def visit_segment(seg) -> None:
+        def add(item) -> None:
+            # COLUMN placeholder outside of a table row has no scalar to look up;
+            # Ingestion warned, resolver renders it empty
+            if item.ph_type is not PlaceholderType.COLUMN:
+                scalars.add((item.key, item.language))
+
         if isinstance(seg, PlaceholderSegment):
-            scalars.add((seg.key, seg.language))
+            add(seg)
         elif isinstance(seg, JoinedPlaceholderSegment):
             for item in seg.items:
                 if isinstance(item, PlaceholderSegment):
-                    scalars.add((item.key, item.language))
+                    add(item)
         elif isinstance(seg, GroupedPlaceholderSegment):
             for group in seg.items:
                 for item in group:
                     if isinstance(item, PlaceholderSegment):
-                        scalars.add((item.key, item.language))
+                        add(item)
 
     def visit_blocks(blocks) -> None:
         nonlocal uses_table

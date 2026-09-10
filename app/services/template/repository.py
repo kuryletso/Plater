@@ -72,6 +72,50 @@ class TemplateRepository:
         return self._append_version(template_id, blueprint, bundle, source)
 
 
+    def replace_blueprint(
+            self,
+            version_id: int,
+            blueprint: TemplateBlueprint,
+            bundle: Mapping[str, AssetBlob],
+    ) -> None:
+        """Overwrites stored reading of the source, keeping the version identity.
+        
+        Neither the source bytes nor the version number change.
+        Only parsed and resolved blueprint changes (how document engine sees the doc).
+        So this is deliberately not a new version.
+        """
+
+        row = self._session.get(TemplateVersion, version_id)
+        if row is None:
+            raise EntityNotFound(
+                f"template version {version_id} not found",
+                context={"version_id": version_id},
+            )
+
+        row.sections, row.placeholders, row.config = dump_blueprint(blueprint)
+
+        referenced = collect_assets_ids(blueprint)
+        save_assets(
+            self._session,
+            { h: bundle[h] for h in referenced if h in bundle },
+        )
+
+        self._session.execute(
+            delete(template_version_asset_m2m)
+            .where(template_version_asset_m2m.c.template_version_id == row.id)
+        )
+        for sha in referenced | {row.source_sha256}:
+            self._session.execute(
+                template_version_asset_m2m.insert().values(
+                    template_version_id=row.id,
+                    asset_sha256=sha,
+                )
+            )
+
+        self._collect_orphans()
+        self._session.commit()
+
+
     def _add_version(
             self,
             template_id: int,

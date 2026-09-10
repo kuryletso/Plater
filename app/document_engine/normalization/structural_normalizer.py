@@ -40,6 +40,7 @@ class StructuralNormalizer:
                     normalize_section(
                         ancestor=item,
                         blocks=current_section_blocks,
+                        diagnostics=diagnostics,
                     )
                 )
                 current_section_blocks = []

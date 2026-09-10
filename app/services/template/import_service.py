@@ -8,6 +8,7 @@ from app.document_engine.orchestration.pipeline import TemplateIngestionPipeline
 from app.document_engine.orchestration.ports import TemplateInputProvider
 from app.document_engine.orchestration.results import IngestionResult
 from app.services.template.repository import TemplateRepository
+from app.document_engine.blueprint.models.template import TemplateBlueprint
 
 
 class TemplateImportService:
@@ -29,6 +30,16 @@ class TemplateImportService:
         """Parse & build a reviewable draft. No DB writes."""
 
         return self._pipeline.ingest(path)
+
+
+    def ingest_bytes(
+            self,
+            data: bytes,
+            *,
+            name: str,
+    ) -> IngestionResult:
+
+        return self._pipeline.ingest_bytes(data, name=name)
     
 
     def commit(
@@ -38,7 +49,7 @@ class TemplateImportService:
             code: str | None = None,
             system: bool = False,
     ) -> int:
-        """Store the reviewed draft: template + version 1 + asset BLOBs + links."""
+        """Stores the reviewed draft: template + version 1 + asset BLOBs + links."""
 
         blueprint = self._pipeline.finalize(result.draft)
 
@@ -91,3 +102,7 @@ class TemplateImportService:
         return self._repo.add_version(
             template_id, blueprint, result.assets, result.source,
         )
+
+
+    def finalize(self, result: IngestionResult) -> TemplateBlueprint:
+        return self._pipeline.finalize(result.draft)

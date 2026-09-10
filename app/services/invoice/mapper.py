@@ -167,6 +167,7 @@ class InvoiceMapper:
             UNIT: line.unit,
             QUANTITY: self._same(format_quantity(line.quantity, fmt)),
             PRICE: self._money(fmt, line.unit_price),
+            TAX: self._money(fmt, totals.tax),      # always present ot avoid issues with mixed-tax incoices; InvoiceTableData.show_tax still decides whether the column appears
             TOTAL: self._money(fmt, totals.net),
         }
 

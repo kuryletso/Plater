@@ -292,10 +292,12 @@ def table_bp_from_normalized(
 def promote_standalone_table(
         paragraph: ParagraphBlueprint,
         context: TemplateBuilderContext,
+        usable_width: int,
 ) -> ParagraphBlueprint | TablePlaceholder:
     """A table placeholder alone in its paragraph becomes a table in its own right.
     
-    Inside a table the wrapper supplies the style. Standalone it falls back to a plain bordered default.
+    Inside a table the wrapper supplies the style. Standalone, it falls back 
+    to a plain bordered default.
     """
 
     table_segment = next(
@@ -328,5 +330,10 @@ def promote_standalone_table(
         key=table_segment.key,
         language=table_segment.language,
         text_style=table_segment.style,
-        style=DEFAULT_STANDALONE_TABLE_STYLE,
+        style=DEFAULT_STANDALONE_TABLE_STYLE.model_copy(
+            update={
+                "width": TableWidthBlueprint(value=usable_width, type=TableWidthType.DXA),
+                "autofit": False,
+            }
+        ),
     )

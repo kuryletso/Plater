@@ -28,6 +28,7 @@ def section_style_bp_from_normalized(
         margin_header=style.margin_header,
         margin_footer=style.margin_footer,
         margins=margins_bp_from_normalized(style.margins),
+        title_page=style.title_page,
     )
 
 
@@ -35,6 +36,9 @@ def section_bp_from_normalized(
     section: NormalizedSection,
     context: TemplateBuilderContext,
 ) -> SectionBlueprint:
+
+    style = section_style_bp_from_normalized(section.style)
+    usable_width = style.page_width - style.margins.left - style.margins.right
     
     blocks = []
     for block in section.blocks:
@@ -42,6 +46,7 @@ def section_bp_from_normalized(
             blocks.append(promote_standalone_table(
                 paragraph_bp_from_normalized(block, context),
                 context,
+                usable_width,
             ))
 
         elif isinstance(block, NormalizedTable):
@@ -49,10 +54,8 @@ def section_bp_from_normalized(
                 table_bp_from_normalized(block, context),
             )
 
-    headers = hf_group_bp_from_normalized(section.headers, context)
-    footers = hf_group_bp_from_normalized(section.footers, context)
-
-    style = section_style_bp_from_normalized(section.style)
+    headers = hf_group_bp_from_normalized(section.headers, context, usable_width)
+    footers = hf_group_bp_from_normalized(section.footers, context, usable_width)
 
     return SectionBlueprint(
         blocks=tuple(blocks),

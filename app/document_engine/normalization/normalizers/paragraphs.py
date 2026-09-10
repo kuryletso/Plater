@@ -1,14 +1,14 @@
 from typing import cast
 
+from itertools import pairwise
+
 from app.document_engine.normalization.models.blocks import NormalizedParagraph, NormalizedParagraphStyle
 from app.document_engine.normalization.models.inlines import NormalizedTextNode, NormalizedImageNode, NormalizedInlineNode, NormalizedTextStyle
 from app.document_engine.normalization.style_defaults import DEFAULT_TEXT_STYLE, DEFAULT_PARAGRAPH_STYLE
 from app.document_engine.normalization.errors import NormalizationFormatError
-
 from app.document_engine.parser.models.blocks import ParagraphNode
 from app.document_engine.parser.models.inlines import RunNode, RunStyle, ImageNode
 from app.document_engine.parser.models.styles import ParagraphStyle
-
 from app.document_engine.enums.enums import ParagraphAlignment
 from app.document_engine.utils.overlay_dataclass import overlay_dataclass_strict
 
@@ -62,9 +62,74 @@ def _validate_paragraph_style_attributes(paragraph_style: ParagraphStyle) -> Non
         )
 
 
-def _has_open_placeholder(text: str) -> bool:
-    """True when the accumulated text ends inside an unclosed '{{ ... }}'"""
-    return text.rfind("{{") > text.rfind("}}")
+###### _has_open_placeholder() was replaced with _placeholder_spans() and _merge_runs()
+# def _has_open_placeholder(text: str) -> bool:
+#     """True when the accumulated text ends inside an unclosed '{{ ... }}'"""
+#     return text.rfind("{{") > text.rfind("}}")
+############################
+
+
+def _placeholder_spans(text: str) -> list[tuple[int, int]]:
+    """(start, end) of every closed placeholder '{{ ... }}'."""
+
+    spans: list[tuple[int, int]] = []
+    i, n = 0, len(text)
+
+    while i < n-1:
+        if text[i] == "{" and text[i+1] == "{":
+            end = text.find("}}", i+2)
+            if end == -1:
+                break
+            spans.append((i, end + 2))
+            i = end + 2
+        else:
+            i += 1
+
+    return spans
+
+
+def _merge_runs(runs: list[RunNode]) -> list[NormalizedTextNode]:
+    """Merges adjacent runs, keeping every '{{ ... }}' in one node.
+    
+    Real docs get placeholders (runs) split constantly, the opening '{{' itself can be split. 
+    Placeholder should keep the style of the run iti starts in.
+    """
+
+    if not runs:
+        return []
+
+    text = "".join(run.text for run in runs)
+
+    style_at: list[RunStyle] = []
+    boundaries = {0, len(text)}
+    offset = 0
+    for run in runs:
+        style_at.extend([run.style] * len(run.text))
+        offset += len(run.text)
+        boundaries.add(offset)
+
+    for start, end in _placeholder_spans(text):
+        boundaries -= { b for b in boundaries if start < b < end }
+        boundaries |= {start, end}
+
+    cuts = sorted(boundaries)
+    merged: list[tuple[str, RunStyle]] = []
+
+    for start, end in pairwise(cuts):
+        chunk = text[start:end]
+        if not chunk:
+            continue
+
+        style = style_at[start]
+        if merged and merged[-1][1] ==style:
+            merged[-1] = (merged[-1][0] + chunk, style)
+        else:
+            merged.append((chunk, style))
+
+    return [
+        NormalizedTextNode(text=chunk, style=normalize_text_style(style))
+        for chunk, style in merged
+    ]
 
 
 def normalize_paragraph(paragraph: ParagraphNode) -> NormalizedParagraph:
@@ -72,50 +137,18 @@ def normalize_paragraph(paragraph: ParagraphNode) -> NormalizedParagraph:
     _validate_paragraph_style_attributes(paragraph.style)
 
     normalized_inlines: list[NormalizedInlineNode] = []
-    current_text = ""
-    current_style: RunStyle | None = None
+    pending: list[RunNode] = []
 
-    def flush_text() -> None:
-        nonlocal current_text, current_style
-
-        if current_style is None or not current_text:
-            return
-        
-        normalized_inlines.append(
-            NormalizedTextNode(
-                text=current_text,
-                style=normalize_text_style(current_style),
-            )
-        )
-
-        current_text = ""
-        current_style = None
+    def flush_runs() -> None:
+        normalized_inlines.extend(_merge_runs(pending))
+        pending.clear()
 
     for node in paragraph.inlines:
-
         if isinstance(node, RunNode):
-            if current_style is not None and current_style == node.style:
-                current_text += node.text
-
-            elif current_style is not None and _has_open_placeholder(current_text):
-                end = node.text.find("}}")
-                if end == -1:
-                    current_text += node.text
-                else:
-                    current_text += node.text[:end + 2]
-                    remainder = node.text[end + 2:]
-                    flush_text()
-                    if remainder:
-                        current_text = remainder
-                        current_style = node.style
-                        
-            else:
-                flush_text()
-                current_text = node.text
-                current_style = node.style
+            pending.append(node)
 
         elif isinstance(node, ImageNode):
-            flush_text()
+            flush_runs()
             normalized_inlines.append(
                 NormalizedImageNode(
                     asset_id=node.asset_id,
@@ -128,8 +161,9 @@ def normalize_paragraph(paragraph: ParagraphNode) -> NormalizedParagraph:
             raise NormalizationFormatError(
                 f"Unsupported inline node type: {type(node).__name__}."
             )
-        
-    flush_text()
+
+
+    flush_runs()
 
     parsed_style = NormalizedParagraphStyle(
         # Fields may be None here; overlay_dataclass_strict() immediately applies defaults.

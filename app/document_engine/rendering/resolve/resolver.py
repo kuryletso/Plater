@@ -3,8 +3,6 @@ from __future__ import annotations
 
 from app.core.diagnostics import DiagnosticCollector
 from app.core.errors import Layer
-
-
 from app.document_engine.blueprint.models.template import TemplateBlueprint
 from app.document_engine.blueprint.models.section import SectionBlueprint
 from app.document_engine.blueprint.models.header_footer import (
@@ -20,8 +18,6 @@ from app.document_engine.blueprint.models.segment import (
     TextSegment, ImageSegment,
     PlaceholderSegment, JoinedPlaceholderSegment, GroupedPlaceholderSegment,
 )
-
-
 from app.document_engine.rendering.context import RenderContext
 from app.document_engine.rendering.ports import AssetProvider
 from app.document_engine.rendering.errors import PlaceholderError
@@ -32,8 +28,8 @@ from app.document_engine.rendering.resolve.models import (
     ResolvedHeaderFooter, ResolvedHeaderFooterGroup,
 )
 from app.document_engine.rendering.resolve.invoice_table import build_invoice_table
-from app.document_engine.rendering.resolve.raw import placeholder_syntax, raw_table_data, RAW_SINGLE_ROW, raw_paragtaph_style
-from app.document_engine.enums.enums import ResolveMode
+from app.document_engine.rendering.resolve.raw import placeholder_syntax, RAW_SINGLE_ROW, raw_paragtaph_style
+from app.document_engine.enums.enums import ResolveMode, PlaceholderType
 
 
 class DocumentResolver:
@@ -284,6 +280,17 @@ class DocumentResolver:
             return build_invoice_table(block, self._context.table)
     
 
+    def _segment_value(self, item) -> str:
+        """COLUMN placeholders only mean something inside a table row."""
+
+        if item.ph_type is PlaceholderType.COLUMN:
+            return placeholder_syntax(item.key) \
+                if self._mode is ResolveMode.KEYS \
+                else ""
+
+        return self._value(item.key, item.language)
+
+
     def _segment_runs(
         self,
         seg,
@@ -297,40 +304,15 @@ class DocumentResolver:
         
         if isinstance(seg, PlaceholderSegment):
             return [ResolvedTextRun(
-                text=self._value(seg.key, seg.language),
+                text=self._segment_value(seg),
                 style=seg.style,
                 placeholder_key=seg.key,
             )]
         
         if isinstance(seg, JoinedPlaceholderSegment):
-            # parts = [
-            #     item.text if isinstance(item, TextSegment) \
-            #     else self._value(item.key, item.language) \
-            #     for item in seg.items
-            # ]
-            # text = seg.separator.join(p for p in parts if p)
-            # return [ResolvedTextRun(text=text, style=seg.style)]
-            
             return self._joined_runs(seg)
         
         if isinstance(seg, GroupedPlaceholderSegment):
-            # groups = []
-            # for group in seg.items:
-            #     inner = [
-            #         item.text if isinstance(item, TextSegment) \
-            #         else self._value(item.key, item.language) \
-            #         for item in group
-            #     ]
-
-            #     joined = " ".join(p for p in inner) if all(inner) else None      # (!) empty string from db will drop whole group, Hardcoded value here
-            #     if joined:
-            #         groups.append(joined)
-
-            # return [ResolvedTextRun(
-            #     text=seg.separator.join(groups),
-            #     style=seg.style,
-            # )]
-
             return self._grouped_runs(seg)
         
         if isinstance(seg, ImageSegment):
@@ -358,7 +340,7 @@ class DocumentResolver:
         for item in seg.items:
             text, key = (item.text, None) \
                 if isinstance(item, TextSegment) \
-                else (self._value(item.key, item.language), item.key)
+                else (self._segment_value(item), item.key)
 
             if not text:
                 continue
@@ -379,7 +361,7 @@ class DocumentResolver:
         for group in seg.items:
             resolved = [
                 (item.text, None) if isinstance(item, TextSegment)
-                else (self._value(item.key, item.language), item.key)
+                else (self._segment_value(item), item.key)
                 for item in group
             ]
 

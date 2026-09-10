@@ -8,7 +8,6 @@ def build_sect_pr(
     style: SectionStyleBlueprint,
     header_refs: list[tuple[str, str]] | None = None,
     footer_refs: list[tuple[str, str]] | None = None,
-    title_pg: bool = False,
 ) -> etree._Element:
     
     sect_pr = etree.Element(qn("w:sectPr"))
@@ -40,7 +39,7 @@ def build_sect_pr(
     pg_mar.set(qn("w:header"), str(style.margin_header))
     pg_mar.set(qn("w:gutter"), "0")     # Hardcoded value here
 
-    if title_pg:
+    if style.title_page:
         etree.SubElement(sect_pr, qn("w:titlePg"))
 
     return sect_pr

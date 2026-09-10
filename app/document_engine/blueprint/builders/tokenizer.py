@@ -6,6 +6,12 @@ from app.document_engine.blueprint.errors import PlaceholderSyntaxError
 
 DOUBLE_QUOTES = frozenset('"“”„«»')
 SINGLE_QUOTES = frozenset("'‘’‚")
+ESCAPES = {
+    "n": "\n",
+    "t": "\t",
+    "r": "\r",
+    "0": "\0",
+}
 
 
 class TK(Enum):
@@ -63,7 +69,8 @@ def tokenize_placeholder(
             while i < n:
                 c = content[i]
                 if c == '\\' and i + 1 < n:
-                    buf.append(content[i+1])
+                    following = content[i+1]
+                    buf.append(ESCAPES.get(following, following))
                     i += 2
                 elif c in quotes:
                     i += 1

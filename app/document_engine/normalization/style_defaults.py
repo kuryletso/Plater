@@ -104,4 +104,5 @@ DEFAULT_SECTION_STYLE = NormalizedSectionStyle(
     margin_header=720,
     margin_footer=720,
     margins=DEFAULT_SECTION_MARGINS,
+    title_page=False,
 )
