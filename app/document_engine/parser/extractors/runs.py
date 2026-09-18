@@ -2,40 +2,80 @@ from lxml.etree import _Element
 from pathlib import PurePosixPath
 
 from app.document_engine.parser.context import ParserContext
-from app.document_engine.parser.models.inlines import RunNode, ImageNode, RunStyle
+from app.document_engine.parser.models.inlines import RunNode, ImageNode, RunStyle, BreakNode
 from app.document_engine.parser.namespaces import NS
 from app.document_engine.parser.errors import ParserSecurityError, ParserAssetError, ParserFormatError, UnsupportedFeatureError
-
 from app.core.errors import Layer
 from app.document_engine.utils.intrinsic_emu import intrinsic_emu
+from app.document_engine.enums.enums import BreakType
 
-type ParsedInlineNode = RunNode | ImageNode
+type ParsedInlineNode = RunNode | ImageNode | BreakNode
 
 MAX_IMAGE_SIZE_BYTES = 25 * 1024 * 1024
+_HARD_BREAKS = {kind.value for kind in BreakType}
 
 
-def extract_run_text(run: _Element) -> str:
-    parts: list[str] = []
+### Replaced by extract_run_parts()
+# def extract_run_text(run: _Element) -> str:
+#     parts: list[str] = []
+
+#     for child in run:
+#         tag = child.tag
+
+#         if tag == f"{{{NS["w"]}}}t":
+#             if child.text:
+#                 parts.append(child.text)
+
+#         elif tag == f"{{{NS["w"]}}}tab":
+#             parts.append("\t")
+
+#         elif tag == f"{{{NS["w"]}}}cr":
+#             parts.append("\n")
+
+#         elif tag == f"{{{NS["w"]}}}br":
+#             br_type = child.get(f"{{{NS["w"]}}}type")
+#             if br_type in (None, "textWrapping"):
+#                 parts.append("\n")
+
+#     return "".join(parts)
+
+
+def extract_run_parts(run: _Element) -> list[str | BreakType]:
+    """Text and hard breaks. In document order.
+    
+    Soft line break stay in the text as newline.
+    Page or column break splits the run into separate parts.
+    """
+
+    parts: list[str | BreakType] = []
+    text: list[str] = []
+
+    def flush() -> None:
+        if text: parts.append("".join(text))
+        text.clear()
 
     for child in run:
         tag = child.tag
 
         if tag == f"{{{NS["w"]}}}t":
             if child.text:
-                parts.append(child.text)
+                text.append(child.text)
 
         elif tag == f"{{{NS["w"]}}}tab":
-            parts.append("\t")
-
+            text.append("\t")
         elif tag == f"{{{NS["w"]}}}cr":
-            parts.append("\n")
+            text.append("\n")
 
         elif tag == f"{{{NS["w"]}}}br":
             br_type = child.get(f"{{{NS["w"]}}}type")
             if br_type in (None, "textWrapping"):
-                parts.append("\n")
+                text.append("\n")
+            elif br_type in _HARD_BREAKS:
+                flush()
+                parts.append(BreakType(br_type))
 
-    return "".join(parts)
+    flush()
+    return parts
 
 
 def extract_extent(
@@ -137,13 +177,14 @@ def parse_inline(
     if image is not None:
         result.append(image)
 
-    text = extract_run_text(run)
-    if text:
-        result.append(
-            RunNode(
-                text=text,
-                style=context.style_resolver.resolve_run_style(run, paragraph_base),
-            )
-        )
+    style: RunStyle | None = None
+    for part in extract_run_parts(run):
+        if isinstance(part, BreakType):
+            result.append(BreakNode(kind=part))
+            continue
+
+        if style is None:
+            style = context.style_resolver.resolve_run_style(run, paragraph_base)
+        result.append(RunNode(text=part, style=style))
 
     return result

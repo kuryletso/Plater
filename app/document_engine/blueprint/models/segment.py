@@ -1,8 +1,7 @@
 from typing import Literal
 
 from app.document_engine.blueprint.models.blueprint_base import BlueprintBase
-
-from app.document_engine.enums.enums import PlaceholderType
+from app.document_engine.enums.enums import PlaceholderType, BreakType
 
 
 class TextStyleBlueprint(BlueprintBase):
@@ -47,3 +46,8 @@ class ImageSegment(BlueprintBase):
     asset_id: str
     width_emu: int
     height_emu: int
+
+
+class BreakSegment(BlueprintBase):
+    type: Literal["break"] = "break"
+    kind: BreakType

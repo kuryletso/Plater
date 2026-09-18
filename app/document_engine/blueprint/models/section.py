@@ -21,7 +21,7 @@ class SectionStyleBlueprint(BlueprintBase):
     margin_header: int          # twips
     margin_footer: int          # twips
     margins: MarginsBlueprint
-    title_page: bool
+    title_page: bool = False
 
 
 class SectionBlueprint(BlueprintBase):

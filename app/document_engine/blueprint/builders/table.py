@@ -179,6 +179,7 @@ def table_style_bp_from_normalized(
         border_inside_h=table_border_bp_from_normalized(normalized.border_inside_h),
         margins=margins_bp_from_normalized(normalized.margins),
         column_widths=normalized.column_width,
+        alignment=normalized.alignment,
     )
 
 

@@ -19,6 +19,7 @@ class OOXMLParagraphAttributeNames:
     spacing: str = "w:spacing"
     indent: str = "w:ind"
     keep_next: str = "w:keepNext"
+    page_break_before: str = "w:pageBreakBefore"
 
 
 @dataclass(frozen=True)
@@ -44,6 +45,8 @@ class OOXMLTableAttributeNames:
     borders: str = "w:tblBorders"
     margins: str = "w:tblCellMar"
     grid: str = "w:tblGrid"
+    width: str = "w:tblW"
+    alignment: str = "w:jc"
 
 
 @dataclass(frozen=True)

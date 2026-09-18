@@ -22,15 +22,13 @@ from app.document_engine.normalization.style_defaults import (
     DEFAULT_CELL_MARGINS,
     DEFAULT_TABLE_MARGINS,
 )
-
 from app.document_engine.parser.models.blocks import ParagraphNode, TableNode, TableRowStyle, TableCellStyle
 from app.document_engine.parser.models.styles import TableBorderStyle
-
 from app.document_engine.enums.enums import TableWidthType, TableBorderStyleEnum, TableCellShading, VerticalAlignment
 from app.document_engine.utils.overlay_dataclass import overlay_dataclass_strict
-
 from app.core.diagnostics import DiagnosticCollector
 from app.core.errors import Layer
+from app.document_engine.enums.enums import TableAlignment
 
 
 def normalize_table_width(
@@ -194,6 +192,7 @@ def normalize_table(
             default=DEFAULT_TABLE_MARGINS,
         ),
         column_width=cast(tuple[int, ...], table.style.column_widths),       # overlay_dataclass_strict fills the () default
+        alignment=cast(TableAlignment, _table_alignment(table.style.alignment, diagnostics)),
     )
 
     normalized_style = overlay_dataclass_strict(
@@ -237,3 +236,20 @@ def normalize_table(
         rows=tuple(normalized_rows),
         style=normalized_style,
     )
+
+
+def _table_alignment(
+        value: str | None,
+        diagnostics: DiagnosticCollector,
+) -> TableAlignment | None:
+    if value is None:
+        return None
+    try:
+        return TableAlignment(value)
+    except ValueError:
+        diagnostics.warn(
+            Layer.NORMALIZATION,
+            "invalid_table_alignment",
+            f"Unsupported table alignment '{value}'; aligned left.",
+        )
+        return None

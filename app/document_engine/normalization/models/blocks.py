@@ -5,7 +5,15 @@ from dataclasses import dataclass
 from app.document_engine.normalization.models.inlines import NormalizedInlineNode
 from app.document_engine.normalization.models.shared import NormalizedMargins
 
-from app.document_engine.enums.enums import ParagraphAlignment, TableCellShading, VerticalAlignment, TableBorderStyleEnum, TableWidthType
+from app.document_engine.enums.enums import (
+    ParagraphAlignment,
+    TableCellShading,
+    VerticalAlignment,
+    TableBorderStyleEnum,
+    TableWidthType,
+    LineSpacingRule,
+    TableAlignment,
+)
 
 
 @dataclass(slots=True, frozen=True)
@@ -16,6 +24,9 @@ class NormalizedParagraphStyle:
     indent_left: int            # twips
     indent_right: int           # twips
     keep_next: bool
+    line_spacing: int           # 240ths of a line (auto) or twips (exact / atLeast)
+    line_rule: LineSpacingRule
+    page_break_before: bool
 
 
 @dataclass(slots=True, frozen=True)
@@ -68,6 +79,8 @@ class NormalizedTableStyle:
     border_inside_h: NormalizedTableBorder
     margins: NormalizedMargins
     column_width: tuple[int, ...]
+    autofit: bool
+    alignment: TableAlignment
 
 
 @dataclass(slots=True, frozen=True)

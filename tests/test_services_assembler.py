@@ -523,11 +523,6 @@ def mixed_tax_invoice(session, make_org, make_line_input, make_sequence, assembl
     return assembler.assemble(draft, number)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Task 8 — open task from the 2026-09-04 manual test pass: "
-           "_row omits invl_tax when the rate is zero",
-)
 def test_an_untaxed_line_still_carries_a_tax_value(mixed_tax_invoice):
     """An untaxed line printed a blank cell rather than a zero.
 
@@ -543,10 +538,6 @@ def test_an_untaxed_line_still_carries_a_tax_value(mixed_tax_invoice):
     assert untaxed.values["invl_tax"]["ENG"] == "0,00 UAH"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Task 8 — open task from the 2026-09-04 manual test pass",
-)
 def test_a_mixed_tax_invoice_passes_column_validation(mixed_tax_invoice, session,
                                                       make_docx, fixture_provider):
     """The end-to-end consequence: a row-placeholder tax column must validate."""

@@ -21,6 +21,8 @@ from app.document_engine.parser.ooxml_properties.ooxml_properties import (
 )
 from app.document_engine.parser.utils.get_attribute import get_attr, get_int_attr
 
+_OFF = frozenset({"0", "false", "off"})     # St_OnOff values meaning false in different editors (Google Docs "0", LibreOffice "false")
+_JS_ALIASES = {"start": "left", "end": "right"}     # Some editors write start/end vs left/right
 
 def has_tag(node: _Element | None, tag: str) -> bool | None:
     if node is None:
@@ -30,7 +32,7 @@ def has_tag(node: _Element | None, tag: str) -> bool | None:
     if found is None:
         return None
     val = get_attr(found, "val")
-    return val != "0"
+    return val not in _OFF
 
 
 def extract_run_style(run_properties: _Element | None) -> RunStyle:
@@ -66,17 +68,20 @@ def extract_paragraph_style(paragraph_properties: _Element | None) -> ParagraphS
     if paragraph_properties is None:
         return ParagraphStyle()
     
-    alignment_node = paragraph_properties.find(OOXMLParagraphAttributeNames.alignment, NS)
-    alignment = None
-    if alignment_node is not None:
-        alignment = get_attr(alignment_node, "val")
+    alignment = _js(paragraph_properties.find(OOXMLParagraphAttributeNames.alignment, NS))
 
     spacing_node = paragraph_properties.find(OOXMLParagraphAttributeNames.spacing, NS)
     spacing_before = None
     spacing_after = None
+    line_spacing = None
+    line_rule = None
     if spacing_node is not None:
         spacing_before = get_int_attr(spacing_node, "before")
         spacing_after = get_int_attr(spacing_node, "after")
+        line_spacing = get_int_attr(spacing_node, "line")
+        line_rule = get_attr(spacing_node, "lineRule")
+        if line_spacing is not None and line_rule is None:
+            line_rule = "auto"      # ST_LineSpacingRule default once w:line is given
 
     indent_node = paragraph_properties.find(OOXMLParagraphAttributeNames.indent, NS)
     indent_left = None
@@ -92,6 +97,9 @@ def extract_paragraph_style(paragraph_properties: _Element | None) -> ParagraphS
         indent_left=indent_left,
         indent_right=indent_right,
         keep_next=has_tag(paragraph_properties, OOXMLParagraphAttributeNames.keep_next),
+        line_spacing=line_spacing,
+        line_rule=line_rule,
+        page_break_before=has_tag(paragraph_properties, OOXMLParagraphAttributeNames.page_break_before),
     )
 
 
@@ -199,6 +207,8 @@ def extract_table_style(table_properties: _Element | None) -> TableStyle:
         width = get_int_attr(width_node, "w")
         width_type = get_attr(width_node, "type")
 
+    alignment = _js(table_properties.find(OOXMLTableAttributeNames.alignment, NS))
+
     layout_node = table_properties.find(OOXMLTableAttributeNames.layout, NS)
     autofit = None
     if layout_node is not None:
@@ -268,6 +278,7 @@ def extract_table_style(table_properties: _Element | None) -> TableStyle:
         border_inside_v=border_inside_v,
         border_inside_h=border_inside_h,
         margins=margins,
+        alignment=alignment,
     )
 
 
@@ -322,3 +333,8 @@ def parse_styles(styles_root: _Element) -> dict[str, StyleNode]:
         )
 
     return styles
+
+
+def _js(node: _Element | None) -> str | None:
+    value = get_attr(node, "val") if node is not None else None
+    return _JS_ALIASES.get(value, value) if value is not None else None

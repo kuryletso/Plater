@@ -3,7 +3,17 @@ from app.document_engine.normalization.models.inlines import NormalizedTextStyle
 from app.document_engine.normalization.models.sections import NormalizedSectionStyle
 from app.document_engine.normalization.models.shared import NormalizedMargins
 
-from app.document_engine.enums.enums import ParagraphAlignment, TableBorderStyleEnum, TableCellShading, VerticalAlignment, SectionType, PageOrientation, TableWidthType
+from app.document_engine.enums.enums import (
+    ParagraphAlignment,
+    TableBorderStyleEnum,
+    TableCellShading,
+    VerticalAlignment,
+    SectionType,
+    PageOrientation,
+    TableWidthType,
+    LineSpacingRule,
+    TableAlignment,
+)
 
 
 DEFAULT_TEXT_STYLE = NormalizedTextStyle(
@@ -23,6 +33,9 @@ DEFAULT_PARAGRAPH_STYLE = NormalizedParagraphStyle(
     indent_left=0,
     indent_right=0,
     keep_next=False,
+    line_spacing=240,
+    line_rule=LineSpacingRule.AUTO,
+    page_break_before=False,
 )
 
 
@@ -58,6 +71,7 @@ DEFAULT_TABLE_STYLE = NormalizedTableStyle(
     border_inside_h=DEFAULT_TABLE_BORDER,
     margins=DEFAULT_TABLE_MARGINS,
     column_width=(),
+    alignment=TableAlignment.LEFT,
 )
 
 

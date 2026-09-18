@@ -8,7 +8,7 @@ from app.core.errors import Layer
 from app.document_engine.rendering.resolve.models import (
     ResolvedDocument, ResolvedSection, ResolvedParagraph,
     ResolvedTable, ResolvedRow, ResolvedCell,
-    ResolvedTextRun, ResolvedImageRun,
+    ResolvedTextRun, ResolvedImageRun, ResolvedBreakRun,
 )
 from app.document_engine.rendering.docx.package import DocxPackage
 from app.document_engine.rendering.docx.constants import (
@@ -16,7 +16,7 @@ from app.document_engine.rendering.docx.constants import (
 )
 from app.document_engine.rendering.docx.rels import REL_HEADER, REL_FOOTER, REL_SETTINGS, REL_IMAGE
 from app.document_engine.rendering.docx.document_xml import build_document
-from app.document_engine.rendering.docx.run import build_run
+from app.document_engine.rendering.docx.run import build_run, build_break_run
 from app.document_engine.rendering.docx.drawing import build_image_run, EXT_BY_MIME
 from app.document_engine.rendering.docx.paragraph import build_paragraph
 from app.document_engine.rendering.docx.table import build_table, build_row, build_cell
@@ -135,10 +135,12 @@ class DocxEmitter:
         for run in para.runs:
             if isinstance(run, ResolvedTextRun):
                 runs.append(build_run(run.text, run.style))
-            elif isinstance(run, ResolvedImageRun):     # TODO: Write image run builder then replace this block
+            elif isinstance(run, ResolvedImageRun):
                 img = self._image_run(run)
                 if img is not None:
                     runs.append(img)
+            elif isinstance(run, ResolvedBreakRun):
+                runs.append(build_break_run(run.kind))
         return build_paragraph(runs, style=para.style)
     
 

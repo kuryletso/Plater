@@ -95,6 +95,9 @@ class StyleResolver:
             indent_left=0,
             indent_right=0,
             keep_next=False,
+            line_spacing=240,
+            line_rule="auto",
+            page_break_before=False,
         )
 
         if doc_defaults is None:
@@ -233,7 +236,7 @@ class StyleResolver:
     def resolve_paragraph_style(self, paragraph: _Element) -> ParagraphStyle:
         paragraph_properties = paragraph.find("w:pPr", NS)
         if paragraph_properties is None:
-            return self.default_paragraph_style
+            return self.resolve_paragraph_style_by_id(self._default_paragraph_style_id)
         
         style_node = paragraph_properties.find("w:pStyle", NS)
         style_id = None
@@ -241,7 +244,7 @@ class StyleResolver:
         if style_node is not None:
             style_id = get_attr(style_node, "val")
         
-        base_style = self.resolve_paragraph_style_by_id(style_id)
+        base_style = self.resolve_paragraph_style_by_id(style_id or self._default_paragraph_style_id)
 
         direct_style = extract_paragraph_style(paragraph_properties)
 

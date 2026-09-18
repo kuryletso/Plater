@@ -82,3 +82,21 @@ class MoneySymbolPosition(StrEnum):
 class ResolveMode(StrEnum):
     VALUES = "values"
     KEYS = "keys"
+
+
+class BreakType(StrEnum):
+    """Hard breaks that are not text. Soft line break stays a newline in the text."""
+    PAGE = "page"
+    COLUMN = "column"
+
+
+class LineSpacingRule(StrEnum):
+    AUTO = "auto"               # 240ths of a line
+    EXACT = "exact"             # twps
+    AT_LEAST = "atLeast"        # twips
+
+
+class TableAlignment(StrEnum):
+    LEFT = "left"
+    CENTER = "center"
+    RIGHT = "right"

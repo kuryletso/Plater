@@ -8,6 +8,7 @@ See tests/fixtures/real_templates/README.md for what each file exercises.
 """
 
 import io
+from collections import Counter
 import zipfile
 
 from lxml import etree
@@ -29,6 +30,7 @@ from app.document_engine.blueprint.models.table import (
 )
 from app.document_engine.enums.enums import PlaceholderType
 from app.document_engine.orchestration.pipeline import TemplateRenderingPipeline
+from app.document_engine.parser.models.blocks import ParagraphNode
 from app.document_engine.parser.parser import DocxParser
 from app.document_engine.normalization.normalizers.paragraphs import normalize_paragraph
 from app.document_engine.rendering.context import (
@@ -132,23 +134,16 @@ def render_values_xml(blueprint, context: RenderContext) -> etree._Element:
     return _document_xml(DocxEmitter(DiagnosticCollector()).emit(resolved))
 
 
-def every_value_context(
-    blueprint,
-    *,
-    language: str = "ENG",
-    columns_as_scalars: bool = False,
-) -> RenderContext:
+def every_value_context(blueprint, *, language: str = "ENG") -> RenderContext:
     """A context shaped the way InvoiceMapper shapes one: scalars and one table.
 
-    ``columns_as_scalars`` is a crutch for the render tests. A standalone
-    ``{{ invl_desc }}`` currently reaches ``DocumentResolver._value`` and raises,
-    so filling it keeps those assertions independent of Task 6. Drop the argument
-    once Task 6 lands.
+    COLUMN placeholders stay out of the scalars, as they do in the mapper; one
+    outside a table row must render empty rather than raise (Task 6).
     """
 
     keys = {
         p.key for p in placeholders(blueprint)
-        if columns_as_scalars or p.ph_type is PlaceholderType.SCALAR
+        if p.ph_type is PlaceholderType.SCALAR
     }
 
     columns = (
@@ -235,17 +230,39 @@ def test_invoice_line_cells_become_cell_placeholders(ingest_real):
 
 # --- Task 4: escapes in a placeholder separator ------------------------------
 
-@pytest.mark.xfail(strict=True, reason=f"Task 4 — {TASK}: tokenizer drops the backslash")
 def test_escaped_newline_in_a_separator_is_a_newline(ingest_real):
-    r"""`sep="\n"` must join with a line break, not the letter n."""
+    r"""`sep="\n"` must join with a line break, not the letter n.
+
+    The same template also uses `sep=" | "` and `sep=" ::: "`, which must come
+    through untouched — the escape map has to be a lookup, not a rewrite.
+    """
+
     blueprint, _ = ingest_real("formatting")
-    grouped = [s for s in segments(blueprint) if isinstance(s, GroupedPlaceholderSegment)]
+    separators = {
+        segment.separator for segment in segments(blueprint)
+        if isinstance(segment, (GroupedPlaceholderSegment, JoinedPlaceholderSegment))
+    }
 
-    assert grouped, "the formatting template has grouped placeholders"
-    assert all(g.separator == "\n" for g in grouped)
+    assert "\n" in separators
+    assert "n" not in separators
+    assert {" | ", " ::: "} <= separators
 
 
-@pytest.mark.xfail(strict=True, reason=f"Task 4 — {TASK}")
+def test_an_escaped_newline_separator_emits_a_line_break(ingest_real):
+    """End of the chain: the run builder splits on \\n and writes <w:br/>."""
+
+    blueprint, _ = ingest_real("formatting")
+    document = render_values_xml(
+        blueprint, every_value_context(blueprint),
+    )
+
+    soft_breaks = [
+        element for element in document.iter(f"{W}br")
+        if element.get(f"{W}type") is None
+    ]
+    assert soft_breaks
+
+
 def test_tokenizer_maps_the_standard_escapes():
     from app.document_engine.blueprint.builders.tokenizer import TK, tokenize_placeholder
 
@@ -257,7 +274,6 @@ def test_tokenizer_maps_the_standard_escapes():
 
 # --- Task 5: the split-brace / multi-colour placeholder ----------------------
 
-@pytest.mark.xfail(strict=True, reason=f"Task 5 — {TASK}: '{{' split across runs is not seen")
 def test_placeholder_split_across_two_runs_at_the_braces(make_runs):
     """A colour change between `{` and `{` must not hide the placeholder.
 
@@ -269,24 +285,26 @@ def test_placeholder_split_across_two_runs_at_the_braces(make_runs):
     with DocxParser(path, diagnostics=DiagnosticCollector()) as parser:
         parsed = parser.parse()
 
-    paragraph = normalize_paragraph(parsed.sections[0].blocks[0])
+    paragraph = normalize_paragraph(
+        next(block for block in parsed if isinstance(block, ParagraphNode))
+    )
 
     assert len(paragraph.inlines) == 1
     assert paragraph.inlines[0].text == "{{ org_name }}"
 
 
-@pytest.mark.xfail(strict=True, reason=f"Task 5 — {TASK}")
 def test_a_multicoloured_placeholder_resolves(ingest_real):
     """formatting.docx paints one {{ client_name }} a letter per colour."""
     blueprint, _ = ingest_real("formatting")
 
     assert "{" not in "".join(texts(blueprint))
-    assert sum(p.key == "client_name" for p in placeholders(blueprint)) == 8
+    # 4 alignment groups + 1 table group + 3 merged cells + 4 font lines
+    # + 4 formatting lines; one of the font lines is the rainbow one
+    assert sum(p.key == "client_name" for p in placeholders(blueprint)) == 16
 
 
 # --- Task 6: invoice-line placeholders outside a table -----------------------
 
-@pytest.mark.xfail(strict=True, reason=f"Task 6 — {TASK}: ingestion is silent")
 def test_a_column_placeholder_outside_a_table_warns_at_ingestion(ingest_real):
     """{{ invl_desc }} in a plain paragraph cannot expand; say so on import."""
     _, diagnostics = ingest_real("tables")
@@ -295,7 +313,6 @@ def test_a_column_placeholder_outside_a_table_warns_at_ingestion(ingest_real):
     assert not diagnostics.has_errors
 
 
-@pytest.mark.xfail(strict=True, reason=f"Task 6 — {TASK}: reported as a missing scalar")
 def test_a_column_placeholder_outside_a_table_does_not_block_rendering(ingest_real):
     """This is what stopped TEST-004 generating: validate_context files a COLUMN
     placeholder under `scalars`, finds nothing there, and errors.
@@ -326,7 +343,6 @@ def test_column_placeholders_keep_their_type_through_ingestion(ingest_real):
 
 # --- Task 7: titlePg must mirror the source ----------------------------------
 
-@pytest.mark.xfail(strict=True, reason=f"Task 7 — {TASK}: titlePg is invented")
 def test_titlepg_is_not_invented(ingest_real):
     """layout.docx declares a `first` header but no <w:titlePg/>, so Word shows the
     default header on page 1. Emitting titlePg blanks the first page instead.
@@ -338,13 +354,32 @@ def test_titlepg_is_not_invented(ingest_real):
     assert document.find(f".//{W}titlePg") is None
 
 
+def test_titlepg_survives_when_the_source_declares_it(tmp_path, fixture_provider):
+    """The other direction: a genuine "different first page" must be kept."""
+    from docx import Document
+    from app.document_engine.orchestration.pipeline import TemplateIngestionPipeline
+
+    document = Document()
+    document.add_paragraph("Invoice for {{ org_name }}")
+    section = document.sections[0]
+    section.different_first_page_header_footer = True
+    section.first_page_header.paragraphs[0].text = "First page only"
+    path = tmp_path / "title_page.docx"
+    document.save(path)
+
+    pipeline = TemplateIngestionPipeline(fixture_provider)
+    blueprint = pipeline.finalize(pipeline.ingest(path).draft)
+
+    assert blueprint.sections[-1].style.title_page is True
+    assert render_raw_xml(blueprint).find(f".//{W}titlePg") is not None
+
+
 # --- Task 9: the system invoice table's column widths ------------------------
 
-@pytest.mark.xfail(strict=True, reason=f"Task 9 — {TASK}: 7 x 2400 twips overflows the page")
 def test_a_standalone_invoice_table_fits_the_page(ingest_real):
     blueprint, _ = ingest_real("tables")
     document = render_values_xml(
-        blueprint, every_value_context(blueprint, columns_as_scalars=True),
+        blueprint, every_value_context(blueprint),
     )
 
     section = blueprint.sections[0].style
@@ -356,12 +391,11 @@ def test_a_standalone_invoice_table_fits_the_page(ingest_real):
         )
 
 
-@pytest.mark.xfail(strict=True, reason=f"Task 9 — {TASK}: every column gets the same width")
 def test_the_invoice_table_does_not_use_equal_column_widths(ingest_real):
     """A '#' column as wide as 'Description' is what equal widths look like."""
     blueprint, _ = ingest_real("tables")
     document = render_values_xml(
-        blueprint, every_value_context(blueprint, columns_as_scalars=True),
+        blueprint, every_value_context(blueprint),
     )
 
     seven = [widths for widths in grids(document) if len(widths) == 7]
@@ -372,7 +406,6 @@ def test_the_invoice_table_does_not_use_equal_column_widths(ingest_real):
 
 # --- Task 10: page breaks ----------------------------------------------------
 
-@pytest.mark.xfail(strict=True, reason=f"Task 10 — {TASK}: w:br type=page is dropped at parse")
 def test_a_page_break_survives_to_the_rendered_document(ingest_real):
     blueprint, _ = ingest_real("formatting")
     document = render_raw_xml(blueprint)
@@ -381,12 +414,11 @@ def test_a_page_break_survives_to_the_rendered_document(ingest_real):
         element for element in document.iter(f"{W}br")
         if element.get(f"{W}type") == "page"
     ]
-    assert len(breaks) >= 3
+    assert len(breaks) == 4         # formatting.docx has exactly four
 
 
 # --- Task 11: line spacing ---------------------------------------------------
 
-@pytest.mark.xfail(strict=True, reason=f"Task 11 — {TASK}: w:line is never parsed or emitted")
 def test_line_spacing_survives(ingest_real):
     """The source sets 2.0 line spacing on a run of paragraphs; we emit single."""
     blueprint, _ = ingest_real("formatting")
@@ -397,12 +429,13 @@ def test_line_spacing_survives(ingest_real):
         for element in document.iter(f"{W}spacing")
         if element.get(f"{W}line")
     }
-    assert lines != set()
+    # 1.15 inherited from docDefaults (what the report was about), and the four
+    # "spacing 2.00" paragraphs set directly
+    assert {"276", "480"} <= lines
 
 
 # --- Task 12: table alignment ------------------------------------------------
 
-@pytest.mark.xfail(strict=True, reason=f"Task 12 — {TASK}: tables have no alignment field")
 def test_table_alignment_survives(ingest_real):
     """A right-aligned table came out left-aligned; <w:jc> is never emitted."""
     blueprint, _ = ingest_real("formatting")
@@ -412,7 +445,8 @@ def test_table_alignment_survives(ingest_real):
         element for element in document.iter(f"{W}tblPr")
         if element.find(f"{W}jc") is not None
     ]
-    assert aligned
+    values = Counter(element.find(f"{W}jc").get(f"{W}val") for element in aligned)
+    assert values["right"] == 2     # the half-width table and the one beside it
 
 
 # --- Task 22 (post-1.0): placeholders split by a paragraph break -------------
@@ -428,3 +462,242 @@ def test_a_placeholder_split_by_a_paragraph_break_resolves(ingest_real):
 
     assert "unclosed_placeholder" not in codes(diagnostics)
     assert "{{ date" not in "".join(texts(blueprint))
+
+
+# --- found while landing tasks 5-9 --------------------------------------------
+
+def test_a_header_containing_a_table_ingests(tmp_path, fixture_provider):
+    """The header/footer path called normalize_table() without its diagnostics
+    argument, so any template with a table in a header or footer failed to import."""
+    from docx import Document
+    from docx.shared import Inches
+    from app.document_engine.orchestration.pipeline import TemplateIngestionPipeline
+
+    document = Document()
+    document.add_paragraph("Body")
+    table = document.sections[0].header.add_table(1, 2, Inches(6))
+    table.cell(0, 0).text = "{{ org_name }}"
+    table.cell(0, 1).text = "Header"
+    path = tmp_path / "header_table.docx"
+    document.save(path)
+
+    result = TemplateIngestionPipeline(fixture_provider).ingest(path)
+
+    assert not result.diagnostics.has_errors
+
+
+def test_a_blueprint_stored_before_title_page_existed_still_loads(ingest_real):
+    """Every blueprint already in a user's database predates `title_page` and
+    `engine_version`. A new field without a default makes all of them unloadable."""
+    from app.document_engine.blueprint.serialize import dump_blueprint, load_blueprint
+
+    blueprint, _ = ingest_real("empty")
+    sections, placeholder_defs, config = dump_blueprint(blueprint)
+    for section in sections:
+        del section["style"]["title_page"]
+    del config["engine_version"]
+
+    loaded = load_blueprint(sections, placeholder_defs, config)
+
+    assert all(section.style.title_page is False for section in loaded.sections)
+    assert loaded.config.engine_version == 0
+
+
+# --- tasks 10-12: cases the fixtures do not isolate ---------------------------
+
+def _ingest_docx(path, provider):
+    from app.document_engine.orchestration.pipeline import TemplateIngestionPipeline
+
+    pipeline = TemplateIngestionPipeline(provider)
+    return pipeline.finalize(pipeline.ingest(path).draft)
+
+
+def test_run_parts_split_on_hard_breaks_only():
+    """A soft break stays text, since a placeholder may span one."""
+    from app.document_engine.enums.enums import BreakType
+    from app.document_engine.parser.extractors.runs import extract_run_parts
+
+    run = etree.fromstring(
+        f'<w:r xmlns:w="{W[1:-1]}"><w:t>a</w:t><w:br/><w:t>b</w:t>'
+        f'<w:br w:type="column"/><w:t>c</w:t><w:br w:type="page"/></w:r>'
+    )
+
+    assert extract_run_parts(run) == ["a\nb", BreakType.COLUMN, "c", BreakType.PAGE]
+
+
+def test_a_page_break_keeps_its_place_inside_a_run(tmp_path, fixture_provider):
+    """Word writes 'Before', the break and 'After' into a single run."""
+    from docx import Document
+    from docx.enum.text import WD_BREAK
+    from app.document_engine.enums.enums import BreakType
+
+    document = Document()
+    run = document.add_paragraph().add_run("Before {{ org_name }}")
+    run.add_break(WD_BREAK.PAGE)
+    run.add_text("After")
+    path = tmp_path / "break.docx"
+    document.save(path)
+
+    blueprint = _ingest_docx(path, fixture_provider)
+    parts = blueprint.sections[0].blocks[0].segments
+
+    assert [type(s).__name__ for s in parts] == [
+        "TextSegment", "PlaceholderSegment", "BreakSegment", "TextSegment",
+    ]
+    assert parts[2].kind is BreakType.PAGE
+
+    paragraph = render_raw_xml(blueprint).find(f"{W}body/{W}p")
+    order = [
+        ("br", child.get(f"{W}type")) if child.tag == f"{W}br" else ("t", child.text)
+        for run_ in paragraph.iter(f"{W}r")
+        for child in run_
+        if child.tag in (f"{W}t", f"{W}br")
+    ]
+    assert order == [("t", "Before "), ("t", "{{ org_name }}"), ("br", "page"), ("t", "After")]
+
+
+def test_page_break_before_survives(tmp_path, fixture_provider):
+    from docx import Document
+
+    document = Document()
+    document.add_paragraph("First")
+    document.add_paragraph("Second").paragraph_format.page_break_before = True
+    path = tmp_path / "page_break_before.docx"
+    document.save(path)
+
+    body = render_raw_xml(_ingest_docx(path, fixture_provider)).find(f"{W}body")
+    flags = [p.find(f"{W}pPr/{W}pageBreakBefore") is not None for p in body.findall(f"{W}p")]
+
+    assert flags == [False, True]
+
+
+def test_an_explicitly_false_page_break_before_is_not_emitted(ingest_real):
+    """formatting.docx carries <w:pageBreakBefore w:val="0"/> on 76 paragraphs.
+    Read as true, every one of them would start a new page."""
+
+    document = render_raw_xml(ingest_real("formatting")[0])
+
+    assert document.find(f".//{W}pageBreakBefore") is None
+
+
+@pytest.mark.parametrize("val, expected", [
+    (None, True), ("1", True), ("true", True), ("on", True),
+    ("0", False), ("false", False), ("off", False),
+])
+def test_on_off_values_follow_st_onoff(val, expected):
+    """Google Docs writes w:val="0"; LibreOffice writes "false"."""
+    from app.document_engine.parser.extractors.styles import has_tag
+
+    attr = f' w:val="{val}"' if val is not None else ""
+    ppr = etree.fromstring(f'<w:pPr xmlns:w="{W[1:-1]}"><w:pageBreakBefore{attr}/></w:pPr>')
+
+    assert has_tag(ppr, "w:pageBreakBefore") is expected
+
+
+@pytest.mark.parametrize("val, expected", [("start", "left"), ("end", "right"), ("center", "center")])
+def test_start_and_end_alignments_read_as_left_and_right(val, expected):
+    """Unmapped, start/end reach the enum and raise a bare ValueError mid-import."""
+    from app.document_engine.parser.extractors.styles import (
+        extract_paragraph_style, extract_table_style,
+    )
+
+    namespace = f'xmlns:w="{W[1:-1]}"'
+    ppr = etree.fromstring(f'<w:pPr {namespace}><w:jc w:val="{val}"/></w:pPr>')
+    tbl_pr = etree.fromstring(f'<w:tblPr {namespace}><w:jc w:val="{val}"/></w:tblPr>')
+
+    assert extract_paragraph_style(ppr).alignment == expected
+    assert extract_table_style(tbl_pr).alignment == expected
+
+
+def test_line_spacing_is_inherited_from_the_normal_style(tmp_path, fixture_provider):
+    """Word keeps body spacing on the Normal style. A paragraph without a pStyle
+    uses it — exactly as runs already inherit its font size."""
+    from docx import Document
+
+    document = Document()
+    document.styles["Normal"].paragraph_format.line_spacing = 1.15
+    document.add_paragraph("Body")
+    path = tmp_path / "normal_spacing.docx"
+    document.save(path)
+
+    body = render_raw_xml(_ingest_docx(path, fixture_provider)).find(f"{W}body")
+    spacing = body.find(f"{W}p/{W}pPr/{W}spacing")
+
+    assert (spacing.get(f"{W}line"), spacing.get(f"{W}lineRule")) == ("276", "auto")
+
+
+def test_table_jc_sits_where_the_schema_puts_it(ingest_real):
+    """CT_TblPr is ordered: jc directly after tblW. Out of order, Word may refuse the file."""
+    document = render_raw_xml(ingest_real("formatting")[0])
+
+    for tbl_pr in document.iter(f"{W}tblPr"):
+        names = [etree.QName(child).localname for child in tbl_pr]
+        assert names.index("jc") == names.index("tblW") + 1
+
+
+# --- tabs --------------------------------------------------------------------
+
+def run_contents(body) -> list[str]:
+    """Run children in order: text as its own string, anything else by tag name."""
+
+    return [
+        child.text if child.tag == f"{W}t" else etree.QName(child).localname
+        for run in body.iter(f"{W}r")
+        for child in run
+        if child.tag != f"{W}rPr"
+    ]
+
+
+def test_a_tab_is_emitted_as_an_element(tmp_path, fixture_provider):
+    """A tab character inside <w:t> is only whitespace to Word, which drops it.
+    A tab has to be <w:tab/> — text falling back from a placeholder showed this."""
+
+    from docx import Document
+
+    document = Document()
+    run = document.add_paragraph().add_run("before")
+    run.add_tab()
+    run.add_text("after")
+    path = tmp_path / "tabbed.docx"
+    document.save(path)
+
+    body = render_raw_xml(_ingest_docx(path, fixture_provider)).find(f"{W}body")
+
+    assert run_contents(body) == ["before", "tab", "after"]
+
+
+def test_tabs_survive_in_text_a_placeholder_fell_back_to(tmp_path, fixture_provider):
+    """An unclosed placeholder renders literally — tabs included."""
+
+    from docx import Document
+
+    document = Document()
+    run = document.add_paragraph().add_run("{{ org_name")
+    run.add_tab()
+    run.add_text("unclosed")
+    path = tmp_path / "fallback.docx"
+    document.save(path)
+
+    body = render_raw_xml(_ingest_docx(path, fixture_provider)).find(f"{W}body")
+
+    assert run_contents(body) == ["{{ org_name", "tab", "unclosed"]
+
+
+def test_a_tab_and_a_line_break_in_one_run_keep_their_order(tmp_path, fixture_provider):
+    """Both are elements, so the split has to interleave them, not do one then the other."""
+
+    from docx import Document
+
+    document = Document()
+    run = document.add_paragraph().add_run("a")
+    run.add_tab()
+    run.add_text("b")
+    run.add_break()
+    run.add_tab()
+    run.add_text("c")
+    path = tmp_path / "tab_and_break.docx"
+    document.save(path)
+
+    body = render_raw_xml(_ingest_docx(path, fixture_provider)).find(f"{W}body")
+
+    assert run_contents(body) == ["a", "tab", "b", "br", "tab", "c"]

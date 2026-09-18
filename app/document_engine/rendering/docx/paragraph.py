@@ -13,17 +13,21 @@ def build_paragraph(
 ) -> etree._Element:
     
     # pPr children order is important!
-    # keepNext > spacing > ind > js
+    # keepNext > pageBreakBefore > spacing > ind > jc
 
     p = etree.Element(qn("w:p"))
     ppr = etree.SubElement(p, qn(P.properties))
 
     if style.keep_next:
         etree.SubElement(ppr, qn(P.keep_next))
+    if style.page_break_before:
+        etree.SubElement(ppr, qn(P.page_break_before))
 
     spacing = etree.SubElement(ppr, qn(P.spacing))      # twips
     spacing.set(qn("w:before"), str(style.spacing_before))
     spacing.set(qn("w:after"), str(style.spacing_after))
+    spacing.set(qn("w:line"), str(style.line_spacing))
+    spacing.set(qn("w:lineRule"), style.line_rule.value)
 
     ind = etree.SubElement(ppr, qn(P.indent))
     ind.set(qn("w:left"), str(style.indent_left))

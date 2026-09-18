@@ -3,15 +3,80 @@ from typing import cast
 from itertools import pairwise
 
 from app.document_engine.normalization.models.blocks import NormalizedParagraph, NormalizedParagraphStyle
-from app.document_engine.normalization.models.inlines import NormalizedTextNode, NormalizedImageNode, NormalizedInlineNode, NormalizedTextStyle
+from app.document_engine.normalization.models.inlines import (
+    NormalizedTextNode,
+    NormalizedImageNode,
+    NormalizedInlineNode,
+    NormalizedTextStyle,
+    NormalizedBreakNode,
+)
 from app.document_engine.normalization.style_defaults import DEFAULT_TEXT_STYLE, DEFAULT_PARAGRAPH_STYLE
 from app.document_engine.normalization.errors import NormalizationFormatError
 from app.document_engine.parser.models.blocks import ParagraphNode
-from app.document_engine.parser.models.inlines import RunNode, RunStyle, ImageNode
+from app.document_engine.parser.models.inlines import RunNode, RunStyle, ImageNode, BreakNode
 from app.document_engine.parser.models.styles import ParagraphStyle
-from app.document_engine.enums.enums import ParagraphAlignment
+from app.document_engine.enums.enums import ParagraphAlignment, LineSpacingRule
 from app.document_engine.utils.overlay_dataclass import overlay_dataclass_strict
 
+
+def normalize_paragraph(paragraph: ParagraphNode) -> NormalizedParagraph:
+
+    _validate_paragraph_style_attributes(paragraph.style)
+
+    normalized_inlines: list[NormalizedInlineNode] = []
+    pending: list[RunNode] = []
+
+    def flush_runs() -> None:
+        normalized_inlines.extend(_merge_runs(pending))
+        pending.clear()
+
+    for node in paragraph.inlines:
+        if isinstance(node, RunNode):
+            pending.append(node)
+
+        elif isinstance(node, ImageNode):
+            flush_runs()
+            normalized_inlines.append(
+                NormalizedImageNode(
+                    asset_id=node.asset_id,
+                    width_emu=node.width_emu,
+                    height_emu=node.height_emu,
+                )
+            )
+
+        elif isinstance(node, BreakNode):
+            flush_runs()
+            normalized_inlines.append(NormalizedBreakNode(kind=node.kind))
+
+        else:
+            raise NormalizationFormatError(
+                f"Unsupported inline node type: {type(node).__name__}."
+            )
+
+    flush_runs()
+
+    parsed_style = NormalizedParagraphStyle(
+        # Fields may be None here; overlay_dataclass_strict() immediately applies defaults.
+        alignment=cast(ParagraphAlignment, ParagraphAlignment(paragraph.style.alignment) \
+            if paragraph.style.alignment is not None \
+            else None),
+        spacing_before=cast(int, paragraph.style.spacing_before),
+        spacing_after=cast(int, paragraph.style.spacing_after),
+        indent_left=cast(int, paragraph.style.indent_left),
+        indent_right=cast(int, paragraph.style.indent_right),
+        keep_next=cast(bool, paragraph.style.keep_next),
+        line_spacing=cast(int, paragraph.style.line_spacing),
+        line_rule=cast(LineSpacingRule, _line_rule(paragraph.style.line_rule)),
+        page_break_before=cast(bool, paragraph.style.page_break_before),
+    )
+
+    return NormalizedParagraph(
+        inlines=tuple(normalized_inlines),
+        style=overlay_dataclass_strict(
+            DEFAULT_PARAGRAPH_STYLE,
+            parsed_style,
+        )
+    )
 
 
 def _validate_text_style_attributes(run_style: RunStyle) -> None:
@@ -59,6 +124,11 @@ def _validate_paragraph_style_attributes(paragraph_style: ParagraphStyle) -> Non
     if isinstance(paragraph_style.indent_right, int) and paragraph_style.indent_right < 0:
         raise NormalizationFormatError(
             f"Paragraph indent_right can't be lower than 0, got {paragraph_style.indent_right}"
+        )
+
+    if isinstance(paragraph_style.line_spacing, int) and paragraph_style.line_spacing < 0:
+        raise NormalizationFormatError(
+            f"Paragraph line spacing can't be lower than 0, got {paragraph_style.line_spacing}."
         )
 
 
@@ -132,55 +202,12 @@ def _merge_runs(runs: list[RunNode]) -> list[NormalizedTextNode]:
     ]
 
 
-def normalize_paragraph(paragraph: ParagraphNode) -> NormalizedParagraph:
-
-    _validate_paragraph_style_attributes(paragraph.style)
-
-    normalized_inlines: list[NormalizedInlineNode] = []
-    pending: list[RunNode] = []
-
-    def flush_runs() -> None:
-        normalized_inlines.extend(_merge_runs(pending))
-        pending.clear()
-
-    for node in paragraph.inlines:
-        if isinstance(node, RunNode):
-            pending.append(node)
-
-        elif isinstance(node, ImageNode):
-            flush_runs()
-            normalized_inlines.append(
-                NormalizedImageNode(
-                    asset_id=node.asset_id,
-                    width_emu=node.width_emu,
-                    height_emu=node.height_emu,
-                )
-            )
-
-        else:
-            raise NormalizationFormatError(
-                f"Unsupported inline node type: {type(node).__name__}."
-            )
-
-
-    flush_runs()
-
-    parsed_style = NormalizedParagraphStyle(
-        # Fields may be None here; overlay_dataclass_strict() immediately applies defaults.
-        alignment=cast(ParagraphAlignment, ParagraphAlignment(paragraph.style.alignment) \
-            if paragraph.style.alignment is not None \
-            else None),
-        spacing_before=cast(int, paragraph.style.spacing_before),
-        spacing_after=cast(int, paragraph.style.spacing_after),
-        indent_left=cast(int, paragraph.style.indent_left),
-        indent_right=cast(int, paragraph.style.indent_right),
-        keep_next=cast(bool, paragraph.style.keep_next),
-    )
-
-    return NormalizedParagraph(
-        inlines=tuple(normalized_inlines),
-        style=overlay_dataclass_strict(
-            DEFAULT_PARAGRAPH_STYLE,
-            parsed_style,
-        )
-    )
+def _line_rule(value: str | None) -> LineSpacingRule | None:
+    if value is None:
+        return None
+    try:
+        return LineSpacingRule(value)
+    except ValueError as e:
+        raise NormalizationFormatError(
+            f"Invalid line spacing rule: '{value}'."
+        ) from e

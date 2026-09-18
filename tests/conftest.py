@@ -638,3 +638,17 @@ def ingest_real(real_template):
         return pipeline.finalize(result.draft), result.diagnostics
 
     return _ingest
+
+
+
+def restamp(session: Session, template_id: int, engine_version: int) -> None:
+    """Pretend a template's current version was ingested by another engine.
+
+    `config` is a plain JSON column, so it must be reassigned, never mutated.
+    """
+
+    from app.services.template.repository import TemplateRepository
+
+    version = TemplateRepository(session).current_version(template_id)
+    version.config = {**version.config, "engine_version": engine_version}
+    session.commit()

@@ -21,6 +21,9 @@ class ParagraphStyle:
     indent_left: Optional[int] = None
     indent_right: Optional[int] = None
     keep_next: Optional[bool] = None
+    line_spacing: Optional[int] = None
+    line_rule: Optional[str] = None
+    page_break_before: Optional[bool] = None
 
 
 @dataclass(slots=True, frozen=True)
@@ -70,7 +73,7 @@ class TableStyle:
     border_inside_h: Optional[TableBorderStyle] = None
     margins: Optional[Margins] = None
     column_widths: Optional[tuple[int, ...]] = None
-
+    alignment: Optional[str] = None
 
 @dataclass(slots=True, frozen=True)
 class SectionStyle:

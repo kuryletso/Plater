@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from app.document_engine.enums.enums import BreakType
+
 
 @dataclass(slots=True, frozen=True)
 class NormalizedTextStyle:
@@ -24,4 +26,9 @@ class NormalizedImageNode:
     height_emu: int
 
 
-type NormalizedInlineNode = NormalizedTextNode | NormalizedImageNode
+@dataclass(slots=True, frozen=True)
+class NormalizedBreakNode:
+    kind: BreakType
+
+
+type NormalizedInlineNode = NormalizedTextNode | NormalizedImageNode | NormalizedBreakNode

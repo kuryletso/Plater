@@ -69,10 +69,12 @@ def _build_tbl_pr(
     
     tbl_pr = etree.Element(qn("w:tblPr"))
 
-    # (!) CT_TblPr order: tblW, tblBorders, tblLayout, tblCellMar
+    # (!) CT_TblPr order: tblW, jc, tblBorders, tblLayout, tblCellMar
     w = etree.SubElement(tbl_pr, qn("w:tblW"))
     w.set(qn("w:w"), str(style.width.value or 0))
     w.set(qn("w:type"), style.width.type.value)
+
+    etree.SubElement(tbl_pr, qn("w:jc")).set(qn("w:val"), style.alignment.value)
 
     tbl_pr.append(_build_tbl_borders(style))
 

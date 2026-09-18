@@ -225,3 +225,48 @@ def test_two_defaults_from_identical_files_share_one_stored_blob(session: Sessio
     seed_default_templates(session)
 
     assert len(session.scalars(select(Asset)).all()) == 1
+
+
+
+# --- engine rebuilds (Task 23) -----------------------------------------------
+
+def test_a_stale_built_in_is_rebuilt_in_place(session: Session, shipped):
+    """Same .docx, older engine: correct the reading, do not invent a version."""
+    from app.document_engine.version import ENGINE_VERSION
+    from tests.conftest import restamp
+
+    shipped([entry("a", "a.docx")], {"a.docx": ["A {{ org_name }}"]})
+    (created,) = seed_default_templates(session)
+    restamp(session, created.template_id, 0)
+
+    (result,) = seed_default_templates(session)
+    repo = TemplateRepository(session)
+
+    assert result.action == "rebuilt"
+    assert len(repo.versions(created.template_id)) == 1
+    assert repo.current_version(created.template_id).config["engine_version"] == ENGINE_VERSION
+
+
+def test_a_rebuilt_built_in_is_unchanged_on_the_next_launch(session: Session, shipped):
+    from tests.conftest import restamp
+
+    shipped([entry("a", "a.docx")], {"a.docx": ["A {{ org_name }}"]})
+    (created,) = seed_default_templates(session)
+    restamp(session, created.template_id, 0)
+    seed_default_templates(session)
+
+    assert actions(seed_default_templates(session)) == {"a": "unchanged"}
+
+
+def test_a_changed_file_appends_a_version_even_when_the_stamp_is_stale(session: Session,
+                                                                      shipped):
+    """The two causes stay distinct: a different document is a new version."""
+    from tests.conftest import restamp
+
+    shipped([entry("a", "a.docx")], {"a.docx": ["A {{ org_name }}"]})
+    (created,) = seed_default_templates(session)
+    restamp(session, created.template_id, 0)
+    shipped([entry("a", "a.docx")], {"a.docx": ["A changed {{ org_name }}"]})
+
+    assert actions(seed_default_templates(session)) == {"a": "updated"}
+    assert len(TemplateRepository(session).versions(created.template_id)) == 2

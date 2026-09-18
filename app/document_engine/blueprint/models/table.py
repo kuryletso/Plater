@@ -6,12 +6,12 @@ from app.document_engine.blueprint.models.blueprint_base import BlueprintBase
 from app.document_engine.blueprint.models.margins import MarginsBlueprint
 from app.document_engine.blueprint.models.segment import TextStyleBlueprint
 from app.document_engine.blueprint.models.paragraph import ParagraphStyleBlueprint
-
 from app.document_engine.enums.enums import (
     TableCellShading,
     VerticalAlignment,
     TableWidthType,
-    TableBorderStyleEnum
+    TableBorderStyleEnum,
+    TableAlignment,
 )
 
 if TYPE_CHECKING:
@@ -61,6 +61,7 @@ class TableStyleBlueprint(BlueprintBase):
     border_inside_h: TableBorderBlueprint
     margins: MarginsBlueprint
     column_widths: tuple[int, ...] = ()
+    alignment: TableAlignment = TableAlignment.LEFT
 
 
 class CellBlueprint(BlueprintBase):
