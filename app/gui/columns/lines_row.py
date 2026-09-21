@@ -87,11 +87,10 @@ class LineRowWidget(QWidget):
         self.number_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         layout.addWidget(self.number_label)
 
-        named = len(languages) > 1
         self.description_edits: dict[str, QLineEdit] = {}
         for code in languages:
             edit = QLineEdit()
-            edit.setPlaceholderText(f"Description ({code})" if named else "Description")
+            edit.setPlaceholderText(f"Description ({code})")
             edit.setText(row.descriptions.get(code, ""))
             edit.textEdited.connect(lambda text, c=code: self._on_description(c, text))
             layout.addWidget(edit, 3)

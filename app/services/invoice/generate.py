@@ -6,7 +6,9 @@ from sqlalchemy.orm import Session
 
 from app.assets.provider import DbAssetProvider
 from app.core.diagnostics import DiagnosticCollector
+from app.core.errors import Layer
 from app.document_engine.orchestration.pipeline import TemplateRenderingPipeline
+from app.document_engine.version import ENGINE_VERSION
 from app.services.doc_sequence.repository import IssuedNumber, SequenceRepository
 from app.services.errors import InvalidSelection, SequenceConflict
 from app.services.invoice.assembler import (
@@ -90,6 +92,17 @@ class InvoiceGenerateService:
         ).map(data)
 
         render = TemplateRenderingPipeline(DbAssetProvider(self._session)).render(blueprint, context)
+
+        if blueprint.config.engine_version != ENGINE_VERSION:
+            render.diagnostics.warn(
+                Layer.PERSISTENCE,
+                "stale_blueprint",
+                "This template was imported by an older version of the document engine. " \
+                "Rebuild it (Edit > Template > Rebuild) to pick up the " \
+                "latest rendering fixes.",
+                template_id=draft.template_id,
+                engine_version=blueprint.config.engine_version,
+            )
 
         return GenerationResult(
             docx=render.docx,

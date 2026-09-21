@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QWidget, QDialog, QInputDialog
+from PySide6.QtWidgets import QWidget, QDialog, QInputDialog, QMessageBox
 from sqlalchemy.orm import Session
 
 from app.gui.dialogs.manager_dialog import AssetId, AssetAction, ManagedAsset, ManagerDialog
@@ -12,9 +12,16 @@ from app.gui.dialogs.measurement_unit import MeasurementUnitDialog
 from app.gui.text import organization_label, localized
 from app.services.organization.repository import OrganizationRepository
 from app.services.template.repository import TemplateRepository
+from app.services.template.rebuild_service import BlueprintState, TemplateRebuildService
 from app.services.representative.repository import RepresentativeRepository
 from app.services.measurement_unit.repository import MeasurementUnitRepository
 from app.services.errors import ServiceError
+
+
+STATE_MARKS = {
+    BlueprintState.STALE: " | older engine, rebuild",
+    BlueprintState.UNREADABLE: " | cannot be read, rebuild",
+}
 
 
 def organization_asset(session: Session) -> ManagedAsset:
@@ -55,6 +62,7 @@ def organization_asset(session: Session) -> ManagedAsset:
 
 def template_asset(session: Session) -> ManagedAsset:
     repository = TemplateRepository(session)
+    rebuilds = TemplateRebuildService(session)
 
     def versions(parent: QWidget, asset_id: AssetId) -> bool:
         dialog = ManagerDialog(
@@ -70,7 +78,8 @@ def template_asset(session: Session) -> ManagedAsset:
                 template.id,
                 f"{template.name} ({template.type})"
                 + ("  | built-in" if template.system else "")
-                + ("  | hidden" if not template.active else ""),
+                + ("  | hidden" if not template.active else "")
+                + STATE_MARKS.get(rebuilds.state(template.id), ""),
             )
             for template in repository.list(search=search, include_inactive=True)
         ]
@@ -78,7 +87,6 @@ def template_asset(session: Session) -> ManagedAsset:
     def create(parent):
         dialog = TemplateImportDialog(session, parent=parent)
         return dialog.template_id if dialog.exec() == QDialog.DialogCode.Accepted else None
-
 
     def duplicate(parent: QWidget, asset_id: AssetId) -> bool:
         origin = next(
@@ -113,6 +121,21 @@ def template_asset(session: Session) -> ManagedAsset:
         dialog = TemplateEditDialog(session, int(asset_id), parent=parent)
         return dialog.exec() == QDialog.DialogCode.Accepted
 
+    def rebuild(parent: QWidget, asset_id: AssetId) -> bool:
+        """Re-read the stored source with the current engine. Harmless to repeat."""
+
+        outcome = rebuilds.rebuild(int(asset_id))
+
+        if outcome.action != "rebuilt":
+            QMessageBox.warning(
+                parent, "Could not rebuild",
+                f"{outcome.name}: {outcome.detail or 'the rebuilt failed.'}",
+            )
+            return False
+
+        return True
+
+
     return ManagedAsset(
         title="Templates",
         list_items=list_items,
@@ -122,6 +145,7 @@ def template_asset(session: Session) -> ManagedAsset:
             AssetAction(label="Versions...", run=versions),
             AssetAction(label="Duplicate", run=duplicate),
             AssetAction(label=toggle_label, run=toggle),
+            AssetAction(label="Rebuild", run=rebuild),
         ),
         delete=lambda asset_id: repository.delete(int(asset_id)),
     )
@@ -230,8 +254,21 @@ def template_version_asset(session: Session, template_id: int) -> ManagedAsset:
         return dialog.version if dialog.exec() == QDialog.DialogCode.Accepted else None
 
     def restore(parent: QWidget, asset_id: AssetId) -> bool:
-        repository.restore(template_id, int(asset_id))
+        """Re-reads that versiuon's source with the current engine, so a restore 
+        won't bring older engine's bugs back with it.
+        """
+        
+        outcome = TemplateRebuildService(session).restore(template_id, int(asset_id))
+
+        if outcome.action != "restored":
+            QMessageBox.warning(
+                parent, "Could not restore",
+                f"{outcome.name}: {outcome.detail or 'the restore failed.'}",
+            )
+            return False
+
         return True
+    
 
     return ManagedAsset(
         title=f"Versions of {repository.get(template_id).name}",

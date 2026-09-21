@@ -4,6 +4,7 @@ from collections.abc import Mapping
 
 from sqlalchemy import select, delete
 from sqlalchemy.orm import Session
+from pydantic import ValidationError
 
 from app.assets.repository import save_assets
 from app.assets.service import AssetBlob
@@ -15,7 +16,7 @@ from app.db.models.registries.document_type import DocumentTypeRegistry
 from app.document_engine.blueprint.models.template import TemplateBlueprint
 from app.document_engine.blueprint.assets import collect_assets_ids
 from app.document_engine.blueprint.serialize import dump_blueprint, load_blueprint
-from app.services.errors import EntityNotFound, InvalidSelection
+from app.services.errors import EntityNotFound, InvalidSelection, BlueprintUnreadable
 from app.services.sentinel import Unset, UNSET
 
 class TemplateRepository:
@@ -28,6 +29,9 @@ class TemplateRepository:
     ) -> None:
         
         self._session = session
+
+
+########################################### PUBLIC METHODS ###########################################
 
     def create(
             self,
@@ -116,45 +120,6 @@ class TemplateRepository:
         self._session.commit()
 
 
-    def _add_version(
-            self,
-            template_id: int,
-            version: int,
-            blueprint: TemplateBlueprint,
-            bundle: Mapping[str, AssetBlob],
-            source: AssetBlob,
-    ) -> TemplateVersion:
-
-        sections, placeholders, config = dump_blueprint(blueprint)
-
-        row = TemplateVersion(
-            template_id=template_id,
-            version=version,
-            source_sha256=source.sha256,
-            sections=sections,
-            placeholders=placeholders,
-            config=config,
-        )
-        self._session.add(row)
-        self._session.flush()
-
-        referenced = collect_assets_ids(blueprint)
-        save_assets(
-            self._session,
-            {source.sha256: source} | { h: bundle[h] for h in referenced if h in bundle },
-        )
-
-        for sha in referenced | {source.sha256}:
-            self._session.execute(
-                template_version_asset_m2m.insert().values(
-                    template_version_id=row.id,
-                    asset_sha256=sha,
-                )
-            )
-
-        return row
-
-
     def sync_system_version(
             self,
             template_id: int,
@@ -172,25 +137,7 @@ class TemplateRepository:
 
         return self._append_version(template_id, blueprint, bundle, source)
 
-
-    def _append_version(
-            self,
-            template_id: int,
-            blueprint: TemplateBlueprint,
-            bundle: Mapping[str, AssetBlob],
-            source: AssetBlob,
-    ) -> int:
-
-        version = self.current_version(template_id).version + 1
-
-        self._add_version(template_id, version, blueprint, bundle, source)
-        self._prune(template_id)
-        self._collect_orphans()
-        self._session.commit()
-
-        return version
-
-
+    
     def get(self, template_id: int) -> Template:
         template = self._session.get(Template, template_id)
         if template is None:
@@ -218,30 +165,44 @@ class TemplateRepository:
         return row
 
 
+    def version(self, template_id: int, version: int) -> TemplateVersion:
+        return self._version(template_id, version)
+    
+
     def get_blueprint(self, template_id: int) -> TemplateBlueprint:
-        row = self.current_version(template_id)
-        return load_blueprint(row.sections, row.placeholders, row.config)
+        return self.load(self.current_version(template_id))
 
 
-    def _template(
-            self,
-            template_id: int,
-    ) -> Template:
+    def load(self, row: TemplateVersion) -> TemplateBlueprint:
+        """Stored JSON is validated against up-to-date models on every load, so 
+        a blueprint written by an older engine can fail to load.
+        
+        Pydantic ValidationError is not an AppError, so it would escape every 
+        `except ServiceError` guard in the GUI. It must be handled here, once, for all.
+        """
 
-        template = self._session.get(Template, template_id)
-        if template is None:
-            raise EntityNotFound(
-                f"template {template_id} not found",
-                context={"template_id": template_id},
-            )
-        return template
+        try:
+            return load_blueprint(row.sections, row.placeholders, row.config)
+        except ValidationError as e:
+            raise BlueprintUnreadable(
+                f"template {row.template_id} v{row.version} does not match the "
+                f"current blueprint models",
+                user_message="This template was saved by an older version of Plater "
+                             "and has to be rebuilt before it can be used.",
+                context={
+                    "template_id": row.template_id,
+                    "version": row.version,
+                    "engine_version": row.config.get("engine_version", 0),
+                    "errors": e.error_count(),
+                },
+            ) from e
 
 
     def restore(self, template_id: int, version: int) -> int:
         """Copy an old version forward as the newest, history stays append-only."""
 
         old = self._version(template_id, version)
-        blueprint = load_blueprint(old.sections, old.placeholders, old.config)
+        blueprint = self.load(old)
 
         return self.add_version(
             template_id, blueprint, {}, self._source_blob(old.source_sha256),
@@ -333,62 +294,7 @@ class TemplateRepository:
             .order_by(TemplateVersion.version.desc())
         ).all())
 
-
-    def _prune(self, template_id: int) -> None:
-        versions = self._session.scalars(
-            select(TemplateVersion)
-            .where(TemplateVersion.template_id == template_id)
-            .order_by(TemplateVersion.version.desc())
-        ).all()
-
-        for old in versions[self.KEEP_VERSIONS:]:
-            self._session.execute(
-                delete(template_version_asset_m2m).where(
-                    template_version_asset_m2m.c.template_version_id == old.id,
-                )
-            )
-            self._session.delete(old)
-
-        self._session.flush()
-
-
-    def _collect_orphans(self) -> None:
-        referenced = select(template_version_asset_m2m.c.asset_sha256)
-        self._session.execute(delete(Asset).where(Asset.sha256.not_in(referenced)))
-
-
-    def _version(self, template_id: int, version: int) -> TemplateVersion:
-        row = self._session.scalars(
-            select(TemplateVersion).where(
-                TemplateVersion.template_id == template_id,
-                TemplateVersion.version == version,
-            )
-        ).first()
-
-        if row is None:
-            raise EntityNotFound(
-                f"temlpate {template_id} has no version {version}",
-                context={"template_id": template_id, "version": version},
-            )
-        return row
-
-
-    def _source_blob(self, sha256: str) -> AssetBlob:
-        row = self._session.get(Asset, sha256)
-
-        if row is None:
-            raise EntityNotFound(
-                f"source document {sha256} is not stored",
-                context={"sha256": sha256},
-            )
-
-        return AssetBlob(
-            sha256=sha256,
-            mime_type=row.mime_type,
-            data=row.data,
-        )
-
-
+    
     def get_source(
             self,
             template_id: int,
@@ -495,6 +401,134 @@ class TemplateRepository:
             query = query.where(Template.name.icontains(search))
 
         return list(self._session.scalars(query).all())
+
+
+########################################### PRIVATE METHODS ###########################################
+    
+    def _template(
+            self,
+            template_id: int,
+    ) -> Template:
+
+        template = self._session.get(Template, template_id)
+        if template is None:
+            raise EntityNotFound(
+                f"template {template_id} not found",
+                context={"template_id": template_id},
+            )
+        return template
+
+    
+    def _add_version(
+            self,
+            template_id: int,
+            version: int,
+            blueprint: TemplateBlueprint,
+            bundle: Mapping[str, AssetBlob],
+            source: AssetBlob,
+    ) -> TemplateVersion:
+
+        sections, placeholders, config = dump_blueprint(blueprint)
+
+        row = TemplateVersion(
+            template_id=template_id,
+            version=version,
+            source_sha256=source.sha256,
+            sections=sections,
+            placeholders=placeholders,
+            config=config,
+        )
+        self._session.add(row)
+        self._session.flush()
+
+        referenced = collect_assets_ids(blueprint)
+        save_assets(
+            self._session,
+            {source.sha256: source} | { h: bundle[h] for h in referenced if h in bundle },
+        )
+
+        for sha in referenced | {source.sha256}:
+            self._session.execute(
+                template_version_asset_m2m.insert().values(
+                    template_version_id=row.id,
+                    asset_sha256=sha,
+                )
+            )
+
+        return row
+
+
+    def _append_version(
+            self,
+            template_id: int,
+            blueprint: TemplateBlueprint,
+            bundle: Mapping[str, AssetBlob],
+            source: AssetBlob,
+    ) -> int:
+
+        version = self.current_version(template_id).version + 1
+
+        self._add_version(template_id, version, blueprint, bundle, source)
+        self._prune(template_id)
+        self._collect_orphans()
+        self._session.commit()
+
+        return version
+
+
+    def _prune(self, template_id: int) -> None:
+        versions = self._session.scalars(
+            select(TemplateVersion)
+            .where(TemplateVersion.template_id == template_id)
+            .order_by(TemplateVersion.version.desc())
+        ).all()
+
+        for old in versions[self.KEEP_VERSIONS:]:
+            self._session.execute(
+                delete(template_version_asset_m2m).where(
+                    template_version_asset_m2m.c.template_version_id == old.id,
+                )
+            )
+            self._session.delete(old)
+
+        self._session.flush()
+
+
+    def _collect_orphans(self) -> None:
+        referenced = select(template_version_asset_m2m.c.asset_sha256)
+        self._session.execute(delete(Asset).where(Asset.sha256.not_in(referenced)))
+
+
+    def _version(self, template_id: int, version: int) -> TemplateVersion:
+        row = self._session.scalars(
+            select(TemplateVersion).where(
+                TemplateVersion.template_id == template_id,
+                TemplateVersion.version == version,
+            )
+        ).first()
+
+        if row is None:
+            raise EntityNotFound(
+                f"temlpate {template_id} has no version {version}",
+                context={"template_id": template_id, "version": version},
+            )
+        return row
+
+
+    def _source_blob(self, sha256: str) -> AssetBlob:
+        row = self._session.get(Asset, sha256)
+
+        if row is None:
+            raise EntityNotFound(
+                f"source document {sha256} is not stored",
+                context={"sha256": sha256},
+            )
+
+        return AssetBlob(
+            sha256=sha256,
+            mime_type=row.mime_type,
+            data=row.data,
+        )
 
 
     def _check_document_type(self, code: str) -> None:

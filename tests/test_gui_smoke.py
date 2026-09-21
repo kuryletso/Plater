@@ -237,7 +237,7 @@ def test_manager_actions_need_a_selection(qt_app, session: Session, name: str):
     assert all(not button.isEnabled() for button in dialog._extra_buttons)
 
 
-def test_templates_offer_edit_versions_duplicate_and_hide(qt_app, session: Session):
+def test_templates_offer_edit_versions_duplicate_hide_and_rebuild(qt_app, session: Session):
     """Edit covers metadata only — content changes are a new version."""
     from app.gui.dialogs.manager_dialog import ManagerDialog
 
@@ -245,7 +245,7 @@ def test_templates_offer_edit_versions_duplicate_and_hide(qt_app, session: Sessi
 
     assert dialog.edit_button is not None
     assert [button.text() for button in dialog._extra_buttons] == [
-        "Versions...", "Duplicate", "Hide",
+        "Versions...", "Duplicate", "Hide", "Rebuild",
     ]
 
 
@@ -1298,3 +1298,87 @@ def test_a_template_declaring_a_language_it_never_places_stays_single(window,
     window.draft.set_template(template_id, "invoice", ("ENG", "UKR"))
 
     assert window.document_column._grid_languages() == ("ENG",)
+
+
+# --- 23c: stale and unreadable templates in the UI ---------------------------
+
+def stub_message_boxes(monkeypatch, answer=True):
+    from PySide6.QtWidgets import QMessageBox
+
+    button = QMessageBox.StandardButton.Yes if answer else QMessageBox.StandardButton.No
+    monkeypatch.setattr(QMessageBox, "question", staticmethod(lambda *a, **k: button))
+    monkeypatch.setattr(QMessageBox, "warning", staticmethod(lambda *a, **k: 0))
+    monkeypatch.setattr(QMessageBox, "information", staticmethod(lambda *a, **k: 0))
+
+
+def test_the_startup_offer_rebuilds_stale_user_templates(window, session: Session,
+                                                         monkeypatch, bilingual_template):
+    from tests.conftest import restamp
+    from app.services.template.rebuild_service import BlueprintState, TemplateRebuildService
+
+    template_id, _ = bilingual_template
+    restamp(session, template_id, 0)
+    stub_message_boxes(monkeypatch, answer=True)
+
+    window.offer_template_rebuilds()
+
+    assert TemplateRebuildService(session).state(template_id) is BlueprintState.OK
+
+
+def test_declining_the_startup_offer_leaves_templates_alone(window, session: Session,
+                                                            monkeypatch,
+                                                            bilingual_template):
+    from tests.conftest import restamp
+    from app.services.template.rebuild_service import BlueprintState, TemplateRebuildService
+
+    template_id, _ = bilingual_template
+    restamp(session, template_id, 0)
+    stub_message_boxes(monkeypatch, answer=False)
+
+    window.offer_template_rebuilds()
+
+    assert TemplateRebuildService(session).state(template_id) is BlueprintState.STALE
+
+
+def test_the_startup_offer_asks_nothing_when_everything_is_current(window, session: Session,
+                                                                   monkeypatch,
+                                                                   bilingual_template):
+    """A modal on every launch would be worse than the staleness it reports."""
+
+    from PySide6.QtWidgets import QMessageBox
+
+    asked = []
+    monkeypatch.setattr(QMessageBox, "question",
+                        staticmethod(lambda *a, **k: asked.append(a) or QMessageBox.StandardButton.No))
+
+    window.offer_template_rebuilds()
+
+    assert asked == []
+
+
+def test_the_templates_manager_marks_a_stale_template(qt_app, session: Session,
+                                                      bilingual_template):
+    from app.gui.dialogs.managers import template_asset
+    from tests.conftest import restamp
+
+    template_id, _ = bilingual_template
+    restamp(session, template_id, 0)
+
+    labels = dict(template_asset(session).list_items(None))
+
+    assert "rebuild" in labels[template_id]
+
+
+def test_a_description_field_names_its_language_even_when_there_is_one(qt_app,
+                                                                      session: Session):
+    """Which language a single description field is for is not obvious."""
+
+    from PySide6.QtWidgets import QLineEdit
+    from app.gui.columns.lines_row import LinesContainer
+
+    container = LinesContainer(session)
+    container.set_context(("ENG",), [])
+
+    placeholders = {edit.placeholderText() for edit in container.findChildren(QLineEdit)}
+
+    assert "Description (ENG)" in placeholders

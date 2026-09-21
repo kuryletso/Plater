@@ -24,3 +24,10 @@ class SequenceConflict(ServiceError):
 
     category = ErrorCategory.INTERNAL
     recoverable = True
+
+
+class BlueprintUnreadable(ServiceError):
+    """Stored blueprint no longer validates against the current models."""
+
+    category = ErrorCategory.FORMAT
+    recoverable = True

@@ -7,10 +7,11 @@ from PySide6.QtWidgets import QListWidgetItem, QWidget, QDialog, QMessageBox
 from sqlalchemy.orm import Session
 
 from app.gui.generated.ui_template_column import Ui_TemplateColumn
-from app.services.template.repository import TemplateRepository
 from app.gui.draft_state import DraftState
 from app.gui.dialogs.template_import import TemplateImportDialog
 from app.gui.dialogs.template_edit import TemplateEditDialog
+from app.services.template.repository import TemplateRepository
+from app.services.template.rebuild_service import BlueprintState, TemplateRebuildService
 from app.services.errors import ServiceError
 from app.db.models.core.template_version import TemplateVersion
 
@@ -141,11 +142,21 @@ class TemplateColumn(QWidget):
         )
         description = escape(config.get("description") or "") or "--"
 
+        notice = {
+            BlueprintState.STALE:
+                '<br><span style="color:#8a6d00">Imported by an older engine — '
+                'rebuild it to pick up the latest fixes.</span>',
+            BlueprintState.UNREADABLE:
+                '<br><span style="color:#c0392b">This template cannot be read and '
+                'must be rebuilt.</span>',
+        }.get(TemplateRebuildService(self._session).state(version.template_id), "")
+
         self.ui.details_label.setText(
             f"<b>Type:</b> {escape(config.get('type', '?'))}<br>"
             f"<b>Languages:</b> {languages}<br>"
             f"<b>Version:</b> {version.version}<br>"
             f"<b>Description:</b> {description}"
+            f"{notice}"
         )
 
 

@@ -4,7 +4,6 @@ import sys
 
 from PySide6.QtWidgets import QApplication
 
-
 def main() -> int:
     from app.db.session import init_db
     init_db()
@@ -57,6 +56,7 @@ def main() -> int:
     from app.gui.main_window import MainWindow
     window = MainWindow()
     window.show()
+    window.offer_template_rebuilds()
 
     return app.exec()
 

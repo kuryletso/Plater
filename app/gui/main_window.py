@@ -41,6 +41,7 @@ from app.services.errors import ServiceError
 from app.services.invoice.generate import InvoiceGenerateService, GenerationResult
 from app.services.invoice.draft import InvoiceDraft
 from app.services.invoice_line.repository import InvoiceLineRepository, InvoiceLineText
+from app.services.template.rebuild_service import TemplateRebuildService
 
 
 def _stub_content(title: str) -> QWidget:
@@ -108,6 +109,55 @@ class MainWindow(QMainWindow):
             column.catalog_changed.connect(self._revalidate_columns)
 
         self._refresh_readiness()
+
+
+    def closeEvent(self, event) -> None:
+        self._session.close()
+        super().closeEvent(event)
+
+
+    def offer_template_rebuilds(self) -> None:
+        """Offers to rebuild the user's stale templates. 
+        Called from main() after the window is shown, deliberately not from __init__: 
+        a modal in a constructor blocks every headless test that builds a MainWindow.
+        
+        Built-in templates are rebuilt by the seeder without asking; 
+        a user's own template is never rewritten without permission.
+        """
+
+        service = TemplateRebuildService(self._session)
+        stale = service.stale(system=False)
+        if not stale:
+            return
+
+        listed = "\n".join(f" \u2022 {template.name}" for template in stale[:10])
+        more = "" if len(stale) <= 10 else f"\n ... and {len(stale) - 10} more"
+
+        answer = QMessageBox.question(
+            self,
+            "Rebuild templates?",
+            f"{len(stale)} template(s) were imported by an older version of the "
+            f"document engine: \n\n{listed}{more}\n\n"
+            f"Rebuild them now from their stored source? They keep their name, "
+            f"languages and version history -- only the engine's reading of the "
+            f"document is refreshed.",
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+
+        failed = [
+            outcome
+            for outcome in (service.rebuild(template.id) for template in stale)
+            if outcome.action != "rebuilt"
+        ]
+        self._revalidate_columns()
+
+        if failed:
+            QMessageBox.warning(
+                self,
+                "Some templates could not be rebuilt",
+                "\n".join(f"{o.name}: {o.detail}" for o in failed),
+            )
 
 
     def _build_menu(self) -> None:
@@ -354,8 +404,3 @@ class MainWindow(QMainWindow):
             set_preferred_languages(display_languages())
             self._revalidate_columns()
             self.document_column.reload_units()
-
-
-    def closeEvent(self, event) -> None:
-        self._session.close()
-        super().closeEvent(event)
