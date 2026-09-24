@@ -701,3 +701,167 @@ def test_a_tab_and_a_line_break_in_one_run_keep_their_order(tmp_path, fixture_pr
     body = render_raw_xml(_ingest_docx(path, fixture_provider)).find(f"{W}body")
 
     assert run_contents(body) == ["a", "tab", "b", "br", "tab", "c"]
+
+
+# --- Task 16: images in headers and footers ----------------------------------
+
+A = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
+R_EMBED = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}embed"
+
+
+class BundleAssets:
+    """An AssetProvider over an ingestion bundle, so rendering keeps the images."""
+
+    def __init__(self, bundle):
+        self._bundle = bundle
+
+    def get(self, asset_id):
+        from app.document_engine.rendering.ports import Asset
+
+        blob = self._bundle.get(asset_id)
+        return Asset(data=blob.data, mime=blob.mime_type) if blob is not None else None
+
+
+def real_provider():
+    from app.document_engine.blueprint.models.template import TemplateConfig
+    from tests.conftest import FixtureInputProvider, real_placeholder_defaults
+
+    return FixtureInputProvider(
+        placeholders=real_placeholder_defaults(),
+        config=TemplateConfig(
+            primary_language="ENG", secondary_language=None, type="invoice",
+            name="template", description="", append_currency=True,
+        ),
+    )
+
+
+def ingest_with_assets(path, provider):
+    from app.document_engine.orchestration.pipeline import TemplateIngestionPipeline
+
+    pipeline = TemplateIngestionPipeline(provider)
+    result = pipeline.ingest(path)
+    return pipeline.finalize(result.draft), result
+
+
+def _images(blocks):
+    from app.document_engine.blueprint.models.segment import ImageSegment
+
+    for block in blocks:
+        if isinstance(block, ParagraphBlueprint):
+            yield from (s for s in block.segments if isinstance(s, ImageSegment))
+        elif isinstance(block, TableBlueprint):
+            for row in block.rows:
+                for cell in row.cells:
+                    if isinstance(cell, CellBlueprint):
+                        yield from _images(cell.blocks)
+
+
+def header_footer_images(blueprint):
+    return [
+        image
+        for section in blueprint.sections
+        for group in (section.headers, section.footers)
+        for hf in (group.default, group.first, group.even)
+        if hf is not None
+        for image in _images(hf.blocks)
+    ]
+
+
+def body_images(blueprint):
+    return [image for section in blueprint.sections for image in _images(section.blocks)]
+
+
+@pytest.mark.xfail(strict=True, reason=f"Task 16 — {TASK}: header/footer rIds resolve through document.xml.rels")
+def test_a_footer_image_resolves_through_the_footers_own_relationships(real_template):
+    """layout.docx's footer shows the body's picture, as rId1 in footer1.xml.rels.
+    Through document.xml.rels, rId1 is the theme, which got stored as an "image"."""
+
+    blueprint, result = ingest_with_assets(real_template("layout"), real_provider())
+    (footer_image,) = header_footer_images(blueprint)
+
+    # both reference word/media/image1.jpg, so they must be the same asset
+    assert footer_image.asset_id in {image.asset_id for image in body_images(blueprint)}
+    assert all(blob.mime_type.startswith("image/") for blob in result.assets.values())
+
+
+@pytest.mark.xfail(strict=True, reason=f"Task 16 — {TASK}")
+def test_a_footer_image_reaches_the_rendered_footer(real_template):
+    """End of the chain: the footer part holds a picture, resolved through its own
+    relationships, and the bytes behind it are a JPEG."""
+
+    import re
+
+    blueprint, result = ingest_with_assets(real_template("layout"), real_provider())
+    docx = TemplateRenderingPipeline(BundleAssets(result.assets)).render_raw(blueprint).docx
+
+    pictures = []
+    with zipfile.ZipFile(io.BytesIO(docx)) as archive:
+        for name in archive.namelist():
+            if not re.fullmatch(r"word/footer\d+\.xml", name):
+                continue
+            rids = [blip.get(R_EMBED) for blip in etree.fromstring(archive.read(name)).iter(f"{A}blip")]
+            if not rids:
+                continue
+            rels = etree.fromstring(archive.read(f"word/_rels/{name.rsplit('/', 1)[-1]}.rels"))
+            targets = {relationship.get("Id"): relationship.get("Target") for relationship in rels}
+            pictures += [archive.read(f"word/{targets[rid]}")[:2] for rid in rids]
+
+    assert pictures == [b"\xff\xd8"]        # one JPEG
+
+
+@pytest.mark.xfail(strict=True, reason=f"Task 16 — {TASK}")
+def test_a_header_gets_its_own_picture_not_the_bodys(tmp_path, fixture_provider):
+    """Relationship ids are per part, so they collide across parts. Whatever the
+    ids, a header's picture must be the header's picture."""
+
+    from docx import Document
+    from PIL import Image
+
+    body_png, header_png = tmp_path / "body.png", tmp_path / "header.png"
+    Image.new("RGB", (8, 8), "red").save(body_png)
+    Image.new("RGB", (8, 8), "blue").save(header_png)
+
+    document = Document()
+    document.add_picture(str(body_png))
+    document.sections[0].header.paragraphs[0].add_run().add_picture(str(header_png))
+    path = tmp_path / "pictures.docx"
+    document.save(path)
+
+    blueprint, result = ingest_with_assets(path, fixture_provider)
+    (header_image,) = header_footer_images(blueprint)
+
+    assert result.assets[header_image.asset_id].data == header_png.read_bytes()
+
+
+@pytest.mark.xfail(strict=True, reason=f"Task 16 — {TASK}: any related part is read as an image")
+def test_a_relationship_that_is_not_an_image_is_never_read_as_one(tmp_path, fixture_provider):
+    """Defence in depth: a picture pointed at the styles part is refused with a
+    warning at import, not stored as an "image" that only fails at render."""
+
+    from docx import Document
+    from PIL import Image
+
+    png = tmp_path / "body.png"
+    Image.new("RGB", (8, 8), "red").save(png)
+    document = Document()
+    document.add_picture(str(png))
+    source = tmp_path / "source.docx"
+    document.save(source)
+
+    with zipfile.ZipFile(source) as archive:
+        parts = {name: archive.read(name) for name in archive.namelist()}
+    rels = etree.fromstring(parts["word/_rels/document.xml.rels"])
+    by_type = {relationship.get("Type").rsplit("/", 1)[-1]: relationship.get("Id") for relationship in rels}
+    parts["word/document.xml"] = parts["word/document.xml"].replace(
+        f'r:embed="{by_type["image"]}"'.encode(), f'r:embed="{by_type["styles"]}"'.encode(),
+    )
+    path = tmp_path / "misdirected.docx"
+    with zipfile.ZipFile(path, "w") as archive:
+        for name, data in parts.items():
+            archive.writestr(name, data)
+
+    blueprint, result = ingest_with_assets(path, fixture_provider)
+
+    assert body_images(blueprint) == []
+    assert "image_relationship_not_an_image" in codes(result.diagnostics)
+    assert all(blob.mime_type.startswith("image/") for blob in result.assets.values())
