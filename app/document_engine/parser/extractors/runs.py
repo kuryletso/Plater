@@ -1,15 +1,17 @@
 from lxml.etree import _Element
 from pathlib import PurePosixPath
+from dataclasses import replace
 
 from app.document_engine.parser.context import ParserContext
-from app.document_engine.parser.models.inlines import RunNode, ImageNode, RunStyle, BreakNode
+from app.document_engine.parser.models.inlines import RunNode, ImageNode, RunStyle, BreakNode, FieldNode
+from app.document_engine.parser.extractors.fields import FieldChar, InstrText, RunItem
 from app.document_engine.parser.namespaces import NS
 from app.document_engine.parser.errors import ParserSecurityError, ParserAssetError, ParserFormatError, UnsupportedFeatureError
 from app.core.errors import Layer
 from app.document_engine.utils.intrinsic_emu import intrinsic_emu
 from app.document_engine.enums.enums import BreakType
 
-type ParsedInlineNode = RunNode | ImageNode | BreakNode
+type ParsedInlineNode = RunNode | ImageNode | BreakNode | FieldNode
 
 MAX_IMAGE_SIZE_BYTES = 25 * 1024 * 1024
 _HARD_BREAKS = {kind.value for kind in BreakType}
@@ -40,14 +42,14 @@ _HARD_BREAKS = {kind.value for kind in BreakType}
 #     return "".join(parts)
 
 
-def extract_run_parts(run: _Element) -> list[str | BreakType]:
-    """Text and hard breaks. In document order.
+def extract_run_parts(run: _Element) -> list[str | BreakType | FieldChar | InstrText]:
+    """Text, hard breaks and fields in document order.
     
     Soft line break stay in the text as newline.
     Page or column break splits the run into separate parts.
     """
 
-    parts: list[str | BreakType] = []
+    parts: list[str | BreakType | FieldChar | InstrText] = []
     text: list[str] = []
 
     def flush() -> None:
@@ -73,6 +75,14 @@ def extract_run_parts(run: _Element) -> list[str | BreakType]:
             elif br_type in _HARD_BREAKS:
                 flush()
                 parts.append(BreakType(br_type))
+
+        elif tag == f"{{{NS["w"]}}}fldChar":
+            flush()
+            parts.append(FieldChar(child.get(f"{{{NS["w"]}}}fldCharType") or ""))
+
+        elif tag == f"{{{NS["w"]}}}instrText":
+            flush()
+            parts.append(InstrText(child.text or ""))
 
     flush()
     return parts
@@ -115,6 +125,22 @@ def parse_image(run: _Element, context: ParserContext) -> ImageNode | None:
     
     relationship = context.relationships.get(relationship_id)
     if relationship is None:
+        context.diagnostics.warn(
+            Layer.PARSER,
+            "image_relationship_missing",
+            f"Image reference '{relationship_id}' has no relationship; skipped.",
+            relationship_id=relationship_id,
+        )
+        return None
+    if not relationship.type.endswith("/image"):
+        context.diagnostics.warn(
+            Layer.PARSER,
+            "image_relationship_not_an_image",
+            f"Image reference '{relationship_id}' points at '{relationship.target}', "
+            f"which is not an image; skipped.",
+            relationship_id=relationship_id,
+            target=relationship.target,
+        )
         return None
     if relationship.is_external:
         raise UnsupportedFeatureError(
@@ -169,7 +195,7 @@ def parse_inline(
         run: _Element,
         context: ParserContext,
         paragraph_base: RunStyle,
-) -> list[ParsedInlineNode]:
+) -> list[RunItem]:
 
     result = []
 
@@ -183,8 +209,16 @@ def parse_inline(
             result.append(BreakNode(kind=part))
             continue
 
+        if isinstance(part, FieldChar):
+            result.append(part)
+            continue
+
         if style is None:
             style = context.style_resolver.resolve_run_style(run, paragraph_base)
-        result.append(RunNode(text=part, style=style))
+
+        if isinstance(part, InstrText):
+            result.append(replace(part, style=style))       # filed takes its code's formatting
+        else:
+            result.append(RunNode(text=part, style=style))
 
     return result

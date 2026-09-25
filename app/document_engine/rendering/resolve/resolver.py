@@ -14,7 +14,7 @@ from app.document_engine.blueprint.models.table import (
     CellBlueprint, CellPlaceholder,
 )
 from app.document_engine.blueprint.models.segment import (
-    TextSegment, ImageSegment, BreakSegment,
+    TextSegment, ImageSegment, BreakSegment, FieldSegment,
     PlaceholderSegment, JoinedPlaceholderSegment, GroupedPlaceholderSegment,
 )
 from app.document_engine.rendering.context import RenderContext
@@ -23,7 +23,7 @@ from app.document_engine.rendering.errors import PlaceholderError
 from app.document_engine.rendering.resolve.models import (
     ResolvedDocument, ResolvedSection, ResolvedParagraph,
     ResolvedTable, ResolvedRow, ResolvedCell, ResolvedBlock,
-    ResolvedTextRun, ResolvedImageRun, ResolvedBreakRun, ResolvedRun,
+    ResolvedTextRun, ResolvedImageRun, ResolvedBreakRun, ResolvedFieldRun, ResolvedRun,
     ResolvedHeaderFooter, ResolvedHeaderFooterGroup,
 )
 from app.document_engine.rendering.resolve.invoice_table import build_invoice_table
@@ -316,6 +316,14 @@ class DocumentResolver:
 
         if isinstance(seg, BreakSegment):
             return [ResolvedBreakRun(kind=seg.kind)]
+
+        if isinstance(seg, FieldSegment):
+            return [ResolvedFieldRun(
+                kind=seg.kind,
+                instruction=seg.instruction,
+                style=seg.style,
+                cached=seg.cached,
+            )]
         
         if isinstance(seg, ImageSegment):
             asset = self._assets.get(seg.asset_id)

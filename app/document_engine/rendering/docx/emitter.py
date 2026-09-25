@@ -8,7 +8,7 @@ from app.core.errors import Layer
 from app.document_engine.rendering.resolve.models import (
     ResolvedDocument, ResolvedSection, ResolvedParagraph,
     ResolvedTable, ResolvedRow, ResolvedCell,
-    ResolvedTextRun, ResolvedImageRun, ResolvedBreakRun,
+    ResolvedTextRun, ResolvedImageRun, ResolvedBreakRun, ResolvedFieldRun,
 )
 from app.document_engine.rendering.docx.package import DocxPackage
 from app.document_engine.rendering.docx.constants import (
@@ -16,7 +16,7 @@ from app.document_engine.rendering.docx.constants import (
 )
 from app.document_engine.rendering.docx.rels import REL_HEADER, REL_FOOTER, REL_SETTINGS, REL_IMAGE
 from app.document_engine.rendering.docx.document_xml import build_document
-from app.document_engine.rendering.docx.run import build_run, build_break_run
+from app.document_engine.rendering.docx.run import build_run, build_break_run, build_field
 from app.document_engine.rendering.docx.drawing import build_image_run, EXT_BY_MIME
 from app.document_engine.rendering.docx.paragraph import build_paragraph
 from app.document_engine.rendering.docx.table import build_table, build_row, build_cell
@@ -81,7 +81,7 @@ class DocxEmitter:
 
         if has_even:
             self._pkg.add_xml("word/settings.xml", build_settings(True), CT_SETTINGS)
-            self._pkg.add_document_relationship(CT_SETTINGS, "settings.xml")
+            self._pkg.add_document_relationship(REL_SETTINGS, "settings.xml")
 
         self._pkg.add_xml("word/document.xml", build_document(body, last_sect_pr), CT_DOCUMENT)
 
@@ -141,6 +141,8 @@ class DocxEmitter:
                     runs.append(img)
             elif isinstance(run, ResolvedBreakRun):
                 runs.append(build_break_run(run.kind))
+            elif isinstance(run, ResolvedFieldRun):
+                runs.append(build_field(run.instruction, run.cached, run.style))
         return build_paragraph(runs, style=para.style)
     
 

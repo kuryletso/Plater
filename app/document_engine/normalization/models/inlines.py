@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from app.document_engine.enums.enums import BreakType
+from app.document_engine.enums.enums import BreakType, FieldType
 
 
 @dataclass(slots=True, frozen=True)
@@ -31,4 +31,14 @@ class NormalizedBreakNode:
     kind: BreakType
 
 
-type NormalizedInlineNode = NormalizedTextNode | NormalizedImageNode | NormalizedBreakNode
+@dataclass(slots=True, frozen=True)
+class NormalizedFieldNode:
+    kind: FieldType
+    instruction: str
+    style: NormalizedTextStyle
+    cached: str
+
+
+type NormalizedInlineNode = (
+    NormalizedTextNode | NormalizedImageNode | NormalizedBreakNode |NormalizedFieldNode
+)

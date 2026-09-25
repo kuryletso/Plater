@@ -65,7 +65,7 @@ def parse_section(section: _Element, context: ParserContext) -> SectionBreakNode
         header = parse_header_footer_by_id(
             relationship_id,
             reference_type,
-            context=context, # TODO: headers/footers have dedicated .rels; currently reuses document.xml rels which breaks meadia/hyperlinks inside headers/footers
+            context=context,
         )
         if header is not None:
             headers[header.type] = header
@@ -84,7 +84,7 @@ def parse_section(section: _Element, context: ParserContext) -> SectionBreakNode
         footer = parse_header_footer_by_id(
             relationship_id,
             reference_type,
-            context=context, # TODO: headers/footers have dedicated .rels; currently reuses document.xml rels which breaks meadia/hyperlinks inside headers/footers
+            context=context,
         )
         if footer is not None:
             footers[footer.type] = footer

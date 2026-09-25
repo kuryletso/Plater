@@ -108,13 +108,17 @@ Preserved: bold, italic, underline, fonts, sizes and colors; paragraph alignment
 indentation, spacing and line spacing; page size, orientation and margins; multiple
 sections; headers and footers, including first-page and even-page variants; tables
 with column widths, borders, shading, horizontally merged cells and alignment;
-images in the body; page breaks and tabs.
+images, including in headers and footers; page numbers and page counts; page breaks
+and tabs.
 
-Not yet supported, and silently dropped: bulleted and numbered lists, images in
-headers and footers, page numbers, strikethrough, small caps, superscript and
-subscript, highlighting, vertically merged cells, text columns, page backgrounds,
-horizontal rules and embedded fonts. The text and placeholders around them still
-render.
+Hyperlinks are kept as plain text by design, since generated documents are meant
+for print. Other Word fields, such as dates or cross-references, keep the text they
+last showed, and are reported at import.
+
+Not yet supported, and silently dropped: bulleted and numbered lists,
+strikethrough, small caps, superscript and subscript, highlighting, vertically
+merged cells, text columns, page backgrounds, horizontal rules and embedded fonts.
+The text and placeholders around them still render.
 
 When a new version of Plater reads templates better, the built-in templates are
 updated on the next launch and you are offered a one-click rebuild of your own.

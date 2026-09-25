@@ -12,7 +12,7 @@ from app.document_engine.blueprint.models.table import (
 from app.document_engine.blueprint.models.section import SectionStyleBlueprint
 from app.document_engine.blueprint.models.template import TemplateConfig
 from app.document_engine.rendering.ports import Asset
-from app.document_engine.enums.enums import BreakType
+from app.document_engine.enums.enums import BreakType, FieldType
 
 
 @dataclass(slots=True, frozen=True)
@@ -34,7 +34,15 @@ class ResolvedBreakRun:
     kind: BreakType
 
 
-ResolvedRun = ResolvedTextRun | ResolvedImageRun | ResolvedBreakRun
+@dataclass(slots=True, frozen=True)
+class ResolvedFieldRun:
+    kind: FieldType
+    instruction: str
+    style: TextStyleBlueprint
+    cached: str
+
+
+ResolvedRun = ResolvedTextRun | ResolvedImageRun | ResolvedBreakRun | ResolvedFieldRun
 
 
 @dataclass(slots=True, frozen=True)

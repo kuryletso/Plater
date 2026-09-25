@@ -6,14 +6,15 @@ from app.document_engine.normalization.models.blocks import NormalizedParagraph,
 from app.document_engine.normalization.models.inlines import (
     NormalizedTextNode,
     NormalizedImageNode,
-    NormalizedInlineNode,
     NormalizedTextStyle,
     NormalizedBreakNode,
+    NormalizedFieldNode,
+    NormalizedInlineNode,
 )
 from app.document_engine.normalization.style_defaults import DEFAULT_TEXT_STYLE, DEFAULT_PARAGRAPH_STYLE
 from app.document_engine.normalization.errors import NormalizationFormatError
 from app.document_engine.parser.models.blocks import ParagraphNode
-from app.document_engine.parser.models.inlines import RunNode, RunStyle, ImageNode, BreakNode
+from app.document_engine.parser.models.inlines import RunNode, RunStyle, ImageNode, BreakNode, FieldNode
 from app.document_engine.parser.models.styles import ParagraphStyle
 from app.document_engine.enums.enums import ParagraphAlignment, LineSpacingRule
 from app.document_engine.utils.overlay_dataclass import overlay_dataclass_strict
@@ -47,6 +48,15 @@ def normalize_paragraph(paragraph: ParagraphNode) -> NormalizedParagraph:
         elif isinstance(node, BreakNode):
             flush_runs()
             normalized_inlines.append(NormalizedBreakNode(kind=node.kind))
+
+        elif isinstance(node, FieldNode):
+            flush_runs()
+            normalized_inlines.append(NormalizedFieldNode(
+                kind=node.kind,
+                instruction=node.instruction,
+                style=normalize_text_style(node.style),
+                cached=node.cached,
+            ))
 
         else:
             raise NormalizationFormatError(

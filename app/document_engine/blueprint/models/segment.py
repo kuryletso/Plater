@@ -1,7 +1,7 @@
 from typing import Literal
 
 from app.document_engine.blueprint.models.blueprint_base import BlueprintBase
-from app.document_engine.enums.enums import PlaceholderType, BreakType
+from app.document_engine.enums.enums import PlaceholderType, BreakType, FieldType
 
 
 class TextStyleBlueprint(BlueprintBase):
@@ -51,3 +51,12 @@ class ImageSegment(BlueprintBase):
 class BreakSegment(BlueprintBase):
     type: Literal["break"] = "break"
     kind: BreakType
+
+
+class FieldSegment(BlueprintBase):
+    """A filed Word recomputes at layout time, such as the page number."""
+    type: Literal["field"] = "field"
+    kind: FieldType
+    instruction: str
+    style: TextStyleBlueprint
+    cached: str = ""        # what it showed when the template was saved

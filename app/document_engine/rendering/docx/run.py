@@ -64,3 +64,18 @@ def build_break_run(kind: BreakType) -> etree._Element:
     run = etree.Element(qn("w:r"))
     etree.SubElement(run, qn("w:br")).set(qn("w:type"), kind.value)
     return run
+
+
+def build_field(
+        instruction: str,
+        cached: str,
+        style: TextStyleBlueprint,
+) -> etree._Element:
+    """Simple field. Word and LibreOffice recompute page fields at layout, so 
+    the cached result only shows until the document is first laid out.
+    """
+
+    field = etree.Element(qn("w:fldSimple"))
+    field.set(qn("w:instr"), f" {instruction} ")
+    field.append(build_run(cached or "1", style))
+    return field

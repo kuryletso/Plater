@@ -771,7 +771,6 @@ def body_images(blueprint):
     return [image for section in blueprint.sections for image in _images(section.blocks)]
 
 
-@pytest.mark.xfail(strict=True, reason=f"Task 16 — {TASK}: header/footer rIds resolve through document.xml.rels")
 def test_a_footer_image_resolves_through_the_footers_own_relationships(real_template):
     """layout.docx's footer shows the body's picture, as rId1 in footer1.xml.rels.
     Through document.xml.rels, rId1 is the theme, which got stored as an "image"."""
@@ -784,7 +783,6 @@ def test_a_footer_image_resolves_through_the_footers_own_relationships(real_temp
     assert all(blob.mime_type.startswith("image/") for blob in result.assets.values())
 
 
-@pytest.mark.xfail(strict=True, reason=f"Task 16 — {TASK}")
 def test_a_footer_image_reaches_the_rendered_footer(real_template):
     """End of the chain: the footer part holds a picture, resolved through its own
     relationships, and the bytes behind it are a JPEG."""
@@ -809,7 +807,6 @@ def test_a_footer_image_reaches_the_rendered_footer(real_template):
     assert pictures == [b"\xff\xd8"]        # one JPEG
 
 
-@pytest.mark.xfail(strict=True, reason=f"Task 16 — {TASK}")
 def test_a_header_gets_its_own_picture_not_the_bodys(tmp_path, fixture_provider):
     """Relationship ids are per part, so they collide across parts. Whatever the
     ids, a header's picture must be the header's picture."""
@@ -833,7 +830,6 @@ def test_a_header_gets_its_own_picture_not_the_bodys(tmp_path, fixture_provider)
     assert result.assets[header_image.asset_id].data == header_png.read_bytes()
 
 
-@pytest.mark.xfail(strict=True, reason=f"Task 16 — {TASK}: any related part is read as an image")
 def test_a_relationship_that_is_not_an_image_is_never_read_as_one(tmp_path, fixture_provider):
     """Defence in depth: a picture pointed at the styles part is refused with a
     warning at import, not stored as an "image" that only fails at render."""
@@ -865,3 +861,333 @@ def test_a_relationship_that_is_not_an_image_is_never_read_as_one(tmp_path, fixt
     assert body_images(blueprint) == []
     assert "image_relationship_not_an_image" in codes(result.diagnostics)
     assert all(blob.mime_type.startswith("image/") for blob in result.assets.values())
+
+
+# --- Task 17: page numbers ---------------------------------------------------
+
+def field_runs(paragraph, runs):
+    """Append runs from a spec. Each run is a list of children: a str is a <w:t>,
+    ("fld", kind) a <w:fldChar>, and ("instr", code) an <w:instrText>."""
+
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+
+    space = "{http://www.w3.org/XML/1998/namespace}space"
+    built = []
+    for children in runs:
+        run = paragraph.add_run()
+        for child in children:
+            if isinstance(child, str):
+                element = OxmlElement("w:t")
+                element.text = child
+                element.set(space, "preserve")
+            elif child[0] == "fld":
+                element = OxmlElement("w:fldChar")
+                element.set(qn("w:fldCharType"), child[1])
+            else:
+                element = OxmlElement("w:instrText")
+                element.text = child[1]
+                element.set(space, "preserve")
+            run._r.append(element)
+        built.append(run)
+    return built
+
+
+def field_segments(blueprint):
+    # matched by name, so these tests fail on assertions, not an ImportError
+    return [s for s in segments(blueprint) if type(s).__name__ == "FieldSegment"]
+
+
+def test_a_google_docs_page_number_survives_ingestion(ingest_real):
+    """Google Docs writes the whole PAGE field into one run, with no result text.
+    Ignoring fldChar and instrText left each footer's page-number paragraph empty."""
+
+    blueprint, _ = ingest_real("layout")
+
+    assert [(f.kind, f.instruction) for f in field_segments(blueprint)] == [
+        ("PAGE", "PAGE"), ("PAGE", "PAGE"),         # the default footer and the first-page one
+    ]
+
+
+def test_a_page_number_is_written_back_as_a_field(ingest_real):
+    import re
+
+    blueprint, _ = ingest_real("layout")
+    docx = TemplateRenderingPipeline(NoAssets()).render_raw(blueprint).docx
+
+    instructions = []
+    with zipfile.ZipFile(io.BytesIO(docx)) as archive:
+        for name in archive.namelist():
+            if re.fullmatch(r"word/(header|footer)\d+\.xml", name):
+                root = etree.fromstring(archive.read(name))
+                instructions += [f.get(f"{W}instr").strip() for f in root.iter(f"{W}fldSimple")]
+
+    assert instructions == ["PAGE", "PAGE"]
+
+
+def test_a_word_page_x_of_y_stays_live(tmp_path, fixture_provider):
+    """Word caches each field's last result as plain text between separate and end.
+    Read as text, every page would print "Page 7 of 9" forever."""
+
+    from docx import Document
+
+    document = Document()
+    runs = field_runs(document.add_paragraph(), [
+        ["Page "],
+        [("fld", "begin")], [("instr", " PAGE ")], [("fld", "separate")], ["7"], [("fld", "end")],
+        [" of "],
+        [("fld", "begin")], [("instr", " NUMPAGES ")], [("fld", "separate")], ["9"], [("fld", "end")],
+    ])
+    for run in runs[1:6]:
+        run.bold = True
+    path = tmp_path / "page_x_of_y.docx"
+    document.save(path)
+
+    parts = _ingest_docx(path, fixture_provider).sections[0].blocks[0].segments
+
+    assert [(type(s).__name__, getattr(s, "text", None) or getattr(s, "kind", None)) for s in parts] == [
+        ("TextSegment", "Page "), ("FieldSegment", "PAGE"),
+        ("TextSegment", " of "), ("FieldSegment", "NUMPAGES"),
+    ]
+    assert parts[1].cached == "7"
+    assert parts[1].style.bold, "a field keeps its own formatting"
+
+
+def test_a_simple_field_survives_with_its_switches(tmp_path, fixture_provider):
+    """LibreOffice writes <w:fldSimple>, whose runs sit inside the field, so
+    findall("w:r") on the paragraph never saw them. The \\* roman switch has to
+    survive too, or page iv prints as 4."""
+
+    from docx import Document
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+
+    document = Document()
+    paragraph = document.add_paragraph("Page ")
+    simple = OxmlElement("w:fldSimple")
+    simple.set(qn("w:instr"), r" PAGE \* roman ")
+    run, text = OxmlElement("w:r"), OxmlElement("w:t")
+    text.text = "iv"
+    run.append(text)
+    simple.append(run)
+    paragraph._p.append(simple)
+    path = tmp_path / "simple_field.docx"
+    document.save(path)
+
+    blueprint = _ingest_docx(path, fixture_provider)
+    emitted = [element.get(f"{W}instr") for element in render_raw_xml(blueprint).iter(f"{W}fldSimple")]
+
+    assert [(f.kind, f.instruction, f.cached) for f in field_segments(blueprint)] == [
+        ("PAGE", r"PAGE \* roman", "iv"),
+    ]
+    assert emitted == [r" PAGE \* roman "]
+
+
+def test_a_field_code_split_mid_word_still_reads(tmp_path, fixture_provider):
+    """Word splits instrText wherever an edit landed: ' PA' + 'GE '."""
+
+    from docx import Document
+
+    document = Document()
+    field_runs(document.add_paragraph(), [
+        [("fld", "begin")], [("instr", " PA")], [("instr", "GE ")], [("fld", "separate")],
+        ["3"], [("fld", "end")],
+    ])
+    path = tmp_path / "split_code.docx"
+    document.save(path)
+
+    assert [f.kind for f in field_segments(_ingest_docx(path, fixture_provider))] == ["PAGE"]
+
+
+def test_an_unsupported_field_keeps_the_text_it_showed(tmp_path, fixture_provider):
+    """Only page fields are recomputed. Anything else — a date, a cross-reference —
+    keeps what it last showed, and says so at import."""
+
+    from docx import Document
+    from app.document_engine.orchestration.pipeline import TemplateIngestionPipeline
+
+    document = Document()
+    field_runs(document.add_paragraph(), [
+        ["Issued "],
+        [("fld", "begin")], [("instr", ' DATE \\@ "dd.MM.yyyy" ')], [("fld", "separate")],
+        ["24.09.2026"], [("fld", "end")],
+    ])
+    path = tmp_path / "date_field.docx"
+    document.save(path)
+
+    pipeline = TemplateIngestionPipeline(fixture_provider)
+    result = pipeline.ingest(path)
+
+    assert "".join(texts(pipeline.finalize(result.draft))) == "Issued 24.09.2026"
+    assert "field_kept_as_text" in codes(result.diagnostics)
+
+
+# --- Task 24: text inside hyperlinks and other run containers ----------------
+#
+# Hyperlinks are kept as plain text by design: the output is meant for print
+# (agreed with the user's partners 2026-09-24). What must never happen is losing
+# the text, which is what skipping the containers did.
+
+LINK_TASK = "Task 24 — added to batch A 2026-09-24"
+
+
+def _run(text):
+    from docx.oxml import OxmlElement
+
+    run, t = OxmlElement("w:r"), OxmlElement("w:t")
+    t.text = text
+    t.set("{http://www.w3.org/XML/1998/namespace}space", "preserve")
+    run.append(t)
+    return run
+
+
+def add_hyperlink(paragraph, url, text):
+    """python-docx has no hyperlink API: relate the URL to the paragraph's own
+    part (the header's, for a header paragraph) and wrap a run."""
+
+    from docx.opc.constants import RELATIONSHIP_TYPE
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+
+    link = OxmlElement("w:hyperlink")
+    link.set(qn("r:id"), paragraph.part.relate_to(url, RELATIONSHIP_TYPE.HYPERLINK, is_external=True))
+    link.append(_run(text))
+    paragraph._p.append(link)
+
+
+def test_a_hyperlink_is_kept_as_plain_text(tmp_path, fixture_provider):
+    """Runs inside <w:hyperlink> were never read at all, so the linked words vanished."""
+
+    from docx import Document
+
+    document = Document()
+    add_hyperlink(document.add_paragraph("Visit "), "https://example.com", "our site")
+    path = tmp_path / "link.docx"
+    document.save(path)
+
+    blueprint = _ingest_docx(path, fixture_provider)
+    document_xml = render_raw_xml(blueprint)
+
+    assert "".join(texts(blueprint)) == "Visit our site"
+    assert document_xml.find(f".//{W}hyperlink") is None, "plain text, by design"
+
+
+def test_a_placeholder_inside_a_hyperlink_still_resolves(tmp_path, fixture_provider):
+    from docx import Document
+
+    document = Document()
+    add_hyperlink(document.add_paragraph(), "mailto:billing@example.com", "{{ org_name }}")
+    path = tmp_path / "linked_placeholder.docx"
+    document.save(path)
+
+    assert [p.key for p in placeholders(_ingest_docx(path, fixture_provider))] == ["org_name"]
+
+
+def test_the_text_of_a_header_hyperlink_survives(tmp_path, fixture_provider):
+    from docx import Document
+
+    document = Document()
+    document.add_paragraph("Body")
+    add_hyperlink(document.sections[0].header.paragraphs[0], "https://example.com/terms", "Terms")
+    path = tmp_path / "header_link.docx"
+    document.save(path)
+
+    header = _ingest_docx(path, fixture_provider).sections[-1].headers.default
+
+    assert [s.text for block in header.blocks for s in block.segments] == ["Terms"]
+
+
+def test_a_hyperlink_field_is_plain_text_without_a_warning(tmp_path, fixture_provider):
+    """Word's field form of a link already kept its text; once plain text is the
+    intended outcome, warning about it is noise."""
+
+    from docx import Document
+    from app.document_engine.orchestration.pipeline import TemplateIngestionPipeline
+
+    document = Document()
+    field_runs(document.add_paragraph(), [
+        [("fld", "begin")], [("instr", ' HYPERLINK "https://example.com" ')], [("fld", "separate")],
+        ["example.com"], [("fld", "end")],
+    ])
+    path = tmp_path / "hyperlink_field.docx"
+    document.save(path)
+
+    pipeline = TemplateIngestionPipeline(fixture_provider)
+    result = pipeline.ingest(path)
+
+    assert "".join(texts(pipeline.finalize(result.draft))) == "example.com"
+    assert "field_kept_as_text" not in codes(result.diagnostics)
+
+
+def test_an_internal_link_keeps_its_text(tmp_path, fixture_provider):
+    from docx import Document
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+
+    document = Document()
+    link = OxmlElement("w:hyperlink")
+    link.set(qn("w:anchor"), "terms")
+    link.append(_run("see terms"))
+    document.add_paragraph()._p.append(link)
+    path = tmp_path / "anchor.docx"
+    document.save(path)
+
+    assert "".join(texts(_ingest_docx(path, fixture_provider))) == "see terms"
+
+
+def test_content_controls_and_insertions_are_read_but_deletions_are_not(tmp_path, fixture_provider):
+    """Word wraps runs in these too. A tracked deletion is the one that must stay out."""
+
+    from docx import Document
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+
+    document = Document()
+    paragraph = document.add_paragraph()._p
+    control, content = OxmlElement("w:sdt"), OxmlElement("w:sdtContent")
+    content.append(_run("Control "))
+    control.append(content)
+    paragraph.append(control)
+
+    for tag, text in (("w:ins", "inserted"), ("w:del", " deleted")):
+        change = OxmlElement(tag)
+        change.set(qn("w:id"), "1")
+        change.set(qn("w:author"), "test")
+        if tag == "w:del":
+            run, gone = OxmlElement("w:r"), OxmlElement("w:delText")
+            gone.text = text
+            run.append(gone)
+        else:
+            run = _run(text)
+        change.append(run)
+        paragraph.append(change)
+
+    path = tmp_path / "containers.docx"
+    document.save(path)
+
+    assert "".join(texts(_ingest_docx(path, fixture_provider))) == "Control inserted"
+
+
+# --- found 2026-09-24: the settings part's relationship type ------------------
+
+def test_even_page_headers_relate_settings_with_a_relationship_type(tmp_path, fixture_provider):
+    """Word reads w:evenAndOddHeaders only from a settings part related as
+    .../relationships/settings. Related with its *content type* instead, the part
+    is ignored, so even-page headers never appeared."""
+
+    from docx import Document
+
+    document = Document()
+    document.settings.odd_and_even_pages_header_footer = True
+    document.add_paragraph("Body")
+    document.sections[0].even_page_header.paragraphs[0].text = "Even page"
+    path = tmp_path / "even_headers.docx"
+    document.save(path)
+
+    docx = TemplateRenderingPipeline(NoAssets()).render_raw(_ingest_docx(path, fixture_provider)).docx
+    with zipfile.ZipFile(io.BytesIO(docx)) as archive:
+        rels = etree.fromstring(archive.read("word/_rels/document.xml.rels"))
+
+    assert {r.get("Target"): r.get("Type") for r in rels}.get("settings.xml") == (
+        "http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings"
+    )

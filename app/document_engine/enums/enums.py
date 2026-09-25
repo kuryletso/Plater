@@ -100,3 +100,10 @@ class TableAlignment(StrEnum):
     LEFT = "left"
     CENTER = "center"
     RIGHT = "right"
+
+
+class FieldType(StrEnum):
+    """Fields Word recomputes itself at layout, so they are kept as fields."""
+    PAGE = "PAGE"
+    NUMPAGES = "NUMPAGES"
+    SECTIONPAGES = "SECTIONPAGES"

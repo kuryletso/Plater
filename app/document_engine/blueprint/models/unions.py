@@ -10,6 +10,7 @@ from app.document_engine.blueprint.models.segment import (
     GroupedPlaceholderSegment,
     ImageSegment,
     BreakSegment,
+    FieldSegment,
 )
 from app.document_engine.blueprint.models.table import (
     TableBlueprint,
@@ -27,7 +28,8 @@ BlueprintSegment = Annotated[
     | JoinedPlaceholderSegment
     | GroupedPlaceholderSegment
     | ImageSegment
-    | BreakSegment,
+    | BreakSegment
+    | FieldSegment,
     Field(discriminator="type"),
 ]
 

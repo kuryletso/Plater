@@ -1,9 +1,15 @@
 from app.document_engine.blueprint.template_builder import TemplateBuilderContext
-from app.document_engine.blueprint.builders.segments import image_segment_bp_from_normalized, extract_segments
+from app.document_engine.blueprint.builders.segments import image_segment_bp_from_normalized, extract_segments, text_style_bp_from_normalized
 from app.document_engine.blueprint.models.paragraph import ParagraphBlueprint, ParagraphStyleBlueprint
-from app.document_engine.blueprint.models.segment import BreakSegment
+from app.document_engine.blueprint.models.segment import BreakSegment, FieldSegment
 from app.document_engine.normalization.models.blocks import NormalizedParagraph, NormalizedParagraphStyle
-from app.document_engine.normalization.models.inlines import NormalizedTextNode, NormalizedImageNode, NormalizedBreakNode
+from app.document_engine.normalization.models.inlines import (
+    NormalizedTextNode,
+    NormalizedImageNode,
+    NormalizedBreakNode,
+    NormalizedFieldNode,
+)
+from app.document_engine.blueprint.errors import BlueprintBuilderError
 
 
 def paragraph_style_bp_from_normalized(
@@ -42,6 +48,19 @@ def paragraph_bp_from_normalized(
 
         elif isinstance(inline, NormalizedBreakNode):
             segments.append(BreakSegment(kind=inline.kind))
+
+        elif isinstance(inline, NormalizedFieldNode):
+            segments.append(FieldSegment(
+                kind=inline.kind,
+                instruction=inline.instruction,
+                style=text_style_bp_from_normalized(inline.style),
+                cached=inline.cached,
+            ))
+
+        else:
+            raise BlueprintBuilderError(
+                f"Unsupported inline node type: {type(inline).__name__}."
+            )
 
     style = paragraph_style_bp_from_normalized(paragraph.style)
 
