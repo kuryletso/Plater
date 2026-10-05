@@ -28,7 +28,7 @@ from app.document_engine.enums.enums import TableWidthType, TableBorderStyleEnum
 from app.document_engine.utils.overlay_dataclass import overlay_dataclass_strict
 from app.core.diagnostics import DiagnosticCollector
 from app.core.errors import Layer
-from app.document_engine.enums.enums import TableAlignment
+from app.document_engine.enums.enums import TableAlignment, VerticalMerge
 
 
 def normalize_table_width(
@@ -160,6 +160,7 @@ def normalize_cell_style(cell_style: TableCellStyle | None) -> NormalizedCellSty
         border_left=normalize_cell_border(cell_style.border_left),
         border_bottom=normalize_cell_border(cell_style.border_bottom),
         border_right=normalize_cell_border(cell_style.border_right),
+        v_merge=_v_merge(cell_style.v_merge),
     )
     
     return overlay_dataclass_strict(
@@ -252,4 +253,15 @@ def _table_alignment(
             "invalid_table_alignment",
             f"Unsupported table alignment '{value}'; aligned left.",
         )
+        return None
+
+
+def _v_merge(value: str | None) -> VerticalMerge | None:
+    """ST_Merge has only the two values; anything else is reas as no merge."""
+
+    if value is None:
+        return None
+    try:
+        return VerticalMerge(value)
+    except ValueError:
         return None

@@ -7,6 +7,7 @@ from app.document_engine.rendering.docx.rels import RelationshipRegistry
 from app.document_engine.rendering.docx.constants import (
     IMAGE_CONTENT_TYPES,
     ROOT_RELS,
+    FONT_CONTENT_TYPES,
 )
 
 from app.document_engine.rendering.errors import PackageError
@@ -55,6 +56,23 @@ class DocxPackage:
             )
         
         self._extensions[ext] = IMAGE_CONTENT_TYPES[ext]
+
+
+    def add_font(
+            self,
+            path: str,
+            data: bytes,
+    ) -> None:
+
+        self._parts[path] = data
+        ext = path.rsplit(".", 1)[-1].lower()
+        if ext not in FONT_CONTENT_TYPES:
+            raise PackageError(
+                f"Unsupported font extension [{ext}] in file {path}."
+            )
+
+        self._extensions[ext] = FONT_CONTENT_TYPES[ext]
+
 
     def add_rels(
         self,

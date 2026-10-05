@@ -16,6 +16,7 @@ class DocxPaths:
     styles: str = "word/styles.xml"
     numbering: str = "word/numbering.xml"
     relationships: str = "word/_rels/document.xml.rels"
+    font_table: str = "word/fontTable.xml"
 
 
 class DocxArchive:

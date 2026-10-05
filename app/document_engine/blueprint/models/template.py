@@ -1,5 +1,6 @@
 from app.document_engine.blueprint.models.blueprint_base import BlueprintBase
 from app.document_engine.blueprint.models.section import SectionBlueprint
+from app.document_engine.blueprint.models.document import DocumentStyleBlueprint
 
 
 class PlaceholderDefinition(BlueprintBase):
@@ -20,3 +21,4 @@ class TemplateBlueprint(BlueprintBase):
     sections: tuple[SectionBlueprint, ...]
     placeholders: dict[str, PlaceholderDefinition]
     config: TemplateConfig
+    document: DocumentStyleBlueprint = DocumentStyleBlueprint()

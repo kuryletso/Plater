@@ -37,6 +37,9 @@ def test_the_golden_blueprints_are_present():
 def test_a_blueprint_written_by_an_older_engine_still_loads(path: Path):
     stored = json.loads(path.read_text(encoding="utf-8"))
 
-    blueprint = load_blueprint(stored["sections"], stored["placeholders"], stored["config"])
+    # "document" has its own column since 2026-09-29; older snapshots have none
+    blueprint = load_blueprint(
+        stored["sections"], stored["placeholders"], stored["config"], stored.get("document"),
+    )
 
     assert blueprint.sections

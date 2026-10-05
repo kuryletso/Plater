@@ -16,10 +16,12 @@ from app.document_engine.blueprint.models.segment import (
     PlaceholderSegment,
 )
 from app.document_engine.blueprint.models.table import CellBlueprint, TableBlueprint
+from app.document_engine.blueprint.models.document import DocumentStyleBlueprint
+from app.document_engine.blueprint.builders.document import document_style_bp_from_normalized
 from app.document_engine.blueprint.errors import PlaceholderSyntaxError
 from app.document_engine.normalization.models.sections import NormalizedSection
+from app.document_engine.normalization.models.document import NormalizedDocumentStyle
 from app.document_engine.enums.enums import PlaceholderType
-from app.services.template.repository import TemplateRepository
 
 
 @dataclass(slots=True)
@@ -92,6 +94,7 @@ class TemplateDraft:
     sections: list[SectionBlueprint]
     context: TemplateBuilderContext
     config: TemplateDraftConfig
+    document: DocumentStyleBlueprint
 
 
 def _warn_misplaced_columns(sections: list[SectionBlueprint], diagnostics: DiagnosticCollector) -> None:
@@ -147,6 +150,7 @@ class TemplateBuilder:
         placeholder_defaults: dict[str, dict[str, Any]],
         languages: set[str],
         diagnostics: DiagnosticCollector,
+        document: NormalizedDocumentStyle = NormalizedDocumentStyle(),
     ) -> TemplateDraft:
 
         # Imported here (not at module level) to break the
@@ -174,6 +178,7 @@ class TemplateBuilder:
             sections=sections,
             context=context,
             config=config,
+            document=document_style_bp_from_normalized(document),
         )
 
     def _define_placeholders(
@@ -196,4 +201,5 @@ class TemplateBuilder:
             sections=tuple(draft.sections),
             placeholders=self._define_placeholders(draft.context.placeholders),
             config=draft.config.to_template_config(),
+            document=draft.document,
         )

@@ -10,6 +10,7 @@ from app.assets.mime import detect_mime_type
 
 from app.document_engine.parser.parser import DocxParser
 from app.document_engine.normalization.structural_normalizer import StructuralNormalizer
+from app.document_engine.normalization.normalizers.document import normalize_document_style
 from app.document_engine.blueprint.template_builder import TemplateBuilder, TemplateDraft
 from app.document_engine.blueprint.models.template import TemplateBlueprint
 
@@ -59,6 +60,7 @@ class TemplateIngestionPipeline:
         try:
             with DocxParser(BytesIO(data), diagnostics=diagnostics, name=name) as parser:
                 parsed = parser.parse()
+                document = parser.parse_document_style()
                 assets = dict(parser.assets)
 
             normalized = StructuralNormalizer.normalize(parsed, diagnostics)
@@ -69,6 +71,7 @@ class TemplateIngestionPipeline:
                 placeholder_defaults=self._inputs.placeholder_defaults(),
                 languages=self._inputs.languages(),
                 diagnostics=diagnostics,
+                document=normalize_document_style(document),
             )
 
         except AppError as e:

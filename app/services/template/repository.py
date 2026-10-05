@@ -96,7 +96,7 @@ class TemplateRepository:
                 context={"version_id": version_id},
             )
 
-        row.sections, row.placeholders, row.config = dump_blueprint(blueprint)
+        row.sections, row.placeholders, row.config, row.document = dump_blueprint(blueprint)
 
         referenced = collect_assets_ids(blueprint)
         save_assets(
@@ -182,7 +182,7 @@ class TemplateRepository:
         """
 
         try:
-            return load_blueprint(row.sections, row.placeholders, row.config)
+            return load_blueprint(row.sections, row.placeholders, row.config, row.document)
         except ValidationError as e:
             raise BlueprintUnreadable(
                 f"template {row.template_id} v{row.version} does not match the "
@@ -341,6 +341,7 @@ class TemplateRepository:
             sections=current.sections,
             placeholders=current.placeholders,
             config=dict(current.config) | {"name": name},
+            document=current.document,
         )
         self._session.add(row)
         self._session.flush()
@@ -428,7 +429,7 @@ class TemplateRepository:
             source: AssetBlob,
     ) -> TemplateVersion:
 
-        sections, placeholders, config = dump_blueprint(blueprint)
+        sections, placeholders, config, document = dump_blueprint(blueprint)
 
         row = TemplateVersion(
             template_id=template_id,
@@ -437,6 +438,7 @@ class TemplateRepository:
             sections=sections,
             placeholders=placeholders,
             config=config,
+            document=document,
         )
         self._session.add(row)
         self._session.flush()

@@ -107,3 +107,43 @@ class FieldType(StrEnum):
     PAGE = "PAGE"
     NUMPAGES = "NUMPAGES"
     SECTIONPAGES = "SECTIONPAGES"
+
+
+class ScriptPosition(StrEnum):
+    """ST_VerticalAlignRun: where a run sits relative to the line."""
+    BASELINE = "baseline"
+    SUPERSCRIPT = "superscript"
+    SUBSCRIPT = "subscript"
+
+
+class HighlightColor(StrEnum):
+    """ST_HighlightColor: Word highlights only in this fixed palette."""
+    BLACK = "black"
+    WHITE = "white"
+    RED = "red"
+    YELLOW = "yellow"
+    GREEN = "green"
+    CYAN = "cyan"
+    BLUE = "blue"
+    MAGENTA = "magenta"
+    DARK_RED = "darkRed"
+    DARK_YELLOW = "darkYellow"
+    DARK_GREEN = "darkGreen"
+    DARK_CYAN = "darkCyan"
+    DARK_BLUE = "darkBlue"
+    DARK_MAGENTA = "darkMagenta"
+    DARK_GRAY = "darkGray"
+    LIGHT_GRAY = "lightGray"
+
+
+class VerticalMerge(StrEnum):
+    """ST_Merge: a cell that starts a vertical merge, or one merged into cell above."""
+    RESTART = "restart"
+    CONTINUE = "continue"
+
+
+class NumberingSuffix(StrEnum):
+    """ST_LevelSuffix: what follow a list number."""
+    TAB = "tab"
+    SPACE = "space"
+    NOTHING = "nothing"

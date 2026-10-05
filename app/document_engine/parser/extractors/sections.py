@@ -4,10 +4,15 @@ from app.document_engine.enums.enums import HeaderFooterType
 from app.document_engine.parser.extractors.header_footer import parse_header_footer_by_id
 from app.document_engine.parser.models.blocks import SectionBreakNode
 from app.document_engine.parser.models.header_footer import HeaderFooterNode
-from app.document_engine.parser.models.styles import SectionStyle, Margins
+from app.document_engine.parser.models.styles import SectionStyle, Margins, SectionColumns, ColumnWidth
 from app.document_engine.parser.context import ParserContext
 from app.document_engine.parser.namespaces import NS
-from app.document_engine.parser.utils.get_attribute import get_attr, get_int_attr
+from app.document_engine.parser.utils.get_attribute import (
+    get_attr,
+    get_int_attr,
+    get_bool_attr,
+    get_bool_prop,
+)
 from app.document_engine.parser.utils.get_relationship import get_relationship_id
 
 
@@ -42,11 +47,10 @@ def parse_section(section: _Element, context: ParserContext) -> SectionBreakNode
         margin_left = get_int_attr(page_margins, "left")
         margin_right = get_int_attr(page_margins, "right")
 
-    title_page_node = section.find("w:titlePg", NS)
-    title_page = (
-        title_page_node is not None
-        and get_attr(title_page_node, "val") not in ("0", "false")
-    )
+    title_page = get_bool_prop(section, "w:titlePg")
+
+    columns_node = section.find("w:cols", NS)
+    columns = _columns(columns_node) if columns_node is not None else None
 
     headers: dict[HeaderFooterType, HeaderFooterNode] = {}
     footers: dict[HeaderFooterType, HeaderFooterNode] = {}
@@ -104,7 +108,21 @@ def parse_section(section: _Element, context: ParserContext) -> SectionBreakNode
                 right=margin_right,
             ),
             title_page=title_page,
+            columns=columns,
         ),
         headers=headers,
         footers=footers,
+    )
+
+
+def _columns(node: _Element) -> SectionColumns:
+    return SectionColumns(
+        count=get_int_attr(node, "num"),
+        space=get_int_attr(node, "space"),
+        equal_width=get_bool_attr(node, "equalWidth"),
+        separator=get_bool_attr(node, "sep"),
+        widths=tuple(
+            ColumnWidth(width=get_int_attr(col, "w"), space=get_int_attr(col, "space"))
+            for col in node.findall("w:col", NS)
+        ),
     )

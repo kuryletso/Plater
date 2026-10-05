@@ -2,18 +2,29 @@ from typing import cast
 
 from app.document_engine.normalization.models.header_footer import NormalizedHeaderFooter, NormalizedHeaderFooterGroup
 from app.document_engine.normalization.models.blocks import NormalizedBlock
-from app.document_engine.normalization.models.sections import NormalizedSection, NormalizedSectionStyle
+from app.document_engine.normalization.models.sections import (
+    NormalizedSection,
+    NormalizedSectionStyle,
+    NormalizedColumnWidth,
+    NormalizedColumns,
+)
 from app.document_engine.normalization.normalizers.paragraphs import normalize_paragraph
 from app.document_engine.normalization.normalizers.tables import normalize_table
 from app.document_engine.normalization.normalizers.shared import normalize_margins
 from app.document_engine.normalization.style_defaults import DEFAULT_SECTION_STYLE, DEFAULT_SECTION_MARGINS
 from app.document_engine.normalization.errors import NormalizationFormatError
-from app.document_engine.parser.models.blocks import SectionBreakNode, ParagraphNode, TableNode
+from app.document_engine.parser.models.blocks import (
+    SectionBreakNode,
+    ParagraphNode,
+    TableNode,
+)
 from app.document_engine.parser.models.header_footer import HeaderFooterNode
-from app.document_engine.parser.models.styles import SectionStyle
+from app.document_engine.parser.models.styles import SectionStyle, SectionColumns
 from app.document_engine.enums.enums import SectionType, PageOrientation, HeaderFooterType
 from app.document_engine.utils.overlay_dataclass import overlay_dataclass_strict
 from app.core.diagnostics import DiagnosticCollector
+
+_DEFAULT_COLUMN_SPACE = 720     # twips
 
 
 def normalize_headers_footers(
@@ -124,6 +135,7 @@ def normalize_section(
             default=DEFAULT_SECTION_MARGINS,
         ),
         title_page=cast(bool, ancestor.style.title_page),
+        columns=_columns(ancestor.style.columns),
     )
 
     normalized_style = overlay_dataclass_strict(
@@ -136,4 +148,38 @@ def normalize_section(
         headers=normalize_headers_footers(ancestor.headers, diagnostics),
         footers=normalize_headers_footers(ancestor.footers, diagnostics),
         style=normalized_style,
+    )
+
+
+def _columns(columns: SectionColumns | None) -> NormalizedColumns | None:
+    """None for a single column, same as a section without <w:cols>.
+    
+    Explicit width are kept only when they are usable: switched on, one per column 
+    and all positive. Otherwise the columns come out equal.
+    """
+
+    if columns is None:
+        return None
+
+    count = columns.count or len(columns.widths) or 1
+    if count < 2:
+        return None
+
+    explicit = (
+        columns.equal_width is False
+        and len(columns.widths) == count
+        and all((c.width or 0) > 0 for c in columns.widths)
+    )
+
+    return NormalizedColumns(
+        count=count,
+        space=max(columns.space if columns.space is not None else _DEFAULT_COLUMN_SPACE, 0),
+        separator=bool(columns.separator),
+        widths=tuple(
+            NormalizedColumnWidth(
+                width=cast(int, c.width),       # `explicit` falls back to False if any c.width is None 
+                space=max(c.space or 0, 0),
+            )
+            for c in columns.widths
+        ) if explicit else ()
     )

@@ -8,6 +8,20 @@ from app.document_engine.enums.enums import SectionType, PageOrientation
 
 
 @dataclass(slots=True, frozen=True)
+class NormalizedColumnWidth:
+    width: int      # twips
+    space: int      # twips after the column
+
+
+@dataclass(slots=True, frozen=True)
+class NormalizedColumns:
+    count: int
+    space: int      # twips between equal columns
+    separator: bool
+    widths: tuple[NormalizedColumnWidth, ...] = ()
+
+
+@dataclass(slots=True, frozen=True)
 class NormalizedSectionStyle:
     section_type: SectionType
     page_width: int             # twips
@@ -17,6 +31,7 @@ class NormalizedSectionStyle:
     margin_footer: int          # twips
     margins: NormalizedMargins
     title_page: bool
+    columns: NormalizedColumns | None = None
 
 
 @dataclass(slots=True, frozen=True)

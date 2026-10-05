@@ -13,10 +13,14 @@ from app.document_engine.parser.extractors.paragraphs import parse_paragraph
 from app.document_engine.parser.extractors.sections import parse_section
 from app.document_engine.parser.extractors.tables import parse_table
 from app.document_engine.parser.extractors.styles import parse_styles
+from app.document_engine.parser.extractors.document import extract_document_style
+from app.document_engine.parser.extractors.numbering import parse_numbering
+from app.document_engine.parser.extractors.fonts import parse_embedded_fonts
 from app.document_engine.parser.namespaces import NS
 from app.document_engine.parser.relationships import RelationshipResolver
 from app.document_engine.parser.style_resolver.style_resolver import StyleResolver
 from app.document_engine.parser.errors import ParserFormatError
+from app.document_engine.parser.models.styles import DocumentStyle
 
 type ParsedBlock = ParagraphNode | TableNode | SectionBreakNode
 
@@ -47,12 +51,18 @@ class DocxParser:
             rel_root = None
         self.relationships = RelationshipResolver(rel_root)
 
+        try:
+            numbering_root = self.archive.read_xml(DocxPaths.numbering)
+        except ParserFormatError:
+            numbering_root = None
+
         self.context = ParserContext(
             archive=self.archive,
             relationships=self.relationships,
             assets=AssetCollector(),
             style_resolver=StyleResolver(self.styles, self.doc_defaults),
             diagnostics=diagnostics,
+            numbering=parse_numbering(numbering_root)
         )
 
     def __enter__(self): return self
@@ -79,6 +89,14 @@ class DocxParser:
                     result.append(parse_section(node, self.context))
 
         return result
+
+    def parse_document_style(self) -> DocumentStyle:
+        """Use after the parse(): only the lists its paragraphs use are kept."""
+        return extract_document_style(
+            self.document_root,
+            self.context.numbering.only(self.context.numbering_used),
+            parse_embedded_fonts(self.context),
+        )
     
     @property
     def assets(self) -> Mapping[str, AssetBlob]:

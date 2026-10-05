@@ -12,6 +12,7 @@ from app.document_engine.enums.enums import (
     TableWidthType,
     TableBorderStyleEnum,
     TableAlignment,
+    VerticalMerge,
 )
 
 if TYPE_CHECKING:
@@ -32,6 +33,7 @@ class CellStyleBlueprint(BlueprintBase):
     border_left: TableBorderBlueprint | None = None
     border_bottom: TableBorderBlueprint | None = None
     border_right: TableBorderBlueprint | None = None
+    v_merge: VerticalMerge | None = None
 
 
 class RowStyleBlueprint(BlueprintBase):

@@ -2,7 +2,13 @@ from typing import cast
 
 from itertools import pairwise
 
-from app.document_engine.normalization.models.blocks import NormalizedParagraph, NormalizedParagraphStyle
+from app.document_engine.normalization.models.blocks import (
+    NormalizedParagraph,
+    NormalizedParagraphStyle,
+    NormalizedParagraphBorder,
+    NormalizedParagraphBorders,
+    NormalizedNumberingRef,
+)
 from app.document_engine.normalization.models.inlines import (
     NormalizedTextNode,
     NormalizedImageNode,
@@ -15,9 +21,18 @@ from app.document_engine.normalization.style_defaults import DEFAULT_TEXT_STYLE,
 from app.document_engine.normalization.errors import NormalizationFormatError
 from app.document_engine.parser.models.blocks import ParagraphNode
 from app.document_engine.parser.models.inlines import RunNode, RunStyle, ImageNode, BreakNode, FieldNode
-from app.document_engine.parser.models.styles import ParagraphStyle
-from app.document_engine.enums.enums import ParagraphAlignment, LineSpacingRule
+from app.document_engine.parser.models.styles import ParagraphStyle, ParagraphBorderStyle
+from app.document_engine.enums.enums import (
+    ParagraphAlignment,
+    LineSpacingRule,
+    ScriptPosition,
+    HighlightColor,
+    TableBorderStyleEnum,
+)
 from app.document_engine.utils.overlay_dataclass import overlay_dataclass_strict
+
+_NO_BORDER = frozenset({"nil", "none"})
+_DEFAULT_BORDER_SIZE = 4        # eights of a point
 
 
 def normalize_paragraph(paragraph: ParagraphNode) -> NormalizedParagraph:
@@ -74,10 +89,17 @@ def normalize_paragraph(paragraph: ParagraphNode) -> NormalizedParagraph:
         spacing_after=cast(int, paragraph.style.spacing_after),
         indent_left=cast(int, paragraph.style.indent_left),
         indent_right=cast(int, paragraph.style.indent_right),
+        indent_first_line=cast(int, paragraph.style.indent_first_line),
         keep_next=cast(bool, paragraph.style.keep_next),
         line_spacing=cast(int, paragraph.style.line_spacing),
         line_rule=cast(LineSpacingRule, _line_rule(paragraph.style.line_rule)),
         page_break_before=cast(bool, paragraph.style.page_break_before),
+        borders=_borders(paragraph.style),
+        mark=normalize_text_style(paragraph.mark) if paragraph.mark is not None else None,
+        numbering=NormalizedNumberingRef(
+            num_id=paragraph.style.num_id,
+            level=min(max(paragraph.style.num_level or 0, 0), 8),
+        ) if paragraph.style.num_id else None,
     )
 
     return NormalizedParagraph(
@@ -87,14 +109,6 @@ def normalize_paragraph(paragraph: ParagraphNode) -> NormalizedParagraph:
             parsed_style,
         )
     )
-
-
-def _validate_text_style_attributes(run_style: RunStyle) -> None:
-
-    if isinstance(run_style.font_size, int) and run_style.font_size < 1:
-        raise NormalizationFormatError(
-            f"Font size must be at least 1, got {run_style.font_size}"
-        )
 
 
 def normalize_text_style(run_style: RunStyle) -> NormalizedTextStyle:
@@ -109,12 +123,24 @@ def normalize_text_style(run_style: RunStyle) -> NormalizedTextStyle:
             font_name=cast(str, run_style.font_name),
             font_size=cast(int, run_style.font_size),
             color=cast(str, run_style.color),
+            strike=cast(bool, run_style.strike),
+            small_caps=cast(bool, run_style.small_caps),
+            script=cast(ScriptPosition, _script(run_style.script)),
+            highlight=_highlight(run_style.highlight),
         )
 
     return overlay_dataclass_strict(
         DEFAULT_TEXT_STYLE,
         parsed_style,
     )
+
+
+def _validate_text_style_attributes(run_style: RunStyle) -> None:
+
+    if isinstance(run_style.font_size, int) and run_style.font_size < 1:
+        raise NormalizationFormatError(
+            f"Font size must be at least 1, got {run_style.font_size}"
+        )
 
 
 def _validate_paragraph_style_attributes(paragraph_style: ParagraphStyle) -> None:
@@ -140,13 +166,6 @@ def _validate_paragraph_style_attributes(paragraph_style: ParagraphStyle) -> Non
         raise NormalizationFormatError(
             f"Paragraph line spacing can't be lower than 0, got {paragraph_style.line_spacing}."
         )
-
-
-###### _has_open_placeholder() was replaced with _placeholder_spans() and _merge_runs()
-# def _has_open_placeholder(text: str) -> bool:
-#     """True when the accumulated text ends inside an unclosed '{{ ... }}'"""
-#     return text.rfind("{{") > text.rfind("}}")
-############################
 
 
 def _placeholder_spans(text: str) -> list[tuple[int, int]]:
@@ -221,3 +240,63 @@ def _line_rule(value: str | None) -> LineSpacingRule | None:
         raise NormalizationFormatError(
             f"Invalid line spacing rule: '{value}'."
         ) from e
+
+
+def _script(value: str | None) -> ScriptPosition | None:
+    if value is None:
+        return None
+    try:
+        return ScriptPosition(value)
+    except ValueError as e:
+        raise NormalizationFormatError(
+            f"Invalid vertical text alignment: '{value}'."
+        ) from e
+
+
+def _highlight(value: str | None) -> HighlightColor | None:
+    """'none' has already switched an inherited highlight off during style resulution 
+    so here it is simply no highlight. Unknown color is dropped: Word could not render it either.
+    """
+
+    if value is None or value == "none":
+        return None
+    try:
+        return HighlightColor(value)
+    except ValueError:
+        return None
+
+
+def _borders(style: ParagraphStyle) -> NormalizedParagraphBorders | None:
+    borders = NormalizedParagraphBorders(
+        top=_border(style.border_top),
+        left=_border(style.border_left),
+        bottom=_border(style.border_bottom),
+        right=_border(style.border_right),
+        between=_border(style.border_between),
+    )
+    return borders if borders != NormalizedParagraphBorders() else None
+
+
+def _border(border: ParagraphBorderStyle | None) -> NormalizedParagraphBorder | None:
+    """A drawn side or None. Google Docs writes an all-nil w:pBdr on nearly every paragraph, 
+    so nil and none must read as no border rather than being carried along.
+    """
+
+    if border is None or border.style is None or border.style in _NO_BORDER:
+        return None
+
+    if (border.size or 0) < 0 or (border.space or 0) < 0:
+        raise NormalizationFormatError(
+            f"Paragraph border size and space can't be negative, got {border.size=}, {border.space=}."
+        )
+    try:
+        style = TableBorderStyleEnum(border.style)
+    except ValueError:
+        style = TableBorderStyleEnum.SINGLE     # art and 3D borders print plain rather than block the import
+
+    return NormalizedParagraphBorder(
+        style=style,
+        size=border.size if border.size is not None else _DEFAULT_BORDER_SIZE,
+        space=border.space or 0,
+        color=border.color or "auto",
+    )

@@ -1,7 +1,7 @@
 from lxml import etree
 
 from app.document_engine.rendering.docx.xml import qn
-from app.document_engine.blueprint.models.section import SectionStyleBlueprint
+from app.document_engine.blueprint.models.section import SectionStyleBlueprint, ColumnsBlueprint
 
 
 def build_sect_pr(
@@ -12,7 +12,8 @@ def build_sect_pr(
     
     sect_pr = etree.Element(qn("w:sectPr"))
 
-    # (!) CT_SectPr order: headerReference, footerReference, type, pgSz, pgMar, ... , titlePg
+    # (!) CT_SectPr order:
+    # headerReference, footerReference, type, pgSz, pgMar, ... , cols, ... titlePg
     for htype, rid in (header_refs or []):
         ref = etree.SubElement(sect_pr, qn("w:headerReference"))
         ref.set(qn("w:type"), htype)
@@ -39,7 +40,31 @@ def build_sect_pr(
     pg_mar.set(qn("w:header"), str(style.margin_header))
     pg_mar.set(qn("w:gutter"), "0")     # Hardcoded value here
 
+    if style.columns is not None:
+        sect_pr.append(_build_cols(style.columns))
+
     if style.title_page:
         etree.SubElement(sect_pr, qn("w:titlePg"))
 
     return sect_pr
+
+
+def _build_cols(columns: ColumnsBlueprint) -> etree._Element:
+    """Equal columns are written by Word standard: a count, a space, no <w:col> children. 
+    Explicit widths need equalWidth="0" and one <w:col> each.
+    """
+
+    cols = etree.Element(qn("w:cols"))
+    cols.set(qn("w:num"), str(columns.count))
+    cols.set(qn("w:space"), str(columns.space))     # twips
+    if columns.separator:
+        cols.set(qn("w:sep"), "1")
+
+    if columns.widths:
+        cols.set(qn("w:equalWidth"), "0")
+        for column in columns.widths:
+            col = etree.SubElement(cols, qn("w:col"))
+            col.set(qn("w:w"), str(column.width))
+            col.set(qn("w:space"), str(column.space))
+
+    return cols

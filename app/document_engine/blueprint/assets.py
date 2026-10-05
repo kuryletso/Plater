@@ -33,4 +33,8 @@ def collect_assets_ids(
                 if hf is not None:
                     visit_blocks(hf.blocks)
 
+    for font in blueprint.document.fonts:
+        for _, face in font.faces():
+            found.add(face.asset_id)
+
     return found

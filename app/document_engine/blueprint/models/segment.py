@@ -1,7 +1,13 @@
 from typing import Literal
 
 from app.document_engine.blueprint.models.blueprint_base import BlueprintBase
-from app.document_engine.enums.enums import PlaceholderType, BreakType, FieldType
+from app.document_engine.enums.enums import (
+    PlaceholderType,
+    BreakType,
+    FieldType,
+    ScriptPosition,
+    HighlightColor,
+)
 
 
 class TextStyleBlueprint(BlueprintBase):
@@ -11,6 +17,11 @@ class TextStyleBlueprint(BlueprintBase):
     font_name: str
     font_size: int      # half-points
     color: str
+    # defaults set for stored blueprints that predate these
+    strike: bool = False
+    small_caps: bool = False
+    script: ScriptPosition = ScriptPosition.BASELINE
+    highlight: HighlightColor | None = None
 
 
 class TextSegment(BlueprintBase):

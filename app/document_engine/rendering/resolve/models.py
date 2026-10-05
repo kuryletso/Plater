@@ -11,6 +11,7 @@ from app.document_engine.blueprint.models.table import (
 )
 from app.document_engine.blueprint.models.section import SectionStyleBlueprint
 from app.document_engine.blueprint.models.template import TemplateConfig
+from app.document_engine.blueprint.models.document import DocumentStyleBlueprint
 from app.document_engine.rendering.ports import Asset
 from app.document_engine.enums.enums import BreakType, FieldType
 
@@ -93,6 +94,22 @@ class ResolvedSection:
 
 
 @dataclass(slots=True, frozen=True)
+class ResolvedFontFace:
+    kind: str       # regular / bold / italic / bold_italic
+    data: bytes
+    font_key: str | None        # None is plain font
+    subsetted: bool
+
+
+@dataclass(slots=True, frozen=True)
+class ResolvedFont:
+    name: str
+    faces: tuple[ResolvedFontFace, ...]
+
+
+@dataclass(slots=True, frozen=True)
 class ResolvedDocument:
     sections: tuple[ResolvedSection, ...]
     config: TemplateConfig
+    style: DocumentStyleBlueprint
+    fonts: tuple[ResolvedFont, ...] = ()

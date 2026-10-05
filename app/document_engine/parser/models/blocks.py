@@ -5,7 +5,11 @@ from dataclasses import dataclass
 from app.document_engine.enums.enums import HeaderFooterType
 from app.document_engine.parser.models.inlines import RunNode, ImageNode, BreakNode, FieldNode
 from app.document_engine.parser.models.header_footer import HeaderFooterNode
-from app.document_engine.parser.models.styles import ParagraphStyle, TableCellStyle, TableRowStyle, TableStyle, SectionStyle
+from app.document_engine.parser.models.styles import (
+    RunStyle, ParagraphStyle,
+    TableCellStyle, TableRowStyle, TableStyle,
+    SectionStyle,
+)
 
 type ParsedInlineNode = RunNode | ImageNode | BreakNode | FieldNode
 
@@ -14,6 +18,7 @@ type ParsedInlineNode = RunNode | ImageNode | BreakNode | FieldNode
 class ParagraphNode:
     inlines: list[ParsedInlineNode]
     style: ParagraphStyle
+    mark: RunStyle | None = None        # the paragrpaph mark, <w:pPr><w:rPr>
 
 
 @dataclass(slots=True, frozen=True)

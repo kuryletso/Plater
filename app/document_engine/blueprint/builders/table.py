@@ -37,7 +37,12 @@ from app.document_engine.normalization.models.blocks import (
     NormalizedTableBorder,
     NormalizedParagraph,
 )
-from app.document_engine.enums.enums import PlaceholderType, TableBorderStyleEnum, TableWidthType
+from app.document_engine.enums.enums import (
+    PlaceholderType,
+    TableBorderStyleEnum,
+    TableWidthType,
+    VerticalMerge,
+)
 
 
 DEFAULT_STANDALONE_TABLE_BORDER = TableBorderBlueprint(
@@ -98,6 +103,7 @@ def cell_style_bp_from_normalized(
         border_left=border(normalized.border_left),
         border_bottom=border(normalized.border_bottom),
         border_right=border(normalized.border_right),
+        v_merge=normalized.v_merge,
     )
 
 
@@ -240,7 +246,7 @@ def _promote_placeholder_rows(
 
         if placeholder_cells:
             new_cells = [
-                cell if i not in placeholder_cells.keys()
+                cell if i not in placeholder_cells
                 else placeholder_cells[i]
                 for i, cell in enumerate(row.cells)
             ]
@@ -287,7 +293,11 @@ def table_bp_from_normalized(
         style=style,
     )
 
-    return _promote_placeholder_rows(table)
+    promoted = _promote_placeholder_rows(table)
+    if isinstance(promoted, TablePlaceholder):
+        return promoted
+    
+    return _split_repeated_merges(promoted, context)
 
 
 def promote_standalone_table(
@@ -338,3 +348,72 @@ def promote_standalone_table(
             }
         ),
     )
+
+
+def _split_repeated_merges(
+        table: TableBlueprint,
+        context: TemplateBuilderContext,
+) -> TableBlueprint:
+    """Vertical merge that starts in an invoice-line row and runs on below 
+    it cannot follow that row repeating: every copy restarts it. 
+    So only the last copy would merge with the rows below. Such a merge is 
+    split back into plain cells, the top one keeping the content. 
+    
+    A merge that starts above an invoice-line row and runs through it is kept: 
+    every copy continues it, so it spans all the lines.
+    """
+
+    opened: dict[int, tuple[int, int]] = {}     # grid column : (row, cell) of its restart
+    split: set[tuple[int, int]] = set()
+    restarts: set[tuple[int, int]] = set()
+
+    for r, row in enumerate(table.rows):
+        column = 0
+        for c, cell in enumerate(row.cells):
+            style = _cell_style(cell)
+
+            if style.v_merge is VerticalMerge.RESTART:
+                opened[column] = (r, c)
+            elif style.v_merge is VerticalMerge.CONTINUE:
+                start= opened.get(column)
+                if start is not None and isinstance(table.rows[start[0]], RowPlaceholder):
+                    split |= {start, (r, c)}
+                    restarts.add(start)
+            else:
+                opened.pop(column, None)
+
+            column += style.grid_span
+
+    if not split:
+        return table
+
+    context.diagnostics.warn(
+        Layer.BLUEPRINT,
+        "vertical_merge_in_repeated_row",
+        f"{len(restarts)} merged cell(s) starting in an invoice-line row were split int "
+        f"separate cells, since that row repeats once per invoice line.",
+        count=len(restarts),
+    )
+
+    return table.model_copy(update={
+        "rows": tuple(
+            row.model_copy(update={
+                "cells": tuple(
+                    _unmerged(cell) if (r, c) in split else cell
+                    for c, cell in enumerate(row.cells)
+                )
+            })
+            for r, row in enumerate(table.rows)
+        )
+    })
+
+
+def _cell_style(cell: CellBlueprint | CellPlaceholder) -> CellStyleBlueprint:
+    return cell.cell_style if isinstance(cell, CellPlaceholder) else cell.style
+
+
+def _unmerged(cell: CellBlueprint | CellPlaceholder) -> CellBlueprint | CellPlaceholder:
+    style = _cell_style(cell).model_copy(update={"v_merge": None})
+    if isinstance(cell, CellPlaceholder):
+        return cell.model_copy(update={"cell_style": style})
+    return cell.model_copy(update={"style": style})

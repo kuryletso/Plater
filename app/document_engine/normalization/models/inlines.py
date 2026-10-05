@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 
-from app.document_engine.enums.enums import BreakType, FieldType
+from app.document_engine.enums.enums import (
+    BreakType, FieldType, ScriptPosition, HighlightColor,
+)
 
 
 @dataclass(slots=True, frozen=True)
@@ -11,6 +13,10 @@ class NormalizedTextStyle:
     font_name: str
     font_size: int      # half-points
     color: str
+    strike: bool = False
+    small_caps: bool = False
+    script: ScriptPosition = ScriptPosition.BASELINE
+    highlight: HighlightColor | None = None
 
 
 @dataclass(slots=True, frozen=True)

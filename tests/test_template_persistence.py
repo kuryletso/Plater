@@ -91,11 +91,8 @@ def versions_of(session: Session, template_id: int) -> list[int]:
 
 def test_dump_produces_json_serializable_structures(blueprint):
     """mode='json' must flatten enums; otherwise the JSON column write fails."""
-    sections, placeholders, config = dump_blueprint(blueprint)
-
-    json.dumps(sections)
-    json.dumps(placeholders)
-    json.dumps(config)
+    for column in dump_blueprint(blueprint):
+        json.dumps(column)
 
 
 def test_blueprint_survives_a_dump_load_round_trip(blueprint):

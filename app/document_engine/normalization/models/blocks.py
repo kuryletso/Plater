@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from app.document_engine.normalization.models.inlines import NormalizedInlineNode
+from app.document_engine.normalization.models.inlines import NormalizedInlineNode, NormalizedTextStyle
 from app.document_engine.normalization.models.shared import NormalizedMargins
 
 from app.document_engine.enums.enums import (
@@ -13,7 +13,33 @@ from app.document_engine.enums.enums import (
     TableWidthType,
     LineSpacingRule,
     TableAlignment,
+    VerticalMerge,
 )
+
+
+@dataclass(slots=True, frozen=True)
+class NormalizedParagraphBorder:
+    style: TableBorderStyleEnum
+    size: int       # eights of a point
+    space: int      # points between the border and the text
+    color: str
+
+
+@dataclass(slots=True, frozen=True)
+class NormalizedParagraphBorders:
+    """Only the sides that are drawn; paragraph with 'none' has no borders at all."""
+
+    top: NormalizedParagraphBorder | None = None
+    left: NormalizedParagraphBorder | None = None
+    bottom: NormalizedParagraphBorder | None = None
+    right: NormalizedParagraphBorder | None = None
+    between: NormalizedParagraphBorder | None = None
+
+
+@dataclass(slots=True, frozen=True)
+class NormalizedNumberingRef:
+    num_id: int
+    level: int
 
 
 @dataclass(slots=True, frozen=True)
@@ -27,6 +53,10 @@ class NormalizedParagraphStyle:
     line_spacing: int           # 240ths of a line (auto) or twips (exact / atLeast)
     line_rule: LineSpacingRule
     page_break_before: bool
+    borders: NormalizedParagraphBorders | None = None
+    indent_first_line: int = 0      # twips, negative is a hanging indent
+    mark: NormalizedTextStyle | None = None     # the paragraph's mark formatting
+    numbering: NormalizedNumberingRef | None = None
 
 
 @dataclass(slots=True, frozen=True)
@@ -46,6 +76,7 @@ class NormalizedCellStyle:
     border_left: NormalizedTableBorder | None
     border_bottom: NormalizedTableBorder | None
     border_right: NormalizedTableBorder | None
+    v_merge: VerticalMerge | None = None
 
 
 @dataclass(slots=True, frozen=True)
@@ -79,7 +110,6 @@ class NormalizedTableStyle:
     border_inside_h: NormalizedTableBorder
     margins: NormalizedMargins
     column_width: tuple[int, ...]
-    autofit: bool
     alignment: TableAlignment
 
 

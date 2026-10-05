@@ -26,6 +26,10 @@ def text_style_bp_from_normalized(
         font_name=style.font_name,
         font_size=style.font_size,
         color=style.color,
+        strike=style.strike,
+        small_caps=style.small_caps,
+        script=style.script,
+        highlight=style.highlight,
     )
 
 

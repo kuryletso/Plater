@@ -9,12 +9,21 @@ from app.document_engine.rendering.resolve.models import (
     ResolvedDocument, ResolvedSection, ResolvedParagraph,
     ResolvedTable, ResolvedRow, ResolvedCell,
     ResolvedTextRun, ResolvedImageRun, ResolvedBreakRun, ResolvedFieldRun,
+    ResolvedFont,
 )
 from app.document_engine.rendering.docx.package import DocxPackage
 from app.document_engine.rendering.docx.constants import (
-    CT_DOCUMENT, CT_HEADER, CT_FOOTER, CT_SETTINGS,
+    CT_DOCUMENT, CT_HEADER, CT_FOOTER, CT_SETTINGS, CT_NUMBERING, CT_FONT_TABLE,
 )
-from app.document_engine.rendering.docx.rels import REL_HEADER, REL_FOOTER, REL_SETTINGS, REL_IMAGE
+from app.document_engine.rendering.docx.rels import (
+    REL_HEADER,
+    REL_FOOTER,
+    REL_SETTINGS,
+    REL_IMAGE,
+    REL_NUMBERING,
+    REL_FONT,
+    REL_FONT_TABLE,
+)
 from app.document_engine.rendering.docx.document_xml import build_document
 from app.document_engine.rendering.docx.run import build_run, build_break_run, build_field
 from app.document_engine.rendering.docx.drawing import build_image_run, EXT_BY_MIME
@@ -24,6 +33,8 @@ from app.document_engine.rendering.docx.section import build_sect_pr
 from app.document_engine.rendering.docx.header_footer import build_header, build_footer
 from app.document_engine.rendering.docx.settings_xml import build_settings
 from app.document_engine.rendering.docx.xml import qn
+from app.document_engine.rendering.docx.numbering_xml import build_numbering
+from app.document_engine.rendering.docx.fonts_xml import build_font_table, font_extension
 
 
 class DocxEmitter:
@@ -79,11 +90,30 @@ class DocxEmitter:
             else:
                 body.append(_section_break_paragraph(sect_pr))
 
-        if has_even:
-            self._pkg.add_xml("word/settings.xml", build_settings(True), CT_SETTINGS)
+        background = document.style.background
+
+        if has_even or background is not None or document.fonts:
+            settings = build_settings(
+                even_and_odd_headers=has_even,
+                embed_fonts=bool(document.fonts),
+                display_background=background is not None,
+            )
+            self._pkg.add_xml("word/settings.xml", settings, CT_SETTINGS)
             self._pkg.add_document_relationship(REL_SETTINGS, "settings.xml")
 
-        self._pkg.add_xml("word/document.xml", build_document(body, last_sect_pr), CT_DOCUMENT)
+        numbering = document.style.numbering
+        if numbering.instances:
+            self._pkg.add_xml("word/numbering.xml", build_numbering(numbering), CT_NUMBERING)
+            self._pkg.add_document_relationship(REL_NUMBERING, "numbering.xml")
+
+        if document.fonts:
+            self._fonts(document.fonts)
+
+        self._pkg.add_xml(
+            "word/document.xml",
+            build_document(body, last_sect_pr, background),
+            CT_DOCUMENT,
+        )
 
         return self._pkg.to_bytes()
     
@@ -142,7 +172,7 @@ class DocxEmitter:
             elif isinstance(run, ResolvedBreakRun):
                 runs.append(build_break_run(run.kind))
             elif isinstance(run, ResolvedFieldRun):
-                runs.append(build_field(run.instruction, run.cached, run.style))
+                runs.extend(build_field(run.instruction, run.cached, run.style))
         return build_paragraph(runs, style=para.style)
     
 
@@ -217,3 +247,29 @@ class DocxEmitter:
             has_even |= ftype == "even"
 
         return header_refs, footer_refs, has_even
+
+
+    def _fonts(
+            self,
+            fonts: tuple[ResolvedFont, ...],
+    ) -> None:
+        """The font table, a part for every embedded face and the table's own 
+        relationships to them. Face is related to fontTable.xml, not the document.
+        """
+
+        table = "word/fontTable.xml"
+        index = 0
+        entries = []
+
+        for font in fonts:
+            relationship_ids = []
+            for face in font.faces:
+                index += 1
+                target = f"fonts/font{index}.{font_extension(face.font_key)}"
+                self._pkg.add_font(f"word/{target}", face.data)
+                relationship_ids.append(self._pkg.add_relationship(table, REL_FONT, target))
+            entries.append((font, relationship_ids))
+
+
+        self._pkg.add_xml(table, build_font_table(entries), CT_FONT_TABLE)
+        self._pkg.add_document_relationship(REL_FONT_TABLE, "fontTable.xml")

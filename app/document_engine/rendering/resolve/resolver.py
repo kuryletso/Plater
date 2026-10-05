@@ -3,6 +3,7 @@ from __future__ import annotations
 from app.core.diagnostics import DiagnosticCollector
 from app.core.errors import Layer
 from app.document_engine.blueprint.models.template import TemplateBlueprint
+from app.document_engine.blueprint.models.document import EmbeddedFontBlueprint
 from app.document_engine.blueprint.models.section import SectionBlueprint
 from app.document_engine.blueprint.models.header_footer import (
     HeaderFooterGroupBlueprint, HeaderFooterBlueprint,
@@ -25,6 +26,7 @@ from app.document_engine.rendering.resolve.models import (
     ResolvedTable, ResolvedRow, ResolvedCell, ResolvedBlock,
     ResolvedTextRun, ResolvedImageRun, ResolvedBreakRun, ResolvedFieldRun, ResolvedRun,
     ResolvedHeaderFooter, ResolvedHeaderFooterGroup,
+    ResolvedFont, ResolvedFontFace,
 )
 from app.document_engine.rendering.resolve.invoice_table import build_invoice_table
 from app.document_engine.rendering.resolve.raw import placeholder_syntax, RAW_SINGLE_ROW, raw_paragtaph_style
@@ -59,6 +61,8 @@ class DocumentResolver:
         return ResolvedDocument(
             sections=sections,
             config=blueprint.config,
+            style=blueprint.document,
+            fonts=self._fonts(blueprint.document.fonts),
         )
     
 
@@ -421,3 +425,39 @@ class DocumentResolver:
         )
 
         return ""
+
+
+    def _fonts(
+            self,
+            fonts: tuple[EmbeddedFontBlueprint, ...],
+    ) -> tuple[ResolvedFont, ...]:
+        """A face whose bytes are gone is left out; the document still renders, 
+        in whatever the reader has installed.
+        """
+
+        resolved = []
+        for font in fonts:
+            faces = []
+            for kind, face in font.faces():
+                asset = self._assets.get(face.asset_id)
+                if asset is None:
+                    self._diag.warn(
+                        Layer.RENDER,
+                        "missing_asset",
+                        f"Font asset '{face.asset_id}' not foun; '{font.name}' is not embedded.",
+                        asset_id=face.asset_id,
+                        font=font.name,
+                    )
+                    continue
+
+                faces.append(ResolvedFontFace(
+                    kind=kind,
+                    data=asset.data,
+                    font_key=face.font_key,
+                    subsetted=face.subsetted,
+                ))
+
+            if faces:
+                resolved.append(ResolvedFont(name=font.name, faces=tuple(faces)))
+
+        return tuple(resolved)

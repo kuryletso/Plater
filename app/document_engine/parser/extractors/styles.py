@@ -4,6 +4,7 @@ from app.document_engine.parser.models.styles import (
     StyleNode,
     RunStyle,
     ParagraphStyle,
+    ParagraphBorderStyle,
     TableStyle,
     TableBorderStyle,
     Margins,
@@ -19,21 +20,20 @@ from app.document_engine.parser.ooxml_properties.ooxml_properties import (
     OOXMLTableRowAttributeNames,
     OOXMLTableCellAttributeNames,
 )
-from app.document_engine.parser.utils.get_attribute import get_attr, get_int_attr
+from app.document_engine.parser.utils.get_attribute import (
+    get_attr,
+    get_int_attr,
+    get_bool_attr,
+    get_bool_prop,
+    ON_OFF_FALSE,
+    get_prop,
+    get_int_prop,
+)
 
-_OFF = frozenset({"0", "false", "off"})     # St_OnOff values meaning false in different editors (Google Docs "0", LibreOffice "false")
 _JS_ALIASES = {"start": "left", "end": "right"}     # Some editors write start/end vs left/right
 
-def has_tag(node: _Element | None, tag: str) -> bool | None:
-    if node is None:
-        return None
-    
-    found = node.find(tag, NS)
-    if found is None:
-        return None
-    val = get_attr(found, "val")
-    return val not in _OFF
 
+############################################## PUBLIC ##############################################
 
 def extract_run_style(run_properties: _Element | None) -> RunStyle:
     if run_properties is None:
@@ -55,12 +55,20 @@ def extract_run_style(run_properties: _Element | None) -> RunStyle:
         color = get_attr(color_node, "val")
 
     return RunStyle(
-        bold=has_tag(run_properties, OOXMLRunAttributeNames.bold),
-        italic=has_tag(run_properties, OOXMLRunAttributeNames.italic),
-        underline=has_tag(run_properties, OOXMLRunAttributeNames.underline),
+        bold=get_bool_prop(run_properties, OOXMLRunAttributeNames.bold),
+        italic=get_bool_prop(run_properties, OOXMLRunAttributeNames.italic),
+        underline=_underline(run_properties),
         font_name=font_name,
         font_size=font_size,
         color=color,
+        # double strikethrough renders as a single one
+        strike=_any_on(
+            get_bool_prop(run_properties, OOXMLRunAttributeNames.strike),
+            get_bool_prop(run_properties, OOXMLRunAttributeNames.double_strike),
+        ),
+        small_caps=get_bool_prop(run_properties, OOXMLRunAttributeNames.small_caps),
+        script=get_prop(run_properties, OOXMLRunAttributeNames.vert_align),
+        highlight=get_prop(run_properties, OOXMLRunAttributeNames.highlight),
     )
 
 
@@ -68,7 +76,7 @@ def extract_paragraph_style(paragraph_properties: _Element | None) -> ParagraphS
     if paragraph_properties is None:
         return ParagraphStyle()
     
-    alignment = _js(paragraph_properties.find(OOXMLParagraphAttributeNames.alignment, NS))
+    alignment = extract_alignment(paragraph_properties.find(OOXMLParagraphAttributeNames.alignment, NS))
 
     spacing_node = paragraph_properties.find(OOXMLParagraphAttributeNames.spacing, NS)
     spacing_before = None
@@ -83,12 +91,12 @@ def extract_paragraph_style(paragraph_properties: _Element | None) -> ParagraphS
         if line_spacing is not None and line_rule is None:
             line_rule = "auto"      # ST_LineSpacingRule default once w:line is given
 
-    indent_node = paragraph_properties.find(OOXMLParagraphAttributeNames.indent, NS)
-    indent_left = None
-    indent_right = None
-    if indent_node is not None:
-        indent_left = get_int_attr(indent_node, "left")
-        indent_right = get_int_attr(indent_node, "right")
+    indent_left, indent_right, indent_first_line = extract_indent(
+        paragraph_properties.find(OOXMLParagraphAttributeNames.indent, NS)
+    )
+
+    borders = paragraph_properties.find(OOXMLParagraphAttributeNames.borders, NS)
+    numbering = paragraph_properties.find(OOXMLParagraphAttributeNames.numbering, NS)
 
     return ParagraphStyle(
         alignment=alignment,
@@ -96,10 +104,18 @@ def extract_paragraph_style(paragraph_properties: _Element | None) -> ParagraphS
         spacing_after=spacing_after,
         indent_left=indent_left,
         indent_right=indent_right,
-        keep_next=has_tag(paragraph_properties, OOXMLParagraphAttributeNames.keep_next),
+        indent_first_line=indent_first_line,
+        keep_next=get_bool_prop(paragraph_properties, OOXMLParagraphAttributeNames.keep_next),
         line_spacing=line_spacing,
         line_rule=line_rule,
-        page_break_before=has_tag(paragraph_properties, OOXMLParagraphAttributeNames.page_break_before),
+        page_break_before=get_bool_prop(paragraph_properties, OOXMLParagraphAttributeNames.page_break_before),
+        border_top=_paragraph_border(borders, "top"),
+        border_left=_paragraph_border(borders, "left"),
+        border_bottom=_paragraph_border(borders, "bottom"),
+        border_right=_paragraph_border(borders, "right"),
+        border_between=_paragraph_border(borders, "between"),
+        num_id=get_int_prop(numbering, "w:numId"),
+        num_level=get_int_prop(numbering, "w:ilvl"),
     )
 
 
@@ -160,6 +176,11 @@ def extract_table_cell_style(cell_properties: _Element | None) -> TableCellStyle
     if v_alignment_node is not None:
         v_alignment = get_attr(v_alignment_node, "val")
 
+    v_merge_node = cell_properties.find(OOXMLTableCellAttributeNames.v_merge, NS)
+    v_merge = None
+    if v_merge_node is not None:
+        v_merge = get_attr(v_merge_node, "val") or "continue"       # ST_Merge: no val continues
+
     borders_node = cell_properties.find(OOXMLTableCellAttributeNames.borders, NS)
     border_top = border_bottom = border_left = border_right = None
     if borders_node is not None:
@@ -174,6 +195,7 @@ def extract_table_cell_style(cell_properties: _Element | None) -> TableCellStyle
         margins=margins,
         grid_span=grid_span,
         v_alignment=v_alignment,
+        v_merge=v_merge,
         border_top=border_top,
         border_left=border_left,
         border_bottom=border_bottom,
@@ -192,7 +214,7 @@ def extract_table_row_style(row_properties: _Element | None) -> TableRowStyle:
 
     return TableRowStyle(
         height=height,
-        header=has_tag(row_properties, OOXMLTableRowAttributeNames.header)
+        header=get_bool_prop(row_properties, OOXMLTableRowAttributeNames.header)
     )
 
 
@@ -207,7 +229,7 @@ def extract_table_style(table_properties: _Element | None) -> TableStyle:
         width = get_int_attr(width_node, "w")
         width_type = get_attr(width_node, "type")
 
-    alignment = _js(table_properties.find(OOXMLTableAttributeNames.alignment, NS))
+    alignment = extract_alignment(table_properties.find(OOXMLTableAttributeNames.alignment, NS))
 
     layout_node = table_properties.find(OOXMLTableAttributeNames.layout, NS)
     autofit = None
@@ -324,7 +346,7 @@ def parse_styles(styles_root: _Element) -> dict[str, StyleNode]:
         styles[style_id] = StyleNode(
             style_id=style_id,
             style_type=style_type,
-            is_default=get_attr(style, "default") == "1",
+            is_default=get_bool_attr(style, "default") is True,
             name=name,
             based_on=based_on,
             run_style=extract_run_style(run_properties),
@@ -335,6 +357,70 @@ def parse_styles(styles_root: _Element) -> dict[str, StyleNode]:
     return styles
 
 
-def _js(node: _Element | None) -> str | None:
+def extract_indent(indent_node: _Element | None) -> tuple[int | None, int | None, int | None]:
+    """(left, right, first line) in twips. The first line negative for a hanging 
+    indent. Newer Word and LibreOffice write start/end for left/right, and 
+    hanging wins over firstLine when both are given.
+    """
+
+    if indent_node is None:
+        return None, None, None
+
+    left = get_int_attr(indent_node, "left")
+    if left is None:
+        left = get_int_attr(indent_node, "start")
+
+    right = get_int_attr(indent_node, "right")
+    if right is None:
+        right = get_int_attr(indent_node, "end")
+
+    hanging = get_int_attr(indent_node, "hanging")
+    first_line = -hanging if hanging is not None else get_int_attr(indent_node, "firstLine")
+
+    return left, right, first_line
+
+
+def extract_alignment(node: _Element | None) -> str | None:
+    """<w:jc> or <w:lvlJc>, with start/end read as left/right."""
+
     value = get_attr(node, "val") if node is not None else None
     return _JS_ALIASES.get(value, value) if value is not None else None
+
+
+############################################## PRIVATE ##############################################
+
+
+def _underline(run_properties: _Element) -> bool | None:
+    """'w:u' is ST_Underline which values matching specific underline style. 
+    """
+
+    node = run_properties.find(OOXMLRunAttributeNames.underline, NS)
+    if node is None:
+        return None
+    return get_attr(node, "val") not in (ON_OFF_FALSE | {"none"})
+
+
+def _any_on(*flags: bool | None) -> bool | None:
+    """On if any flag is on, off is one is explicitly off, unser otherwise."""
+
+    if any(flag is True for flag in flags):
+        return True
+    if any(flag is False for flag in flags):
+        return False
+    return None
+
+
+def _paragraph_border(borders: _Element | None, side: str) -> ParagraphBorderStyle | None:
+    if borders is None:
+        return None
+
+    node = borders.find(f"w:{side}", NS)
+    if node is None:
+        return None
+
+    return ParagraphBorderStyle(
+        style=get_attr(node, "val"),
+        size=get_int_attr(node, "sz"),
+        space=get_int_attr(node, "space"),
+        color=get_attr(node, "color"),
+    )

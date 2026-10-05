@@ -141,9 +141,11 @@ def build_cell(
     tc = etree.Element(qn("w:tc"))
     tc_pr = etree.SubElement(tc, qn("w:tcPr"))
 
-    # (!) CT_TcPr order: gridSpan, tcBorders, shd, tcMar, vAlign
+    # (!) CT_TcPr order: gridSpan, vMerge, tcBorders, shd, tcMar, vAlign
     if style.grid_span > 1:
         etree.SubElement(tc_pr,qn("w:gridSpan")).set(qn("w:val"), str(style.grid_span))
+    if style.v_merge is not None:
+        etree.SubElement(tc_pr, qn("w:vMerge")).set(qn("w:val"), style.v_merge.value)
 
     borders = _build_tc_borders(style)
     if borders is not None:

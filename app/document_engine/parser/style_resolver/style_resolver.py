@@ -94,6 +94,7 @@ class StyleResolver:
             spacing_after=0,
             indent_left=0,
             indent_right=0,
+            indent_first_line=0,
             keep_next=False,
             line_spacing=240,
             line_rule="auto",

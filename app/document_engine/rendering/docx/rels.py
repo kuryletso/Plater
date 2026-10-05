@@ -6,6 +6,9 @@ REL_HEADER = f"{REL_NS}/header"
 REL_FOOTER = f"{REL_NS}/footer"
 REL_IMAGE = f"{REL_NS}/image"
 REL_SETTINGS = f"{REL_NS}/settings"
+REL_NUMBERING = f"{REL_NS}/numbering"
+REL_FONT_TABLE = f"{REL_NS}/fontTable"
+REL_FONT = f"{REL_NS}/font"
 
 
 class RelationshipRegistry:

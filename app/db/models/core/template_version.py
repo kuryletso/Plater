@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from datetime import datetime, UTC
 
-from sqlalchemy import ForeignKey, DateTime, UniqueConstraint, String, JSON
+from sqlalchemy import ForeignKey, DateTime, UniqueConstraint, String, JSON, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -36,6 +36,8 @@ class TemplateVersion(Base):
     placeholders: Mapped[dict] = mapped_column(JSON)
 
     config: Mapped[dict] = mapped_column(JSON)
+
+    document: Mapped[dict] = mapped_column(JSON, server_default=text("'{}'"))       # page color, fonts
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

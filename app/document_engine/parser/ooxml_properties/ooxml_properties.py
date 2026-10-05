@@ -10,6 +10,11 @@ class OOXMLRunAttributeNames:
     fonts: str = "w:rFonts"
     font_size: str = "w:sz"
     color: str = "w:color"
+    strike: str = "w:strike"
+    double_strike: str = "w:dstrike"
+    small_caps: str = "w:smallCaps"
+    vert_align: str = "w:vertAlign"
+    highlight: str = "w:highlight"
 
 
 @dataclass(frozen=True)
@@ -20,6 +25,8 @@ class OOXMLParagraphAttributeNames:
     indent: str = "w:ind"
     keep_next: str = "w:keepNext"
     page_break_before: str = "w:pageBreakBefore"
+    borders: str = "w:pBdr"
+    numbering: str = "w:numPr"
 
 
 @dataclass(frozen=True)
@@ -28,6 +35,7 @@ class OOXMLTableCellAttributeNames:
     margins: str = "w:tcMar"
     grid_span: str = "w:gridSpan"
     v_alignment: str = "w:vAlign"
+    v_merge: str = "w:vMerge"
     borders: str = "w:tcBorders"
 
 
@@ -45,7 +53,6 @@ class OOXMLTableAttributeNames:
     borders: str = "w:tblBorders"
     margins: str = "w:tblCellMar"
     grid: str = "w:tblGrid"
-    width: str = "w:tblW"
     alignment: str = "w:jc"
 
 
@@ -54,3 +61,8 @@ class OOXMLStyleAttributeNames:
     style: str = "w:style"
     name: str = "w:name"
     based_on: str = "w:basedOn"
+
+
+@dataclass(frozen=True)
+class OOXMLDocumentAttributeNames:
+    background: str = "w:background"

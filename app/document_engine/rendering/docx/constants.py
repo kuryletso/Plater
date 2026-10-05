@@ -6,6 +6,8 @@ CT_DOCUMENT = "application/vnd.openxmlformats-officedocument.wordprocessingml.do
 CT_HEADER   = "application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"
 CT_FOOTER   = "application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"
 CT_SETTINGS = "application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"
+CT_NUMBERING = "application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"
+CT_FONT_TABLE = "application/vnd.openxmlformats-officedocument.wordprocessingml.fontTable+xml"
 
 CT_RELS = "application/vnd.openxmlformats-package.relationships+xml"
 CT_XML  = "application/xml"
@@ -26,3 +28,8 @@ ROOT_RELS: bytes = (
     b' Target="word/document.xml"/>'
     b'</Relationships>'
 )
+
+FONT_CONTENT_TYPES = {
+    "ttf": "application/x-font-ttf",
+    "odttf": "application/vnd.openxmlformats-officedocument.obfuscatedFont",
+}

@@ -104,21 +104,32 @@ String literals can be used inside placeholders, e.g. `{{ (("Contractor repesent
 
 ### What a template can use
 
-Preserved: bold, italic, underline, fonts, sizes and colors; paragraph alignment,
-indentation, spacing and line spacing; page size, orientation and margins; multiple
-sections; headers and footers, including first-page and even-page variants; tables
-with column widths, borders, shading, horizontally merged cells and alignment;
-images, including in headers and footers; page numbers and page counts; page breaks
-and tabs.
+Preserved: bold, italic, underline, strikethrough, small caps, superscript and
+subscript, highlighting, fonts, sizes and colors; embedded fonts; paragraph
+alignment, indentation (hanging indents included), spacing, line spacing and
+borders; bulleted and numbered lists; horizontal lines; page size, orientation,
+margins and page color; multiple sections and text columns; headers and footers,
+including first-page and even-page variants; tables with column widths, borders,
+shading, merged cells and alignment; images, including in headers and footers;
+page numbers and page counts; page and column breaks, and tabs.
+
+Some of these come out slightly different from the original:
+
+- A horizontal line is drawn as a border under its paragraph, so it may look a
+  little different, and a line narrower than the page comes out full width.
+- Images are always placed in line with the text. Text wrapping and floating
+  positions are not kept.
+- A merged cell that starts in an invoice-line row is split back into separate
+  cells, since that row repeats once per line. The import says when it does this.
+- Word prints a page color only when its *Print background colors and images*
+  option is on.
 
 Hyperlinks are kept as plain text by design, since generated documents are meant
 for print. Other Word fields, such as dates or cross-references, keep the text they
 last showed, and are reported at import.
 
-Not yet supported, and silently dropped: bulleted and numbered lists,
-strikethrough, small caps, superscript and subscript, highlighting, vertically
-merged cells, text columns, page backgrounds, horizontal rules and embedded fonts.
-The text and placeholders around them still render.
+Not supported, and silently dropped: text boxes and shapes, footnotes and
+endnotes, comments. The text and placeholders around them still render.
 
 When a new version of Plater reads templates better, the built-in templates are
 updated on the next launch and you are offered a one-click rebuild of your own.

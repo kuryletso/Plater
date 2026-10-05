@@ -214,7 +214,7 @@ def test_a_cell_without_borders_emits_no_tc_borders():
     assert cell_borders_of(cell) == {}
 
 
-def test_cell_borders_are_emitted_with_width_and_colour():
+def test_cell_borders_are_emitted_with_width_and_color():
     from app.document_engine.rendering.docx.table import build_cell
 
     cell = build_cell(blocks=[], style=cell_style(
