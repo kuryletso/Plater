@@ -4,10 +4,9 @@ from typing import cast
 
 from decimal import Decimal, InvalidOperation
 
-from PySide6.QtCore import QRegularExpression, Qt, Signal, QSignalBlocker
+from PySide6.QtCore import QRegularExpression, Qt, Signal
 from PySide6.QtGui import QRegularExpressionValidator, QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import (
-    QComboBox,
     QCompleter,
     QHBoxLayout,
     QLabel,
@@ -20,7 +19,6 @@ from sqlalchemy.orm import Session
 
 from app.gui.draft_state import LineRow
 from app.gui.dialogs.widgets import ReferenceCombo
-from app.gui.errors import MissingUIElement
 from app.services.invoice_line.repository import InvoiceLineRepository
 from app.db.models.core.invoice_line import InvoiceLine
 

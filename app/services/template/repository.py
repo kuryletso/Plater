@@ -137,6 +137,49 @@ class TemplateRepository:
 
         return self._append_version(template_id, blueprint, bundle, source)
 
+
+    def sync_system_metadata(
+            self,
+            template_id: int,
+            *,
+            name: str,
+            document_type: str,
+            description: str,
+            append_currency: bool,
+    ) -> bool:
+        """Bring a shipped default's name, type, description and currency settings in line 
+        with the manifest. Done in place. Seeding only. Returns whether anything changed. 
+        
+        update_metadata() refuses built-ins which users must not edit. The manifest is the one 
+        place the change from.
+        """
+
+        template = self._template(template_id)
+        if not template.system:
+            raise InvalidSelection(
+                f"template {template_id} is not built-in template",
+                context={"template_id": template_id},
+            )
+        self._check_document_type(document_type)
+
+        version = self.current_version(template_id)
+        config = dict(version.config) | {
+            "name": name,
+            "type": document_type,
+            "description": description,
+            "append_currency": append_currency,
+        }
+
+        if (template.name, template.type) == (name, document_type) and config == version.config:
+            return False
+
+        template.name = name
+        template.type = document_type
+        version.config = config     # a JSON column: reassigned, never mutated
+        self._session.commit()
+
+        return True
+
     
     def get(self, template_id: int) -> Template:
         template = self._session.get(Template, template_id)

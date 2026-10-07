@@ -33,6 +33,7 @@ class ManagedAsset:
     actions: tuple[AssetAction, ...] = ()
     delete_verb: str = "Delete"
     searchable: bool = True
+    editable: Callable[[AssetId], bool] | None = None       # None means every item has edit
 
 
 @dataclass(slots=True, frozen=True)
@@ -146,7 +147,7 @@ class ManagerDialog(QDialog):
         has_selection = asset_id is not None
 
         if self.edit_button is not None:
-            self.edit_button.setEnabled(has_selection)
+            self.edit_button.setEnabled(self._can_edit(asset_id))
         if self.delete_button is not None:
             self.delete_button.setEnabled(has_selection)
 
@@ -170,10 +171,7 @@ class ManagerDialog(QDialog):
         self.banner.clear_message()
 
         asset_id = self._selected()
-        if asset_id is None:
-            return
-
-        if self._asset.edit is None:
+        if asset_id is None or self._asset.edit is None or not self._can_edit(asset_id):
             return
 
         if self._asset.edit(self, asset_id):
@@ -224,3 +222,13 @@ class ManagerDialog(QDialog):
         if changed:
             self.changed = True
             self.refresh()
+
+
+    def _can_edit(self, asset_id: AssetId | None) -> bool:
+        """Double-clicking a row edits it too, so the button is not the only guard."""
+
+        return (
+            asset_id is not None
+            and self._asset.edit is not None
+            and (self._asset.editable is None or self._asset.editable(asset_id))
+        )

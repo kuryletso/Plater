@@ -15,7 +15,6 @@ from app.gui.dialogs.tax_id import TaxIdDialog
 from app.gui.dialogs.bank_account import BankAccountDialog
 from app.gui.dialogs.representative import RepresentativeDialog
 from app.gui.dialogs.sequence import SequenceDialog
-from app.gui.dialogs.widgets import show_code
 from app.services.doc_sequence.repository import SequenceRepository
 from app.services.organization.repository import OrganizationRepository
 from app.services.errors import ServiceError
@@ -76,6 +75,7 @@ class PartyColumn(QWidget):
             self.ui.sequence_combo.hide()
             self.ui.next_number_edit.hide()
             self.ui.add_sequence_button.hide()
+            self.ui.edit_sequence_button.hide()
 
         self.ui.edit_organization_button.clicked.connect(self._edit_organization)
         self.ui.delete_organization_button.clicked.connect(self._delete_organization)
@@ -102,6 +102,7 @@ class PartyColumn(QWidget):
 
         self.ui.sequence_combo.currentIndexChanged.connect(self._on_sequence_changed)
         self.ui.add_sequence_button.clicked.connect(self._add_sequence)
+        self.ui.edit_sequence_button.clicked.connect(self._edit_sequence)
 
         self.ui.next_number_edit.setValidator(QRegularExpressionValidator(
             QRegularExpression(r"\d{0,12}"),
@@ -307,6 +308,7 @@ class PartyColumn(QWidget):
             self.ui.sequence_combo.itemData(index) if index >= 0 else None
         )
         self._refresh_number()
+        self._update_edit_buttons()
 
 
     def _on_draft_changed(self) -> None:
@@ -553,6 +555,9 @@ class PartyColumn(QWidget):
         self.ui.edit_tax_button.setEnabled(self._get_tax() is not None)
         self.ui.edit_representative_button.setEnabled(self._get_representative() is not None)
         self.ui.edit_bank_button.setEnabled(self._get_bank() is not None)
+        self.ui.edit_sequence_button.setEnabled(
+            self._role is PartyRole.PROVIDER and self._draft.sequence_id is not None
+        )
 
 
     def _edit_organization(self) -> None:
@@ -587,3 +592,20 @@ class PartyColumn(QWidget):
             return
 
         self.catalog_changed.emit()
+
+
+    def _edit_sequence(self) -> None:
+        organization_id = self._draft.provider_organization_id
+        sequence_id = self._draft.sequence_id
+        if self._role is not PartyRole.PROVIDER or organization_id is None or sequence_id is None:
+            return
+
+        dialog = SequenceDialog(
+            self._session,
+            organization_id,
+            self._draft.document_type,
+            parent=self,
+            sequence_id=sequence_id,
+        )
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.refresh_sequences()

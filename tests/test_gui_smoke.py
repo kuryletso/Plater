@@ -1434,3 +1434,133 @@ def test_rebuild_is_greyed_out_for_a_built_in_template(qt_app, session: Session,
     _, button = rebuild_button(session, template_id)
 
     assert not button.isEnabled()
+
+
+# --- editing a numbering sequence ---------------------------------------------
+
+def test_the_sequence_dialog_edits_prefix_and_digits(qt_app, session: Session,
+                                                     make_org, make_sequence):
+    """The counter stays with the provider column's next-number field, which warns
+    about numbers that would be issued twice; the document type is fixed."""
+    from app.gui.dialogs.sequence import SequenceDialog
+    from app.services.doc_sequence.repository import SequenceRepository
+
+    organization = make_org("Acme")
+    sequence = make_sequence(organization, prefix="INV-", counter=41, padding=5)
+
+    dialog = SequenceDialog(session, organization.id, "invoice", sequence_id=sequence.id)
+
+    assert (dialog.prefix_edit.text(), dialog.padding_spin.value(), dialog.counter_spin.value()) \
+        == ("INV-", 5, 41)
+    assert not dialog.type_combo.isEnabled()
+    assert not dialog.counter_spin.isEnabled()
+
+    dialog.prefix_edit.setText("BILL-")
+    dialog.padding_spin.setValue(3)
+    dialog._save()
+
+    edited = SequenceRepository(session).get(sequence.id)
+    assert (edited.prefix, edited.padding, edited.counter) == ("BILL-", 3, 41)
+    assert dialog.sequence_id == sequence.id
+
+
+def test_a_prefix_clash_is_reported_in_the_edit_dialog(qt_app, session: Session,
+                                                       make_org, make_sequence):
+    from app.gui.dialogs.sequence import SequenceDialog
+
+    organization = make_org("Acme")
+    make_sequence(organization, prefix="INV-")
+    other = make_sequence(organization, prefix="BILL-")
+
+    dialog = SequenceDialog(session, organization.id, "invoice", sequence_id=other.id)
+    dialog.prefix_edit.setText("INV-")
+    dialog._save()
+
+    assert dialog.result() != dialog.DialogCode.Accepted
+    assert dialog.banner.isVisible() or dialog.banner.text()
+
+
+def test_the_provider_column_edits_the_selected_sequence(provider_with_sequence, monkeypatch):
+    from app.gui.dialogs.sequence import SequenceDialog
+
+    column, _ = provider_with_sequence
+
+    def edit(dialog):
+        dialog.prefix_edit.setText("BILL-")
+        dialog.padding_spin.setValue(3)
+        dialog._save()
+        return dialog.result()
+
+    monkeypatch.setattr(SequenceDialog, "exec", edit)
+
+    assert column.ui.edit_sequence_button.isEnabled()
+    column.ui.edit_sequence_button.click()
+
+    assert column.ui.sequence_combo.currentText() == "BILL-"
+    assert column.ui.next_number_edit.text() == "042"
+
+
+# --- built-in templates are read only, so Edit is greyed out ------------------
+
+def make_built_in(session: Session, template_id: int) -> None:
+    from app.services.template.repository import TemplateRepository
+
+    TemplateRepository(session).get(template_id).system = True
+    session.commit()
+
+
+def templates_manager(session: Session, template_id: int):
+    from app.gui.dialogs.manager_dialog import ManagerDialog
+    from app.gui.dialogs.managers import template_asset
+
+    dialog = ManagerDialog(template_asset(session))
+    dialog.refresh(select=template_id)
+    return dialog
+
+
+def test_the_templates_manager_greys_out_edit_for_a_built_in(qt_app, session: Session,
+                                                             bilingual_template, monkeypatch):
+    """Saving would only fail with "make a copy to edit"; Duplicate is right there."""
+    from app.gui.dialogs.template_edit import TemplateEditDialog
+
+    template_id, _ = bilingual_template
+    make_built_in(session, template_id)
+    opened = []
+    monkeypatch.setattr(TemplateEditDialog, "exec", lambda dialog: opened.append(dialog) or 0)
+
+    dialog = templates_manager(session, template_id)
+
+    assert not dialog.edit_button.isEnabled()
+    dialog._edit()          # what double-clicking the row does
+    assert opened == []
+
+
+def test_the_templates_manager_offers_edit_for_a_user_template(qt_app, session: Session,
+                                                               bilingual_template):
+    template_id, _ = bilingual_template
+
+    assert templates_manager(session, template_id).edit_button.isEnabled()
+
+
+def test_the_template_column_greys_out_edit_for_a_built_in(window, session: Session,
+                                                           stored_template: int):
+    make_built_in(session, stored_template)
+    column = window.template_column
+    column.refresh()
+    column.ui.template_list.setCurrentRow(0)
+
+    assert not column.ui.edit_template_button.isEnabled()
+    assert column.ui.clear_button.isEnabled(), "the selection itself still works"
+
+
+def test_the_template_column_greys_out_delete_for_a_built_in(window, session: Session,
+                                                             stored_template: int):
+    """Built-ins can only be hidden, which the templates manager does; the column's
+    Delete would only answer with a warning."""
+
+    make_built_in(session, stored_template)
+    column = window.template_column
+    column.refresh()
+    column.ui.template_list.setCurrentRow(0)
+
+    assert not column.ui.delete_template_button.isEnabled()

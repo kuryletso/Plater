@@ -81,7 +81,7 @@ class TemplateImportService:
             template_id: int,
             result: IngestionResult,
     ) -> int:
-        """Append a new version to shipped default tempalte. Seeding only."""
+        """Append a new version to shipped default template. Seeding only."""
 
         blueprint = self._pipeline.finalize(result.draft)
 

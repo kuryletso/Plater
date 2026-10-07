@@ -24,7 +24,12 @@ from app.services.errors import ServiceError
 
 
 class SequenceDialog(QDialog):
-    """Numbering sequence for one organization and document type."""
+    """Numbering sequence for one organization and document type.
+    
+    With a sequence_id it edits sequence's prefix and digits. The document 
+    type is fixed, and the counter stays with the provider column's 
+    next-number field.
+    """
 
     def __init__(
             self,
@@ -32,15 +37,19 @@ class SequenceDialog(QDialog):
             organization_id: int,
             document_type: str | None = None,
             parent: QWidget | None = None,
+            *,
+            sequence_id: int | None = None,
     ) -> None:
 
         super().__init__(parent)
         self._session = session
         self._repo = SequenceRepository(session)
         self._organization_id = organization_id
-        self.sequence_id: int | None = None
+        self.sequence_id: int | None = sequence_id
 
-        self.setWindowTitle("New numbering sequence")
+        self.setWindowTitle(
+            "Edit numbering sequence" if sequence_id is not None else "New numbering sequence"
+        )
         self.setMinimumWidth(440)
 
         self.type_combo = searchable_combo(document_type_items(session))
@@ -85,6 +94,9 @@ class SequenceDialog(QDialog):
         self.counter_spin.valueChanged.connect(self._refresh_preview)
         self.padding_spin.valueChanged.connect(self._refresh_preview)
 
+        if sequence_id is not None:
+            self._load(sequence_id)
+
         self._refresh_preview()
 
 
@@ -103,18 +115,39 @@ class SequenceDialog(QDialog):
             self.banner.show_message("Choose a document_type")
             return
 
+        prefix = self.prefix_edit.text().strip() or None
+
         try:
-            created = self._repo.create(
-                self._organization_id,
-                document_type,
-                prefix=self.prefix_edit.text().strip() or None,
-                counter=self.counter_spin.value(),
-                padding=self.padding_spin.value(),
-            )
+            if self.sequence_id is not None:
+                self._repo.update(
+                    self.sequence_id,
+                    prefix=prefix,
+                    padding=self.padding_spin.value(),
+                )
+            else:
+                self.sequence_id = self._repo.create(
+                    self._organization_id,
+                    document_type,
+                    prefix=prefix,
+                    counter=self.counter_spin.value(),
+                    padding=self.padding_spin.value(),
+                ).id
         except ServiceError as error:
             self._session.rollback()
             self.banner.show_message(error.user_message or str(error))
             return
         
-        self.sequence_id = created.id
         self.accept()
+
+
+    def _load(self, sequence_id: int) -> None:
+        sequence = self._repo.get(sequence_id)
+
+        show_code(self.type_combo, sequence.document_type_code)
+        self.prefix_edit.setText(sequence.prefix or "")
+        self.counter_spin.setValue(sequence.counter)
+        self.padding_spin.setValue(sequence.padding)
+
+        self.type_combo.setEnabled(False)
+        self.counter_spin.setEnabled(False)
+        self.counter_spin.setToolTip("Change the next number in the provider column.")

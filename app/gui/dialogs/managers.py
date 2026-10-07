@@ -140,11 +140,16 @@ def template_asset(session: Session) -> ManagedAsset:
         template = repository.get(int(asset_id))
         return not template.system and rebuilds.state(template.id) is not  BlueprintState.OK
 
+    def editable(asset_id: AssetId) -> bool:
+        """Built-ins are read only. Duplicate makes an editable copy."""
+        return not repository.get(int(asset_id)).system
+
     return ManagedAsset(
         title="Templates",
         list_items=list_items,
         create=create,
         edit=edit,
+        editable=editable,
         actions=(
             AssetAction(label="Versions...", run=versions),
             AssetAction(label="Duplicate", run=duplicate),

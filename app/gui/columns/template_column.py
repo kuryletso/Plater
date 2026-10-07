@@ -99,7 +99,7 @@ class TemplateColumn(QWidget):
     def _on_selection(
             self,
             current: QListWidgetItem | None,
-            _previous: QListWidgetItem | None = None,
+            _previous: QListWidgetItem | None = None,       # Qt signal QListWidget.currentItemChanged sends two args
     ) -> None:
         
         if current is None:
@@ -107,12 +107,12 @@ class TemplateColumn(QWidget):
             self._draft.set_template(None, None, ())
             return
 
-        self._show_selected(current.text())
         template_id, document_type = current.data(Qt.ItemDataRole.UserRole)
 
         try:
             version = self._repo.current_version(template_id)
         except ServiceError as e:
+            self._show_selected(current.text())
             # an exception escaping a slot is swallowed by Qt
             self.ui.details_label.setText(
                 f"<b>This template cannot be loaded.</b><br>"
@@ -128,6 +128,7 @@ class TemplateColumn(QWidget):
             if code
         )
 
+        self._show_selected(current.text(), built_in=version.template.system)
         self._show_details(version)
         self._draft.set_template(template_id, document_type, languages)
         
@@ -160,11 +161,11 @@ class TemplateColumn(QWidget):
         )
 
 
-    def _show_selected(self, name: str | None) -> None:
+    def _show_selected(self, name: str | None, *, built_in: bool = False) -> None:
         self.ui.selection_label.setText(name or "Nothing selected")
         self.ui.selection_label.setEnabled(name is not None)
-        self.ui.edit_template_button.setEnabled(name is not None)
-        self.ui.delete_template_button.setEnabled(name is not None)
+        self.ui.edit_template_button.setEnabled(name is not None and not built_in)      # built-ins are read only
+        self.ui.delete_template_button.setEnabled(name is not None and not built_in)        # built-ins can only be hidden
         self.ui.clear_button.setEnabled(name is not None)
 
 
@@ -208,7 +209,7 @@ class TemplateColumn(QWidget):
             return
 
         confirmed = QMessageBox.question(
-            self, "Delete tempalte",
+            self, "Delete template",
             f'Delete "{self.ui.selection_label.text()}"?',
         )
         if confirmed != QMessageBox.StandardButton.Yes:

@@ -8,7 +8,6 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QVBoxLayout,
 )
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models.configs.default_template_config import DefaultTemplateConfig

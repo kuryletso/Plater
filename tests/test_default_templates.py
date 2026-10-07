@@ -270,3 +270,91 @@ def test_a_changed_file_appends_a_version_even_when_the_stamp_is_stale(session: 
 
     assert actions(seed_default_templates(session)) == {"a": "updated"}
     assert len(TemplateRepository(session).versions(created.template_id)) == 2
+
+
+# --- the manifest is the source of a built-in's metadata ----------------------
+
+def reseed_with(shipped, **overrides):
+    """Rewrite the manifest with changed fields; the .docx stays byte-identical."""
+    import json
+
+    entries = json.loads(shipped.manifest.read_text(encoding="utf-8"))
+    entries[0] |= overrides
+    shipped.manifest.write_text(json.dumps(entries), encoding="utf-8")
+
+
+def stored(session: Session, template_id: int):
+    repository = TemplateRepository(session)
+    return repository.get(template_id), repository.current_version(template_id)
+
+
+def test_a_renamed_default_is_renamed_in_place(session: Session, shipped):
+    """Only the manifest changed, so there is nothing to re-read: no new version."""
+    shipped([entry("a", "a.docx", name="Invoice")], {"a.docx": ["A {{ org_name }}"]})
+    (created,) = seed_default_templates(session)
+
+    reseed_with(shipped, name="Invoice (EN)", description="Now described",
+                append_currency=False)
+    results = seed_default_templates(session)
+
+    template, version = stored(session, created.template_id)
+    assert actions(results) == {"a": "updated"}
+    assert template.name == "Invoice (EN)"
+    assert (version.version, version.config["name"]) == (1, "Invoice (EN)")
+    assert (version.config["description"], version.config["append_currency"]) == ("Now described", False)
+
+
+def test_a_default_moved_to_another_document_type_follows(session: Session, shipped):
+    from app.db.models.registries.document_type import DocumentTypeRegistry
+
+    session.add(DocumentTypeRegistry(code="quote"))
+    session.commit()
+    shipped([entry("a", "a.docx")], {"a.docx": ["A {{ org_name }}"]})
+    (created,) = seed_default_templates(session)
+
+    reseed_with(shipped, type="quote")
+    seed_default_templates(session)
+
+    template, version = stored(session, created.template_id)
+    assert (template.type, version.config["type"]) == ("quote", "quote")
+
+
+def test_a_default_given_another_language_is_read_again(session: Session, shipped):
+    """Languages are fixed at ingestion: an unsuffixed placeholder takes the
+    primary language then. So a language change needs a new reading."""
+    shipped([entry("a", "a.docx")], {"a.docx": ["A {{ org_name }}"]})
+    (created,) = seed_default_templates(session)
+
+    reseed_with(shipped, primary_language="UKR", secondary_language="ENG")
+    results = seed_default_templates(session)
+
+    _, version = stored(session, created.template_id)
+    assert actions(results) == {"a": "updated"}
+    assert version.version == 2
+    assert (version.config["primary_language"], version.config["secondary_language"]) == ("UKR", "ENG")
+
+
+def test_a_changed_file_also_takes_the_new_name(session: Session, shipped, make_docx):
+    """The new version always carried the manifest's config, but the template
+    row kept its old name, and the row is what the app lists."""
+    shipped([entry("a", "a.docx", name="Invoice")], {"a.docx": ["A {{ org_name }}"]})
+    (created,) = seed_default_templates(session)
+
+    shutil.copy(make_docx(paragraphs=["A {{ org_name }} revised"], name="a.docx"),
+                shipped.dir / "a.docx")
+    reseed_with(shipped, name="Invoice (EN)")
+    seed_default_templates(session)
+
+    template, version = stored(session, created.template_id)
+    assert (template.name, version.config["name"], version.version) == ("Invoice (EN)", "Invoice (EN)", 2)
+
+
+def test_an_unchanged_manifest_changes_nothing(session: Session, shipped):
+    shipped([entry("a", "a.docx")], {"a.docx": ["A {{ org_name }}"]})
+    seed_default_templates(session)
+
+    reseed_with(shipped)
+    results = seed_default_templates(session)
+
+    assert actions(results) == {"a": "unchanged"}
+    assert len(session.scalars(select(TemplateVersion)).all()) == 1

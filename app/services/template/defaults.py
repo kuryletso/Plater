@@ -41,6 +41,24 @@ def _config(entry: dict) -> TemplateConfig:
     )
 
 
+def _languages_changed(entry: dict, config: dict) -> bool:
+    """Languages are fixed at ingestion, so a change means reading the file again."""
+
+    return (entry["primary_language"], entry["secondary_language"]) != (
+        config.get("primary_language"), config.get("secondary_language"),
+    )
+
+
+def _sync_metadata(repo: TemplateRepository, template_id: int, entry: dict) -> bool:
+    return repo.sync_system_metadata(
+        template_id,
+        name=entry["name"],
+        document_type=entry["type"],
+        description=entry["description"],
+        append_currency=entry["append_currency"],
+    )
+
+
 def seed_default_templates(session: Session) -> list[TemplateSeedResult]:
     """Ingest the shipped .docx defaults, re-ingesting only what changed.
 
@@ -75,10 +93,18 @@ def seed_default_templates(session: Session) -> list[TemplateSeedResult]:
 
             current = repo.current_version(template.id)
 
-            if current.source_sha256 == source_sha256:
+            if current.source_sha256 == source_sha256 \
+            and not _languages_changed(entry, current.config):
+                try:
+                    renamed = _sync_metadata(repo, template.id, entry)
+                except AppError as e:
+                    session.rollback()
+                    results.append(TemplateSeedResult(code, "failed", template.id, str(e)))
+                    continue
+                
                 if current.config.get("engine_version", 0) == ENGINE_VERSION:
                     results.append(TemplateSeedResult(
-                        code, "unchanged", template.id,
+                        code, "updated" if renamed else "unchanged", template.id,
                     ))
                     continue
 
@@ -103,6 +129,7 @@ def seed_default_templates(session: Session) -> list[TemplateSeedResult]:
                 action = "created"
             else:
                 service.sync_default(template.id, ingested)
+                _sync_metadata(repo, template.id, entry)        # the row's name and type updated too
                 template_id, action = template.id, "updated"
 
         except AppError as e:
