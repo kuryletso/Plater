@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import cast
-
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -43,9 +41,15 @@ class AssetAction:
 
     label: str | Callable[[AssetId | None], str]
     run: Callable[[QWidget, AssetId], bool]
+    enabled: Callable[[AssetId], bool] | None = None        # None whenever something is selected
 
     def text(self, asset_id: AssetId | None) -> str:
         return self.label if isinstance(self.label, str) else self.label(asset_id)
+
+    def applies_to(self, asset_id: AssetId | None) -> bool:
+        if asset_id is None:
+            return False
+        return self.enabled is None or self.enabled(asset_id)
 
 
 class ManagerDialog(QDialog):
@@ -148,7 +152,7 @@ class ManagerDialog(QDialog):
 
 
         for button, action in zip(self._extra_buttons, self._asset.actions):
-            button.setEnabled(has_selection)
+            button.setEnabled(action.applies_to(asset_id))
             button.setText(action.text(asset_id))
 
 

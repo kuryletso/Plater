@@ -1382,3 +1382,55 @@ def test_a_description_field_names_its_language_even_when_there_is_one(qt_app,
     placeholders = {edit.placeholderText() for edit in container.findChildren(QLineEdit)}
 
     assert "Description (ENG)" in placeholders
+
+
+# --- Task 25: Rebuild only where it has something to do ----------------------
+
+def rebuild_button(session: Session, template_id: int):
+    from app.gui.dialogs.manager_dialog import ManagerDialog
+    from app.gui.dialogs.managers import template_asset
+
+    dialog = ManagerDialog(template_asset(session))
+    dialog.refresh(select=template_id)
+    button = next(b for b in dialog._extra_buttons if b.text() == "Rebuild")
+    return dialog, button
+
+
+def test_rebuild_is_offered_for_a_stale_template(qt_app, session: Session, bilingual_template):
+    from tests.conftest import restamp
+
+    template_id, _ = bilingual_template
+    restamp(session, template_id, 0)
+
+    _, button = rebuild_button(session, template_id)
+
+    assert button.isEnabled()
+
+
+def test_rebuild_is_greyed_out_for_an_up_to_date_template(qt_app, session: Session,
+                                                          bilingual_template):
+    """It would only read the same file the same way again."""
+
+    template_id, _ = bilingual_template
+
+    dialog, button = rebuild_button(session, template_id)
+
+    assert not button.isEnabled()
+    assert all(b.isEnabled() for b in dialog._extra_buttons if b is not button), \
+        "the other actions still apply"
+
+
+def test_rebuild_is_greyed_out_for_a_built_in_template(qt_app, session: Session,
+                                                       bilingual_template):
+    """The seeder rebuilds built-ins itself at startup, stale or not."""
+    from app.services.template.repository import TemplateRepository
+    from tests.conftest import restamp
+
+    template_id, _ = bilingual_template
+    TemplateRepository(session).get(template_id).system = True
+    session.commit()
+    restamp(session, template_id, 0)
+
+    _, button = rebuild_button(session, template_id)
+
+    assert not button.isEnabled()

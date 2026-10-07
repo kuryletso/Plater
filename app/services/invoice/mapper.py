@@ -163,7 +163,7 @@ class InvoiceMapper:
         
         values: dict[str, Values] = {
             NUMBER: self._same(str(n)),
-            DESCRIPTION: line.description,
+            DESCRIPTION: self._description(line),
             UNIT: line.unit,
             QUANTITY: self._same(format_quantity(line.quantity, fmt)),
             PRICE: self._money(fmt, line.unit_price),
@@ -174,3 +174,13 @@ class InvoiceMapper:
         if line.tax_rate > 0:
             values[TAX] = self._money(fmt, totals.tax)
         return values
+
+
+    def _description(self, line: Line) -> Values:
+        """Secondary description left empty prints blank, which is what the lines grid warns about. 
+        If it's absent, the render gate would refuse the whole document. The primary description 
+        still fail if empty.
+        """
+
+        blanks = {code: "" for code in self._codes[1:]}
+        return {**blanks, **line.description}

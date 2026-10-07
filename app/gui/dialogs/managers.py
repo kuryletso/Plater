@@ -15,7 +15,6 @@ from app.services.template.repository import TemplateRepository
 from app.services.template.rebuild_service import BlueprintState, TemplateRebuildService
 from app.services.representative.repository import RepresentativeRepository
 from app.services.measurement_unit.repository import MeasurementUnitRepository
-from app.services.errors import ServiceError
 
 
 STATE_MARKS = {
@@ -135,6 +134,11 @@ def template_asset(session: Session) -> ManagedAsset:
 
         return True
 
+    def rebuildable(asset_id: AssetId) -> bool:
+        """Prohibit rebuilding for default (seeded) and up-to-date templates."""
+
+        template = repository.get(int(asset_id))
+        return not template.system and rebuilds.state(template.id) is not  BlueprintState.OK
 
     return ManagedAsset(
         title="Templates",
@@ -145,7 +149,7 @@ def template_asset(session: Session) -> ManagedAsset:
             AssetAction(label="Versions...", run=versions),
             AssetAction(label="Duplicate", run=duplicate),
             AssetAction(label=toggle_label, run=toggle),
-            AssetAction(label="Rebuild", run=rebuild),
+            AssetAction(label="Rebuild", run=rebuild, enabled=rebuildable),
         ),
         delete=lambda asset_id: repository.delete(int(asset_id)),
     )

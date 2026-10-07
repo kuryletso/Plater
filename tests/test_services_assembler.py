@@ -569,3 +569,70 @@ def test_a_mixed_tax_invoice_passes_column_validation(mixed_tax_invoice, session
     validate_context(blueprint, context, diagnostics)
 
     assert [item.code for item in diagnostics.items if item.severity == "error"] == []
+
+
+# --- Task 26: an empty secondary description prints blank ---------------------
+
+@pytest.fixture
+def untranslated_invoice(session, make_org, make_line_input, make_sequence, assembler):
+    """A line whose secondary (ENG) description was left empty, or typed and cleared.
+    LANGS puts UKR first, so UKR is the primary language here."""
+    provider = make_org("Provider Co", tax_value="11111111")
+    client = make_org("Client Co", tax_value="22222222")
+    sequence = make_sequence(provider)
+
+    draft = make_draft(provider, client, sequence, (make_line_input(description=""),))
+    return assembler.assemble(draft, SequenceRepository(session).peek(sequence.id))
+
+
+def test_an_empty_secondary_description_is_mapped_as_blank(untranslated_invoice):
+    """The data reads it as absent (see test_an_empty_description_is_dropped_...);
+    for rendering it is a blank, which is what the lines grid tells the user."""
+
+    context = InvoiceMapper(LANGS, labels={}, append_currency=True).map(untranslated_invoice)
+
+    assert context.table.rows[0].values["invl_desc"] == {"UKR": "Дизайн", "ENG": ""}
+
+
+def test_a_missing_primary_description_is_not_papered_over(session, make_org,
+                                                           make_line_input, make_sequence,
+                                                           assembler):
+    """Only the secondary language is filled in. A line without its primary
+    description must still fail the render gate; the grid blocks it before that."""
+    provider = make_org("Provider Co", tax_value="11111111")
+    client = make_org("Client Co", tax_value="22222222")
+    sequence = make_sequence(provider)
+    draft = make_draft(provider, client, sequence, (make_line_input(description_ukr=""),))
+    data = assembler.assemble(draft, SequenceRepository(session).peek(sequence.id))
+
+    context = InvoiceMapper(LANGS, labels={}, append_currency=True).map(data)
+
+    assert "UKR" not in context.table.rows[0].values["invl_desc"]
+
+
+def test_a_bilingual_invoice_with_an_untranslated_line_passes_column_validation(
+        untranslated_invoice, make_docx):
+    """The reported symptom: the row showed its warning, Generate stayed enabled,
+    and the render gate then refused the document with missing_column_value."""
+    from app.core.diagnostics import DiagnosticCollector
+    from app.document_engine.enums.enums import PlaceholderType
+    from app.document_engine.orchestration.pipeline import TemplateIngestionPipeline
+    from app.document_engine.rendering.validate import validate_context
+    from tests.conftest import FixtureInputProvider
+
+    provider = FixtureInputProvider(
+        placeholders={"invl_desc": {"active": True, "required": True, "type": PlaceholderType.COLUMN}},
+        config=TemplateConfig(
+            primary_language="UKR", secondary_language="ENG", type="invoice",
+            name="bilingual", description="", append_currency=True,
+        ),
+    )
+    pipeline = TemplateIngestionPipeline(provider)
+    result = pipeline.ingest(make_docx(table=[["{{ invl_desc.UKR }}", "{{ invl_desc.ENG }}"]]))
+    blueprint = pipeline.finalize(result.draft)
+
+    context = InvoiceMapper(LANGS, labels={}, append_currency=True).map(untranslated_invoice)
+    diagnostics = DiagnosticCollector()
+    validate_context(blueprint, context, diagnostics)
+
+    assert [item.code for item in diagnostics.items if item.severity == "error"] == []

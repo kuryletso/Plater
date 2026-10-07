@@ -250,3 +250,61 @@ def test_a_lost_race_for_the_number_raises_instead_of_mislabeling(service, templ
 
     with pytest.raises(SequenceConflict):
         service.generate(make_draft(template_id, scenario))
+
+
+# --- Task 26 follow-up: an untranslated line is named in the preview ------------
+
+@pytest.fixture
+def bilingual_template_id(session, seeded_inputs, registered_keys, make_docx) -> int:
+    """Renders the line description in both of the default config's languages."""
+
+    session.add(PlaceholderRegistry(key="invl_desc", system=True, required=True,
+                                    type=PlaceholderType.COLUMN, active=True, columns=None))
+    session.commit()
+
+    path = make_docx(
+        paragraphs=["Invoice {{ prefix }}{{ id }}"],
+        table=[["{{ invl_desc.ENG }}", "{{ invl_desc.UKR }}"]],
+        name="bilingual.docx",
+    )
+    service = TemplateImportService(session, DbTemplateInputProvider(session))
+    return service.commit(service.ingest(path))
+
+
+def blank_description_warnings(result) -> list[dict]:
+    return [item.context for item in result.diagnostics.items if item.code == "blank_description"]
+
+
+def test_a_line_without_its_secondary_description_is_named_in_the_preview(
+        service, bilingual_template_id, scenario, make_line_input):
+    """It still generates, and prints blank, as the lines grid says; the preview
+    names the line so the blank cell is not a surprise."""
+
+    provider, client, sequence, _ = scenario
+    lines = (make_line_input(), make_line_input(description_ukr=""))
+    draft = make_draft(bilingual_template_id, (provider, client, sequence, None), lines=lines)
+
+    result = service.preview(draft)
+
+    assert result.succeeded
+    assert blank_description_warnings(result) == [{"line": 2, "language": "UKR"}]
+
+
+def test_a_fully_translated_invoice_warns_about_nothing(service, bilingual_template_id,
+                                                         scenario):
+    result = service.preview(make_draft(bilingual_template_id, scenario))
+
+    assert result.succeeded
+    assert blank_description_warnings(result) == []
+
+
+def test_a_language_the_template_never_renders_is_not_a_blank(service, template_id,
+                                                              scenario, make_line_input):
+    """The default config declares UKR, but this template places no invl_desc.UKR,
+    so the grid shows no field for it and nothing can print blank."""
+
+    provider, client, sequence, _ = scenario
+    draft = make_draft(template_id, (provider, client, sequence, None),
+                       lines=(make_line_input(description_ukr=""),))
+
+    assert blank_description_warnings(service.preview(draft)) == []

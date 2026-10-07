@@ -7,6 +7,10 @@ from sqlalchemy.orm import Session
 from app.assets.provider import DbAssetProvider
 from app.core.diagnostics import DiagnosticCollector
 from app.core.errors import Layer
+from app.document_engine.blueprint.models.template import TemplateBlueprint
+from app.document_engine.rendering.resolve.invoice_table import DESCRIPTION
+from app.document_engine.rendering.validate import column_languages
+from app.services.invoice.data import InvoiceData
 from app.document_engine.orchestration.pipeline import TemplateRenderingPipeline
 from app.document_engine.version import ENGINE_VERSION
 from app.services.doc_sequence.repository import IssuedNumber, SequenceRepository
@@ -104,6 +108,8 @@ class InvoiceGenerateService:
                 engine_version=blueprint.config.engine_version,
             )
 
+        _warn_blank_descriptions(blueprint, codes, data, render.diagnostics)
+
         return GenerationResult(
             docx=render.docx,
             number=number,
@@ -133,3 +139,28 @@ class InvoiceGenerateService:
                     "template_type": template_type,
                 },
             )
+
+
+def _warn_blank_descriptions(
+        blueprint: TemplateBlueprint,
+        codes: tuple[str, ...],
+        data: InvoiceData,
+        diagnostics: DiagnosticCollector,
+) -> None:
+    """Warn about empty secondary descriptions. Only rendered languages took into account."""
+
+    rendered = column_languages(blueprint, DESCRIPTION)
+
+    for language in codes[1:]:
+        if language not in rendered:
+            continue
+
+        for number, line in enumerate(data.lines, start=1):
+            if language not in line.description:
+                diagnostics.warn(
+                    Layer.RENDER,
+                    "blank_description",
+                    f"Line {number} has no {language} description; it will print blank.",
+                    line=number,
+                    language=language,
+                )
