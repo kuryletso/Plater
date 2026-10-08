@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.core.log import logged
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -54,6 +55,7 @@ class TemplateDefaultService:
         return row
 
 
+    @logged("settings.template_defaults")
     def update(
             self,
             *,

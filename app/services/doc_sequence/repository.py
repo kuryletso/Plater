@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.core.log import logged
 
 from typing import cast
 
@@ -32,6 +33,7 @@ class SequenceRepository:
         self._session = session
 
 
+    @logged("sequence.create")
     def create(
             self,
             organization_id: int,
@@ -118,6 +120,7 @@ class SequenceRepository:
         return list(self._session.scalars(query).all())
 
 
+    @logged("sequence.edit")
     def update(
             self,
             sequence_id: int,
@@ -166,6 +169,7 @@ class SequenceRepository:
         return sequence
 
 
+    @logged("sequence.delete")
     def delete(self, sequence_id: int) -> None:
         """Refused once number have been issued."""
 

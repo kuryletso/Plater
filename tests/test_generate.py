@@ -308,3 +308,33 @@ def test_a_language_the_template_never_renders_is_not_a_blank(service, template_
                        lines=(make_line_input(description_ukr=""),))
 
     assert blank_description_warnings(service.preview(draft)) == []
+
+
+# --- logging ------------------------------------------------------------------
+
+def test_generating_logs_ids_and_the_number_never_the_parties(service, template_id, scenario,
+                                                              caplog):
+    import logging
+
+    caplog.set_level(logging.INFO, logger="plater")
+    result = service.generate(make_draft(template_id, scenario))
+
+    (line,) = [r.getMessage() for r in caplog.records if r.getMessage().startswith("invoice.generate")]
+    assert line.startswith("invoice.generate ok")
+    assert f"template_id={template_id}" in line and "lines=1" in line
+    assert f"number={result.number.formatted}" in line
+    for private in ("Provider Co", "Client Co", "Design work"):
+        assert private not in caplog.text
+
+
+def test_a_refused_generation_logs_a_warning_with_its_codes(service, failing_template_id,
+                                                            scenario, caplog):
+    import logging
+
+    caplog.set_level(logging.INFO, logger="plater")
+    service.generate(make_draft(failing_template_id, scenario))
+
+    (record,) = [r for r in caplog.records if r.getMessage().startswith("invoice.generate")]
+    assert record.levelno == logging.WARNING
+    assert "invoice.generate refused" in record.getMessage()
+    assert "missing_required_value" in record.getMessage()

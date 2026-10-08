@@ -37,4 +37,11 @@ def settings_path() -> Path:
     return Path(override) if override else user_data_dir() / "plater.ini"
 
 
+def log_path() -> Path:
+    """This session's log. The previous one sits beside it as plater.prev.log."""
+
+    override = os.environ.get("PLATER_LOG")
+    return Path(override) if override else user_data_dir() / "plater.log"
+
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent

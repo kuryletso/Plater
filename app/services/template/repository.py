@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.core.log import logged
 
 from collections.abc import Mapping
 
@@ -252,6 +253,7 @@ class TemplateRepository:
         )
 
 
+    @logged("template.delete")
     def delete(self, template_id: int) -> None:
 
         template = self._template(template_id)
@@ -278,6 +280,7 @@ class TemplateRepository:
         self._session.commit()
 
 
+    @logged("template.edit")
     def update_metadata(
             self,
             template_id: int,
@@ -352,6 +355,7 @@ class TemplateRepository:
         return self._source_blob(row.source_sha256)
 
 
+    @logged("template.duplicate")
     def copy(
             self,
             template_id: int,
@@ -407,6 +411,7 @@ class TemplateRepository:
         return template.id
 
 
+    @logged("template.hide")
     def deactivate(
             self,
             template_id: int,
@@ -417,6 +422,7 @@ class TemplateRepository:
         self._session.commit()
 
 
+    @logged("template.show")
     def activate(
             self,
             template_id: int,

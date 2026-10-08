@@ -1,4 +1,5 @@
 from __future__ import annotations
+import logging
 
 import json
 from dataclasses import dataclass
@@ -17,6 +18,8 @@ from app.services.template.db_input_provider import DbTemplateInputProvider
 from app.services.template.import_service import TemplateImportService
 from app.services.template.repository import TemplateRepository
 from app.services.template.rebuild_service import TemplateRebuildService
+
+log = logging.getLogger("plater.seed")
 
 MANIFEST = SEED_DIR / "templates.json"
 TEMPLATE_DIR = SEED_DIR / "templates"
@@ -138,5 +141,13 @@ def seed_default_templates(session: Session) -> list[TemplateSeedResult]:
             continue
 
         results.append(TemplateSeedResult(code, action, template_id))
+
+    for result in results:
+        if result.action != "unchanged":
+            log.log(
+                logging.WARNING if result.action == "failed" else logging.INFO,
+                "built-in %s %s%s", result.code, result.action,
+                f" | {result.detail}" if result.detail else "",
+            )
 
     return results

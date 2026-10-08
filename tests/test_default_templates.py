@@ -358,3 +358,19 @@ def test_an_unchanged_manifest_changes_nothing(session: Session, shipped):
 
     assert actions(results) == {"a": "unchanged"}
     assert len(session.scalars(select(TemplateVersion)).all()) == 1
+
+
+def test_seeding_logs_what_changed_and_is_quiet_otherwise(session: Session, shipped, caplog):
+    import logging
+
+    shipped([entry("a", "a.docx")], {"a.docx": ["A {{ org_name }}"]})
+    caplog.set_level(logging.INFO, logger="plater")
+
+    seed_default_templates(session)
+    first = [r.getMessage() for r in caplog.records if r.name == "plater.seed"]
+    caplog.clear()
+    seed_default_templates(session)
+    second = [r.getMessage() for r in caplog.records if r.name == "plater.seed"]
+
+    assert first == ["built-in a created"]
+    assert second == []

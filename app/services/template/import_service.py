@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.core.log import logged, diagnostic_codes
 
 from pathlib import Path
 
@@ -23,6 +24,10 @@ class TemplateImportService:
         self._repo = TemplateRepository(session)
 
 
+    @logged(
+            "template.read",
+            details=lambda result, _: {"diagnostics": diagnostic_codes(result.diagnostics)}
+    )
     def ingest(
             self,
             path: Path,
@@ -42,6 +47,7 @@ class TemplateImportService:
         return self._pipeline.ingest_bytes(data, name=name)
     
 
+    @logged("template.import")
     def commit(
             self,
             result: IngestionResult,
@@ -90,6 +96,10 @@ class TemplateImportService:
         )
 
 
+    @logged(
+            "template.add_version",
+            details=lambda version, arguments: {"template_id": arguments["template_id"], "version": version},
+    )
     def commit_version(
             self,
             template_id: int,

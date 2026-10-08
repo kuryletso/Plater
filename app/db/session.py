@@ -30,6 +30,7 @@ def _alembic_config() -> Config:
     cfg = Config(str(PROJECT_ROOT / "alembic.ini"))
     cfg.set_main_option("script_location", str(PROJECT_ROOT / "alembic"))
     cfg.set_main_option("sqlalchemy.url", DATABASE_URL)
+    cfg.attributes["configure_logger"] = False      # keeps the app's own session log (see alembic/env.py)
     return cfg
 
 

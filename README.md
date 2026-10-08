@@ -171,6 +171,21 @@ tests/
 scripts/
 ```
 
+### Conventions
+
+- **Keys.** Everything a user creates (organizations, tax IDs, bank accounts,
+  representatives, sequences, templates and their versions, invoice lines) has an
+  integer `id`. Reference and registry data (languages, countries, currencies,
+  document types, units, tax systems, placeholders) is keyed by its code, and
+  stored files by their SHA-256. Keep new tables to this. The session log records
+  ids and codes rather than names, so a new entity with a UUID or other key would
+  show up in the log without one.
+- **Session log.** `plater.log` sits beside the database, with the previous
+  session kept as `plater.prev.log`; set `PLATER_LOG` to move it. Actions are
+  logged at the service boundary with `@logged` from `app/core/log.py`. Log ids,
+  counts and diagnostic codes. DO NOT log user-provided data (names, addresses, descriptions etc.), including user_message from diagnostics service.
+- **Empty values** are `None`, never `""` (empty string).
+
 ## License
 
 Copyright (C) 2026 Oleksandr Kurylets

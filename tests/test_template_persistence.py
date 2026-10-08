@@ -969,3 +969,40 @@ def test_commit_can_mark_a_shipped_default(session: Session, seeded_inputs, make
 
     row = session.get(Template, template_id)
     assert (row.code, row.system) == ("default_invoice", True)
+
+
+# --- logging ------------------------------------------------------------------
+
+def test_template_actions_are_logged_with_their_ids(session: Session, ingested, caplog):
+    import logging
+
+    bp, bundle, source = ingested
+    repo = TemplateRepository(session)
+    origin = repo.create(bp, bundle, source, code="default_invoice", system=True)
+    caplog.set_level(logging.INFO, logger="plater")
+
+    copy_id = repo.copy(origin, "My invoice")
+    with pytest.raises(InvalidSelection):
+        repo.delete(origin)
+
+    lines = [r.getMessage() for r in caplog.records if r.name == "plater.action"]
+    assert lines[0].startswith("template.duplicate ok")
+    assert f"template_id={origin}" in lines[0] and f"id={copy_id}" in lines[0]
+    assert "My invoice" not in caplog.text
+    assert lines[1].startswith("template.delete failed")
+
+
+def test_importing_and_adding_a_version_are_logged_by_their_names(session: Session, seeded_inputs,
+                                                                   make_docx, caplog):
+    """The action names are what one searches a log for."""
+    import logging
+
+    service = TemplateImportService(session, DbTemplateInputProvider(session))
+    caplog.set_level(logging.INFO, logger="plater")
+
+    template_id = service.commit(service.ingest(make_docx(paragraphs=["v1 {{ org_name }}"])))
+    service.commit_version(template_id, service.ingest(make_docx(paragraphs=["v2 {{ org_name }}"], name="v2.docx")))
+
+    actions = [r.getMessage().split(" ", 1)[0] for r in caplog.records if r.name == "plater.action"]
+    assert actions == ["template.read", "template.import", "template.read", "template.add_version"]
+    assert f"template_id={template_id} version=2" in caplog.records[-1].getMessage()

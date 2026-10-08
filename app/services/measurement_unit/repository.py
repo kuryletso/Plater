@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.core.log import logged
 
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -44,7 +45,8 @@ class MeasurementUnitRepository:
                     context={"code": code},
                 )
 
-            
+
+    @logged("unit.create")        
     def create(
             self,
             code: str,
@@ -114,6 +116,7 @@ class MeasurementUnitRepository:
         ]
 
 
+    @logged("unit.edit")
     def update(
             self,
             code: str,
@@ -142,6 +145,7 @@ class MeasurementUnitRepository:
         return unit
 
 
+    @logged("unit.show")
     def activate(self, code: str) -> MeasurementUnitRegistry:
         unit = self.get(code)
         unit.active = True
@@ -150,6 +154,7 @@ class MeasurementUnitRepository:
         return unit
 
 
+    @logged("unit.hide")
     def deactivate(self, code: str) -> MeasurementUnitRegistry:
         """Units are never deleted. Deactivating hides them from every picker."""
 

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.core.log import logged
 
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -29,6 +30,7 @@ class RepresentativeRepository:
         self._session = session
 
 
+    @logged("representative.create")
     def create(
             self,
             localizations: Mapping[str, RepresentativeText],
@@ -103,6 +105,7 @@ class RepresentativeRepository:
         return list(self._session.scalars(query).unique().all())
 
 
+    @logged("representative.edit")
     def update(
             self,
             representative_id: int,
@@ -139,6 +142,7 @@ class RepresentativeRepository:
         return representative
 
 
+    @logged("representative.delete")
     def delete(self, representative_id: int) -> None:
         """Refused while still attached to any organization."""
 

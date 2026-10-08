@@ -1,6 +1,9 @@
+from app.core.log import logged, diagnostic_codes
+
 from dataclasses import dataclass
 
-from typing import cast
+from typing import cast, Any
+from collections.abc import Mapping
 
 from sqlalchemy.orm import Session
 
@@ -37,6 +40,17 @@ class RebuildResult:
     diagnostics: DiagnosticCollector | None = None
 
 
+def _rebuild_details(result: RebuildResult, arguments: Mapping[str, Any]) -> dict[str, object]:
+    """Exclude names and user messages from logging."""
+
+    return {
+        "outcome": "failed" if result.action == "failed" else "ok",
+        "template_id": result.template_id,
+        "version": arguments.get("version"),
+        "diagnostics": diagnostic_codes(result.diagnostics),
+    }
+
+
 class TemplateRebuildService:
     """Re-ingests template from its stored source bytes.
     
@@ -63,42 +77,6 @@ class TemplateRebuildService:
         ]
 
 
-    # def rebuild(self, template_id: int) -> RebuildResult:
-    #     template = self._repo.get(template_id)
-    #     current = self._repo.current_version(template_id)
-
-    #     service = TemplateImportService(
-    #         self._session,
-    #         DbTemplateInputProvider(
-    #             self._session,
-    #             config=self._stored_config(template, current)
-    #         ),
-    #     )
-
-    #     try:
-    #         result = service.ingest_bytes(
-    #             self._repo.get_source(template_id).data,
-    #             name=f"{template.name}.docx",
-    #         )
-    #     except AppError as e:
-    #         self._session.rollback()
-    #         return RebuildResult(template_id, template.name, "failed", str(e))
-
-    #     if result.diagnostics.has_errors:
-    #         return RebuildResult(
-    #             template_id, template.name, "failed",
-    #             "the stored source no longer ingests cleanly",
-    #             result.diagnostics,
-    #         )
-
-    #     self._repo.replace_blueprint(
-    #         current.id, service.finalize(result), result.assets,
-    #     )
-
-    #     return RebuildResult(
-    #         template_id, template.name, "rebuilt", None, result.diagnostics,
-    #     )
-
     def state(self, template_id: int) -> BlueprintState:
         try:
             self._repo.get_blueprint(template_id)
@@ -112,6 +90,7 @@ class TemplateRebuildService:
             else BlueprintState.STALE
 
 
+    @logged("template.rebuild", details=_rebuild_details)
     def rebuild(self, template_id: int) -> RebuildResult:
         """Replace the current version's reading in place: same source, version number, corrected blueprint."""
 
@@ -133,6 +112,7 @@ class TemplateRebuildService:
         )
 
 
+    @logged("template.restore", details=_rebuild_details)
     def restore(self, template_id: int, version: int) -> RebuildResult:
         """Appends a fresh reading of an older version's source as the newest version."""
 

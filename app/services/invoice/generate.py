@@ -1,5 +1,7 @@
 from __future__ import annotations
+from app.core.log import logged, diagnostic_codes
 
+from typing import Any, Mapping
 from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
@@ -36,6 +38,23 @@ class GenerationResult:
         return self.docx is not None
 
 
+def _generation_details(
+        result: GenerationResult,
+        arguments: Mapping[str, Any],
+) -> dict[str, object]:
+    """Exclude names and user messages from logging."""
+
+    draft = arguments["draft"]
+    return {
+        "outcome": "ok" if result.succeeded else "refused",
+        "template_id": draft.template_id,
+        "sequence_id": draft.sequence_id,
+        "lines": len(draft.lines),
+        "number": result.number.formatted if result.succeeded else None,
+        "diagnostics": diagnostic_codes(result.diagnostics),
+    }
+
+
 class InvoiceGenerateService:
     """Assemble -> render -> consume-on-success.
     
@@ -55,6 +74,7 @@ class InvoiceGenerateService:
         return self._render(draft, self._sequences.peek(draft.sequence_id))
 
 
+    @logged("invoice.generate", details=_generation_details)
     def generate(self, draft: InvoiceDraft) -> GenerationResult:
         number = self._sequences.peek(draft.sequence_id)
 

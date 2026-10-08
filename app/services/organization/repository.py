@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.core.log import logged
 
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -41,6 +42,7 @@ class OrganizationRepository:
         self._session = session
 
 
+    @logged("organization.create")
     def create(
             self,
             localizations: Mapping[str, OrganizationText],
@@ -122,6 +124,7 @@ class OrganizationRepository:
         return list(self._session.scalars(query).unique().all())
 
 
+    @logged("organization.edit")
     def update(
             self,
             organization_id: int,
@@ -169,10 +172,11 @@ class OrganizationRepository:
         return organization
 
 
-    def delete(self, organizaiton_id: int) -> None:
+    @logged("organization.delete")
+    def delete(self, organization_id: int) -> None:
         """Refused once the organization has issued invoice numbers."""
 
-        organization = self.get(organizaiton_id)
+        organization = self.get(organization_id)
 
         self._session.delete(organization)
         self._session.commit()
