@@ -15,6 +15,7 @@ from app.document_engine.blueprint.models.segment import (
 )
 from app.document_engine.rendering.context import RenderContext
 from app.document_engine.enums.enums import PlaceholderType
+from app.core.messages import QT_TRANSLATE_NOOP
 
 
 def blueprint_uses_table(
@@ -100,7 +101,10 @@ def validate_context(
         and _lookup(context.scalars, key, lang) is None:
             error(
                 "missing_required_value",
-                f"Required placeholder '{key}' ({lang}) has no value.",
+                QT_TRANSLATE_NOOP(
+                    "messages",
+                    "Required placeholder '{key}' ({language}) has no value.",
+                ),
                 key=key, language=lang,
             )
 
@@ -109,14 +113,20 @@ def validate_context(
         if context.table is None:
             error(
                 "missing_table_data",
-                "Template uses a table placeholder but no table data was provided.",
+                QT_TRANSLATE_NOOP(
+                    "messages",
+                    "The template has an invoice table, but there are no invoice lines for it.",
+                )
             )
         else:
             if not context.table.rows:
                 diag.warn(
                     Layer.RENDER,
                     "empty_table",
-                    "Table data has no rows; the table will render empty.",
+                    QT_TRANSLATE_NOOP(
+                        "messages",
+                        "There are no invoice lines; the table will render empty.",
+                    )
                 )
 
             for key, lang in columns:
@@ -126,7 +136,10 @@ def validate_context(
                 ):
                     error(
                         "missing_column_value",
-                        f"Column '{key}' ({lang}) is missing in one or more rows.",
+                        QT_TRANSLATE_NOOP(
+                            "messages",
+                            "Column '{key}' ({language}) is missing in one or more rows.",
+                        ),
                         key=key, language=lang,
                     )
 
@@ -154,19 +167,28 @@ def _validate_totals(
     if table.subtotal.get(lang) is None:
         error(
             "missing_total",
-            f"invoice_table subtotal missing for '{lang}'.",
+            QT_TRANSLATE_NOOP(
+                "messages",
+                "The invoice table has no subtotal in {language}.",
+            ),
             language=lang,
         )
     if table.total.get(lang) is None:
         error(
             "missing_total",
-            f"invoice_table total missing for '{lang}'.",
+            QT_TRANSLATE_NOOP(
+                "messages",
+                "The invoice table has no total in {language}.",
+            ),
             language=lang,
         )
     if table.show_tax and (table.total_tax is None or table.total_tax.get(lang) is None):
         error(
             "missing_total",
-            f"invoice_table total tax missing for '{lang}'.",
+            QT_TRANSLATE_NOOP(
+                "messages",
+                "The invoice table has no total tax in {language}.",
+            ),
             language=lang,
         )
 

@@ -21,6 +21,7 @@ from app.gui.dialogs.widgets import (
 )
 from app.services.template.repository import TemplateRepository
 from app.services.errors import ServiceError
+from app.gui.i18n import error_text
 
 
 class TemplateEditDialog(QDialog):
@@ -114,7 +115,7 @@ class TemplateEditDialog(QDialog):
             )
         except ServiceError as e:
             self._session.rollback()
-            self.banner.show_message(e.user_message or str(e))
+            self.banner.show_message(error_text(e))
             return
 
         self.accept()

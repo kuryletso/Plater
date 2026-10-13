@@ -14,6 +14,7 @@ from app.services.template.repository import TemplateRepository
 from app.services.template.rebuild_service import BlueprintState, TemplateRebuildService
 from app.services.errors import ServiceError
 from app.db.models.core.template_version import TemplateVersion
+from app.gui.i18n import error_text
 
 
 class TemplateColumn(QWidget):
@@ -116,7 +117,7 @@ class TemplateColumn(QWidget):
             # an exception escaping a slot is swallowed by Qt
             self.ui.details_label.setText(
                 f"<b>This template cannot be loaded.</b><br>"
-                f"{escape(e.user_message or str(e))}"
+                f"{escape(error_text(e))}"
             )
             self._draft.set_template(None, None, ())
             return
@@ -220,7 +221,7 @@ class TemplateColumn(QWidget):
         except ServiceError as e:
             QMessageBox.warning(
                 self, "Cannot delete",
-                e.user_message or str(e),
+                error_text(e),
             )
             return
 

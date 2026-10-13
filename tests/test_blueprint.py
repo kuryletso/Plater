@@ -1,5 +1,7 @@
 """Tests for the blueprint stage: tokenizer, segment extraction, builder."""
 
+import re
+
 import pytest
 
 from app.core.diagnostics import DiagnosticCollector
@@ -140,7 +142,28 @@ def test_extract_unknown_key_warns_and_keeps_literal(make_text_node, make_contex
     assert "nope" not in ctx.placeholders
     warnings = ctx.diagnostics.warnings
     assert len(warnings) == 1
-    assert "nope" in warnings[0].message
+    assert "nope" in warnings[0].text
+
+
+def test_a_placeholder_syntax_warning_has_its_own_code_and_names_the_placeholder(
+        make_text_node, make_context):
+    """The import dialog lists these, and the user has to find the placeholder in Word."""
+    ctx = make_context()
+    extract_segments(make_text_node("Total: {{ org_name, = }}"), ctx)
+
+    (warning,) = ctx.diagnostics.warnings
+    assert warning.code == "unexpected_token"
+    assert warning.text == "Unexpected '=' in joined placeholder: {{ org_name, = }}."
+
+
+def test_an_unknown_language_is_named_in_its_warning(make_text_node, make_context):
+    ctx = make_context()
+    extract_segments(make_text_node("{{ org_name.DEU }}"), ctx)
+
+    (warning,) = ctx.diagnostics.warnings
+    assert warning.code == "unknown_language"
+    assert warning.text == \
+        "Invalid placeholder key 'org_name.DEU': 'DEU' is not a language of this template."
 
 
 def test_extract_unclosed_brace_warns_not_fatal(make_text_node, make_context):
@@ -202,3 +225,39 @@ def test_build_draft_and_finalize(make_docx, fixture_provider):
     assert isinstance(blueprint, TemplateBlueprint)
     assert set(blueprint.placeholders) == {"org_name", "invoice_no"}
     assert isinstance(blueprint.config, TemplateConfig)
+
+
+@pytest.mark.parametrize(("placeholder", "code"), [
+    ("{{ ((org_name ( }}", "unexpected_token"),             # a group inside a group
+    ("{{ ((org_name)) = }}", "unexpected_token"),
+    ("{{ ((org_name)), sep }}", "invalid_separator"),
+    ("{{ ((org_name)), invoice_no }}", "ungrouped_key"),
+    ('{{ ((org_name)), "text" }}', "ungrouped_text"),
+    ("{{ org_name, ( }}", "unexpected_token"),
+    ("{{ org_name, sep }}", "invalid_separator"),
+    ("{{ org_name invoice_no }}", "invalid_placeholder"),
+    ("{{ = }}", "invalid_placeholder"),
+    ("{{ org_name.DEU }}", "unknown_language"),
+    ("{{ org_name. }}", "placeholder_key_no_language"),
+    ("{{ a.b.c }}", "placeholder_key_several_dots"),
+    ("{{ nope }}", "unknown_placeholder"),
+    ("{{ }}", "empty_placeholder"),
+    ('{{ org_name, "open }}', "unclosed_quote"),
+    ("{{ org_name; }}", "unexpected_character"),
+])
+def test_a_placeholder_syntax_error_supplies_every_field_its_message_names(
+        placeholder, code, make_text_node, make_context):
+    """The raise fills its own template. Nothing may rely on extract_segments adding
+    the placeholder's text afterwards, or str(e) shows the field unfilled."""
+    from app.document_engine.blueprint.builders.segments import (
+        parse_placeholder,
+        text_style_bp_from_normalized,
+    )
+
+    style = text_style_bp_from_normalized(make_text_node("x").style)
+    with pytest.raises(PlaceholderSyntaxError) as caught:
+        parse_placeholder(placeholder, style, make_context())
+
+    error = caught.value
+    assert error.code == code
+    assert set(re.findall(r"\{(\w+)\}", error.user_message)) <= set(error.context)

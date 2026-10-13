@@ -29,6 +29,7 @@ from app.services.invoice.data import (
 )
 from app.services.invoice.draft import InvoiceDraft, PartySelection, LineInput
 from app.services.doc_sequence.repository import IssuedNumber
+from app.core.messages import QT_TRANSLATE_NOOP
 
 
 def values_of(
@@ -214,7 +215,7 @@ class InvoiceAssembler:
         if match is None:
             raise InvalidSelection(
                 f"organization {org.id} has no tax id {tax_id_id}",
-                user_message="Select a tax ID for this organization.",
+                user_message=QT_TRANSLATE_NOOP("messages", "Select a tax ID for this organization."),
                 context={"organization_id": org.id, "tax_id_id": tax_id_id},
             )
         
@@ -242,7 +243,7 @@ class InvoiceAssembler:
         if match is None:
             raise InvalidSelection(
                 f"Organization {org.id} has no representative {representative_id}",
-                user_message="The selected representative is not linked to this organization.",
+                user_message=QT_TRANSLATE_NOOP("messages", "The selected representative is not linked to this organization."),
                 context={"organization_id": org.id, "representative_id": representative_id},
             )
         
@@ -269,7 +270,7 @@ class InvoiceAssembler:
         if match is None:
             raise InvalidSelection(
                 f"Organization {org.id} has no bank account {bank_account_id}",
-                user_message="The selected bank account is not linked to this organization.",
+                user_message=QT_TRANSLATE_NOOP("messages", "The selected bank account is not linked to this organization."),
                 context={"organization_id": org.id, "bank_account_id": bank_account_id},
             )
         

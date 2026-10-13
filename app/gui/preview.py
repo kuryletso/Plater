@@ -6,6 +6,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QFrame, QLabel, QVBoxLayout, QWidget, QListWidget, QTextBrowser
 
 from app.core.errors import Severity
+from app.gui.i18n import diagnostic_text
 
 
 class PreviewPanel(QFrame):
@@ -47,7 +48,7 @@ class PreviewPanel(QFrame):
         for item in diagnostics.items:
             color = "#c0392b" if item.severity == Severity.ERROR else "#8a6d00"
             rows.append(
-                f'<p style="margin:0 0 8px 0; color:{color}">{escape(item.message)}</p>'
+                f'<p style="margin:0 0 8px 0; color:{color}">{escape(diagnostic_text(item))}</p>'
             )
 
         self.issues_view.setHtml("".join(rows))

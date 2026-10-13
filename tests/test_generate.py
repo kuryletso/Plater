@@ -338,3 +338,23 @@ def test_a_refused_generation_logs_a_warning_with_its_codes(service, failing_tem
     assert record.levelno == logging.WARNING
     assert "invoice.generate refused" in record.getMessage()
     assert "missing_required_value" in record.getMessage()
+
+
+# --- the same organization on both sides ------------------------------------------
+
+def test_the_same_organization_on_both_sides_is_a_preview_warning(service, template_id,
+                                                                 scenario):
+    """It used to sit in the main window's footer, which is kept for notifications."""
+
+    provider, _, sequence, line = scenario
+    result = service.preview(make_draft(template_id, (provider, provider, sequence, line)))
+
+    assert result.succeeded, "a warning, not a refusal"
+    (warning,) = [item for item in result.diagnostics.warnings if item.code == "same_party"]
+    assert warning.text == "The provider and the client are the same organization."
+
+
+def test_two_organizations_raise_no_same_party_warning(service, template_id, scenario):
+    result = service.preview(make_draft(template_id, scenario))
+
+    assert "same_party" not in {item.code for item in result.diagnostics.items}

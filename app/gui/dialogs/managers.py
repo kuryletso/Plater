@@ -15,6 +15,7 @@ from app.services.template.repository import TemplateRepository
 from app.services.template.rebuild_service import BlueprintState, TemplateRebuildService
 from app.services.representative.repository import RepresentativeRepository
 from app.services.measurement_unit.repository import MeasurementUnitRepository
+from app.gui.i18n import error_text
 
 
 STATE_MARKS = {
@@ -128,7 +129,7 @@ def template_asset(session: Session) -> ManagedAsset:
         if outcome.action != "rebuilt":
             QMessageBox.warning(
                 parent, "Could not rebuild",
-                f"{outcome.name}: {outcome.detail or 'the rebuilt failed.'}",
+                f"{outcome.name}: {error_text(outcome.error) if outcome.error is not None else 'The rebuild failed.'}",
             )
             return False
 
@@ -272,7 +273,7 @@ def template_version_asset(session: Session, template_id: int) -> ManagedAsset:
         if outcome.action != "restored":
             QMessageBox.warning(
                 parent, "Could not restore",
-                f"{outcome.name}: {outcome.detail or 'the restore failed.'}",
+                f"{outcome.name}: {error_text(outcome.error) if outcome.error is not None else 'The restore failed.'}",
             )
             return False
 

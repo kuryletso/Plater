@@ -1056,6 +1056,20 @@ def test_leaving_the_language_alone_reports_no_change(qt_app, session: Session,
     assert not dialog.language_changed
 
 
+def test_choosing_another_language_says_it_waits_for_a_restart(qt_app, session: Session,
+                                                               seeded_inputs, settings_file):
+    from app.gui.dialogs.settings import SettingsDialog
+
+    dialog = SettingsDialog(session)
+    assert dialog.restart_note.isHidden()
+
+    dialog.language_combo.setCurrentIndex(dialog.language_combo.findData("UKR"))
+    assert not dialog.restart_note.isHidden()
+
+    dialog.language_combo.setCurrentIndex(dialog.language_combo.findData("ENG"))
+    assert dialog.restart_note.isHidden(), "back to the language it started in"
+
+
 def test_saving_updates_the_template_defaults(qt_app, session: Session,
                                               seeded_inputs, settings_file):
     from app.gui.dialogs.settings import SettingsDialog

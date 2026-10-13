@@ -16,11 +16,12 @@ from app.core.diagnostics import DiagnosticCollector
 from app.services.template.repository import TemplateRepository
 from app.services.template.import_service import TemplateImportService
 from app.services.template.db_input_provider import DbTemplateInputProvider
-from app.services.errors import BlueprintUnreadable
+from app.services.errors import BlueprintUnreadable, SourceNoLongerReads
 from app.db.models.core.template import Template
 from app.db.models.core.template_version import TemplateVersion
 from app.document_engine.blueprint.models.template import TemplateConfig
 from app.document_engine.orchestration.results import IngestionResult
+from app.core.messages import QT_TRANSLATE_NOOP
 
 
 class BlueprintState(StrEnum):
@@ -36,7 +37,7 @@ class RebuildResult:
     template_id: int
     name: str
     action: str
-    detail: str | None = None
+    error: AppError | None = None       # why it failed; the GUI translates it with error_text()
     diagnostics: DiagnosticCollector | None = None
 
 
@@ -46,6 +47,7 @@ def _rebuild_details(result: RebuildResult, arguments: Mapping[str, Any]) -> dic
     return {
         "outcome": "failed" if result.action == "failed" else "ok",
         "template_id": result.template_id,
+        "code": result.error.code if result.error is not None else None,
         "version": arguments.get("version"),
         "diagnostics": diagnostic_codes(result.diagnostics),
     }
@@ -150,9 +152,9 @@ class TemplateRebuildService:
             )
         )
 
-        def failed(detail, diagnostics=None):
+        def failed(error: AppError, diagnostics=None):
             return service, None, RebuildResult(
-                template.id, template.name, "failed", detail, diagnostics,
+                template.id, template.name, "failed", error, diagnostics,
             )
 
         try:
@@ -162,11 +164,20 @@ class TemplateRebuildService:
             )
         except AppError as e:
             self._session.rollback()
-            return failed(str(e))
+            return failed(e)
 
         if result.diagnostics.has_errors:
             return failed(
-                "the stored source no longer ingests cleanly", result.diagnostics,
+                SourceNoLongerReads(
+                    "the stored source no longer ingests cleanly",
+                    code="source_no_longer_reads",
+                    user_message=QT_TRANSLATE_NOOP(
+                        "messages",
+                        "The template's original file no longer imports without errors.",
+                    ),
+                    context={"template_id": template.id},
+                ),
+                result.diagnostics,
             )
 
         return service, result, None

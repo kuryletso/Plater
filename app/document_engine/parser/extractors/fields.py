@@ -22,6 +22,7 @@ from app.document_engine.parser.models.blocks import ParsedInlineNode
 from app.document_engine.parser.models.inlines import RunNode, FieldNode
 from app.document_engine.parser.models.styles import RunStyle
 from app.document_engine.enums.enums import FieldType
+from app.core.messages import QT_TRANSLATE_NOOP
 
 SUPPORTED_FIELDS = {kind.value: kind for kind in FieldType}
 
@@ -136,7 +137,10 @@ class FieldAssembler:
                 self._context.diagnostics.warn(
                     Layer.PARSER,
                     "field_kept_as_text",
-                    f"'{name}' fields are not supported; kept as the text it last showed.",
+                    QT_TRANSLATE_NOOP(
+                        "messages",
+                        "'{field}' fields are not supported; kept as the text it last showed.",
+                    ),
                     field=name,
                 )
             return result

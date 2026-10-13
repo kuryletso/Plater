@@ -63,6 +63,7 @@ temp/
 # Generated files
 *.pdf
 app/gui/generated
+app/gui/translations/*.qm
 
 # Jupyter
 .ipynb_checkpoints/

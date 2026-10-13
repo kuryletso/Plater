@@ -21,6 +21,7 @@ from app.gui.dialogs.widgets import (
 )
 from app.services.organization.repository import BankText, OrganizationRepository
 from app.services.errors import ServiceError
+from app.gui.i18n import error_text
 
 
 FIELDS = (
@@ -149,7 +150,7 @@ class BankAccountDialog(QDialog):
                 ).id
         except ServiceError as e:
             self._session.rollback()
-            self.banner.show_message(e.user_message or str(e))
+            self.banner.show_message(error_text(e))
             return
 
         self.accept()

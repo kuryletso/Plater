@@ -16,12 +16,16 @@ def main() -> int:
     from app.db.session import init_db
     init_db()
 
-    from app.gui.settings import display_languages
+    from app.gui.settings import display_languages, ui_language
     from app.gui.text import set_preferred_languages
     set_preferred_languages(display_languages())
 
     app = QApplication(sys.argv)
     app.setApplicationName("Plater")
+
+    from app.gui.i18n import install
+    install(app, ui_language())     # (!) before any widget is built
+
     app.setStyleSheet("""
             CollapsibleColumn {
                 background-color: palette(base);

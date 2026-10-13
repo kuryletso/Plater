@@ -13,6 +13,7 @@ from app.db.models.core.organization import Organization
 from app.db.models.registries.document_type import DocumentTypeRegistry
 from app.services.sentinel import Unset, UNSET
 from app.services.errors import EntityNotFound, InvalidSelection
+from app.core.messages import QT_TRANSLATE_NOOP
 
 
 @dataclass(slots=True, frozen=True)
@@ -63,7 +64,7 @@ class SequenceRepository:
             raise InvalidSelection(
                 f"organization {organization_id} already numbers {document_type!r} "
                 f"documents with prefix {prefix!r}",
-                user_message="Numbering sequence with that prefix already exists.",
+                user_message=QT_TRANSLATE_NOOP("messages", "A numbering sequence with that prefix already exists."),
                 context={
                             "organization_id": organization_id,
                             "document_type": document_type,
@@ -153,7 +154,7 @@ class SequenceRepository:
             if clash is not None:
                 raise InvalidSelection(
                     f"prefix {new_prefix!r} is already used for this document type",
-                    user_message="Numbering sequence with that prefix already exists.",
+                    user_message=QT_TRANSLATE_NOOP("messages", "A numbering sequence with that prefix already exists."),
                     context={"prefix": new_prefix},
                 )
 
@@ -237,7 +238,7 @@ class SequenceRepository:
         if not row.active:
             raise InvalidSelection(
                 f"document type {code!r} is disabled",
-                user_message="Selected document type is no longer available.",
+                user_message=QT_TRANSLATE_NOOP("messages", "Selected document type is no longer available."),
                 context={"code": code},
             )
 
@@ -246,7 +247,7 @@ class SequenceRepository:
         if counter < 0:
             raise InvalidSelection(
                 f"counter cannot be negative, got {counter}",
-                user_message="The counter cannot be negative.",
+                user_message=QT_TRANSLATE_NOOP("messages", "The counter cannot be negative."),
                 context={"counter": counter},
             )
 
@@ -255,6 +256,6 @@ class SequenceRepository:
         if padding < 0:
             raise InvalidSelection(
                 f"padding cannot be negative, got {padding}",
-                user_message="The padding cannot be negative.",
+                user_message=QT_TRANSLATE_NOOP("messages", "The padding cannot be negative."),
                 context={"padding": padding},
             )

@@ -26,6 +26,13 @@ class SequenceConflict(ServiceError):
     recoverable = True
 
 
+class SourceNoLongerReads(ServiceError):
+    """Template's stored source that the current engine cannot import cleanly."""
+
+    category = ErrorCategory.FORMAT
+    recoverable = True
+
+
 class BlueprintUnreadable(ServiceError):
     """Stored blueprint no longer validates against the current models."""
 

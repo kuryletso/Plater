@@ -14,6 +14,7 @@ from app.db.models.configs.default_template_config import DefaultTemplateConfig
 from app.gui.dialogs.widgets import ErrorBanner, LocalizedFields, default_languages
 from app.services.errors import ServiceError
 from app.services.organization.repository import OrganizationRepository, OrganizationText
+from app.gui.i18n import error_text
 
 FIELDS = (
     ("org_type", "Legal form"),
@@ -142,7 +143,7 @@ class OrganizationDialog(QDialog):
                 )
         except ServiceError as e:
             self._session.rollback()
-            self.banner.show_message(e.user_message or str(e))
+            self.banner.show_message(error_text(e))
             return
 
         self.accept()

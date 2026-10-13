@@ -20,6 +20,7 @@ from app.db.models.references.language import Language
 from app.db.models.registries.tax_id_system import TaxIdSystemRegistry
 from app.services.sentinel import Unset, UNSET
 from app.services.errors import EntityNotFound, InvalidSelection
+from app.core.messages import QT_TRANSLATE_NOOP
 
 
 @dataclass(slots=True, frozen=True)
@@ -203,7 +204,7 @@ class OrganizationRepository:
             raise InvalidSelection(
                 f"organization {organization_id} already has a {tax_id_system} "
                 f"identifier for {country}",
-                user_message="That tax identifier is already recorded.",
+                user_message=QT_TRANSLATE_NOOP("messages", "That tax identifier is already recorded."),
                 context={"tax_id_system": tax_id_system, "country": country},
             )
 
@@ -263,7 +264,7 @@ class OrganizationRepository:
         if existing is not None:
             raise InvalidSelection(
                 f"IBAN {iban} is already recorded",
-                user_message="Provided IBAN is already used by another account.",
+                user_message=QT_TRANSLATE_NOOP("messages", "This IBAN is already used by another account."),
                 context={"iban": iban},
             )
 
@@ -402,7 +403,7 @@ class OrganizationRepository:
             raise InvalidSelection(
                 f"organization {organization_id} already has a {new_system} "
                 f"identifier for {new_country}",
-                user_message="That tax identifier is already recorded.",
+                user_message=QT_TRANSLATE_NOOP("messages", "That tax identifier is already recorded."),
                 context={"tax_id_system": new_system, "country": new_country},
             )
 
@@ -458,7 +459,7 @@ class OrganizationRepository:
             if taken is not None:
                 raise InvalidSelection(
                     f"IBAN {iban} is already recorded",
-                    user_message="Provided IBAN is already used by another account.",
+                    user_message=QT_TRANSLATE_NOOP("messages", "This IBAN is already used by another account."),
                     context={"iban": iban},
                 )
             account.iban = iban
@@ -500,7 +501,7 @@ class OrganizationRepository:
         if not localizations:
             raise InvalidSelection(
                 "organization needs at least one localization",
-                user_message="Enter the organization name in at least one language.",
+                user_message=QT_TRANSLATE_NOOP("messages", "Enter the organization name in at least one language."),
             )
 
         for code in localizations:
@@ -533,6 +534,6 @@ class OrganizationRepository:
         if not row.active:
             raise InvalidSelection(
                 f"tax id system {code!r} is disabled",
-                user_message="Selected tax system is no longer available.",
+                user_message=QT_TRANSLATE_NOOP("messages", "Selected tax system is no longer available."),
                 context={"code": code},
             )

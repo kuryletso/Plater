@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.gui.dialogs.widgets import ErrorBanner, LocalizedFields, default_languages
 from app.services.errors import ServiceError
 from app.services.measurement_unit.repository import MeasurementUnitRepository, MeasurementUnitText
+from app.gui.i18n import error_text
 
 FIELDS = (("name", "Name"),)
 
@@ -92,7 +93,7 @@ class MeasurementUnitDialog(QDialog):
                 changed = self._repo.create(self.code_edit.text(), texts)
         except ServiceError as e:
             self._session.rollback()
-            self.banner.show_message(e.user_message or str(e))
+            self.banner.show_message(error_text(e))
             return
 
         self.unit_code = changed.code

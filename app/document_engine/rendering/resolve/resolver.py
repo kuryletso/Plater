@@ -31,6 +31,7 @@ from app.document_engine.rendering.resolve.models import (
 from app.document_engine.rendering.resolve.invoice_table import build_invoice_table
 from app.document_engine.rendering.resolve.raw import placeholder_syntax, RAW_SINGLE_ROW, raw_paragtaph_style
 from app.document_engine.enums.enums import ResolveMode, PlaceholderType
+from app.core.messages import QT_TRANSLATE_NOOP
 
 
 class DocumentResolver:
@@ -169,7 +170,10 @@ class DocumentResolver:
             self._diag.warn(
                 Layer.RENDER,
                 "row_placeholder_no_data",
-                "Row placeholder preset but no table data provided; skipped.",
+                QT_TRANSLATE_NOOP(
+                    "messages",
+                    "An invoice-line row has no invoice lines to repeat; skipped.",
+                ),
             )
             return []
         return [
@@ -199,7 +203,10 @@ class DocumentResolver:
         self._diag.warn(
             Layer.RENDER,
             "unexpected_cell_placeholder",
-            "Cell placeholder found in non-placeholder row; skipped.",
+            QT_TRANSLATE_NOOP(
+                "messages",
+                "An invoice-line placeholder in a row that does not repeat; skipped.",
+            ),
         )
         return ResolvedCell(
             blocks=(),
@@ -242,7 +249,10 @@ class DocumentResolver:
             self._diag.warn(
                 Layer.RENDER,
                 "missing_column_value",
-                f"Column '{key}' ({language}) missing; erndered empty.",
+                QT_TRANSLATE_NOOP(
+                    "messages",
+                    "Column '{key}' ({language}) has no value; rendered empty.",
+                ),
                 key=key, language=language,
             )
             return ""
@@ -276,7 +286,10 @@ class DocumentResolver:
                 self._diag.warn(
                     Layer.RENDER,
                     "table_placeholder_no_data",
-                    "invoice_table present but no table data provided; skipped.",
+                    QT_TRANSLATE_NOOP(
+                        "messages",
+                        "The template has an invoice table but there are no invoice lines for it; skipped.",
+                    ),
                 )
                 return None
 
@@ -335,7 +348,10 @@ class DocumentResolver:
                 self._diag.warn(
                     Layer.RENDER,
                     "missing_asset",
-                    f"Image asset '{seg.asset_id}' not found; skipped.",
+                    QT_TRANSLATE_NOOP(
+                        "messages",
+                        "An image of the template is missing from the database; skipped.",
+                    ),
                     asset_id=seg.asset_id,
                 )
                 return []
@@ -413,14 +429,17 @@ class DocumentResolver:
         if self._required.get(key, True):
             raise PlaceholderError(
                 f"Missing required placeholder '{key}' ({language}).",
-                user_message="A required value is missing.",
+                user_message=QT_TRANSLATE_NOOP("messages", "Required placeholder '{key}' ({language}) has no value."),
                 context={"key": key, "language": language},
             )
         
         self._diag.warn(
             Layer.RENDER,
             "missing_placeholder",
-            f"Missing optional placeholder '{key}' ({language}); rendered empty.",
+            QT_TRANSLATE_NOOP(
+                "messages",
+                "Optional placeholder '{key}' ({language}) has no value; rendered empty.",
+            ),
             key=key, language=language,
         )
 
@@ -444,7 +463,10 @@ class DocumentResolver:
                     self._diag.warn(
                         Layer.RENDER,
                         "missing_asset",
-                        f"Font asset '{face.asset_id}' not foun; '{font.name}' is not embedded.",
+                        QT_TRANSLATE_NOOP(
+                            "messages",
+                            "A face of the embedded font '{font}' is missing from the database; it is not embedded.",
+                        ),
                         asset_id=face.asset_id,
                         font=font.name,
                     )

@@ -14,6 +14,7 @@ from app.db.models.references.language import Language
 from app.db.models.registries.measurement_unit import MeasurementUnitRegistry
 from app.services.errors import EntityNotFound, InvalidSelection
 from app.services.sentinel import UNSET, Unset
+from app.core.messages import QT_TRANSLATE_NOOP
 
 
 @dataclass(slots=True, frozen=True)
@@ -259,7 +260,7 @@ class InvoiceLineRepository:
         if not localizations:
             raise InvalidSelection(
                 "invoice line needs at least one localization",
-                user_message="Enter the line description in at least one language.",
+                user_message=QT_TRANSLATE_NOOP("messages", "Enter the line description in at least one language."),
             )
 
         for code in localizations:
@@ -282,7 +283,7 @@ class InvoiceLineRepository:
         if not row.active:
             raise InvalidSelection(
                 f"measurement unit {code!r} is disabled",
-                user_message="Selected measurement unit is no longer available.",
+                user_message=QT_TRANSLATE_NOOP("messages", "Selected measurement unit is no longer available."),
                 context={"code": code},
             )
 
@@ -297,20 +298,20 @@ class InvoiceLineRepository:
         if quantity <= 0:
             raise InvalidSelection(
                 f"quantity must be positive, got {quantity}",
-                user_message="Quantity must be greater than zero.",
+                user_message=QT_TRANSLATE_NOOP("messages", "Quantity must be greater than zero."),
                 context={"quantity": quantity},
             )
 
         if unit_price < 0:
             raise InvalidSelection(
                 f"unit price cannot be negative, got {unit_price}",
-                user_message="Unit price cannot be negative.",
+                user_message=QT_TRANSLATE_NOOP("messages", "Unit price cannot be negative."),
                 context={"unit_price": unit_price},
             )
 
         if tax_rate < 0:
             raise InvalidSelection(
                 f"tax rate cannot be negative, got {tax_rate}",
-                user_message="Tax rate cannot be negative",
+                user_message=QT_TRANSLATE_NOOP("messages", "Tax rate cannot be negative."),
                 context={"tax_rate": tax_rate},
             )

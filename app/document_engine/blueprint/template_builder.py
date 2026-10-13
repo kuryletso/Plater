@@ -22,6 +22,7 @@ from app.document_engine.blueprint.errors import PlaceholderSyntaxError
 from app.document_engine.normalization.models.sections import NormalizedSection
 from app.document_engine.normalization.models.document import NormalizedDocumentStyle
 from app.document_engine.enums.enums import PlaceholderType
+from app.core.messages import QT_TRANSLATE_NOOP
 
 
 @dataclass(slots=True)
@@ -78,14 +79,18 @@ class TemplateBuilderContext:
             default = self.placeholder_defaults[key]
             if not default.get("active", False):
                 raise PlaceholderSyntaxError(
-                    f"Placeholder key '{key}' is disabled."
+                    code="disabled_placeholder",
+                    user_message=QT_TRANSLATE_NOOP("messages", "Placeholder key '{key}' is disabled."),
+                    context={"key": key},
                 )
 
             self.placeholders.setdefault(key, default)
             return PlaceholderType(default["type"])
 
         raise PlaceholderSyntaxError(
-            f"Not registered key in placeholder: {key}."
+            code="unknown_placeholder",
+            user_message=QT_TRANSLATE_NOOP("messages", "Unknown placeholder key '{key}'."),
+            context={"key": key},
         )
         
 
@@ -122,8 +127,11 @@ def _warn_misplaced_columns(sections: list[SectionBlueprint], diagnostics: Diagn
                             diagnostics.warn(
                                 Layer.BLUEPRINT,
                                 "column_placeholder_outside_table",
-                                f"'{item.key}' is an invoice-line placeholder and only "
-                                f"works inside a table row; it will render empty.",
+                                QT_TRANSLATE_NOOP(
+                                    "messages",
+                                    "'{key}' is an invoice-line placeholder and only "
+                                    "works inside a table row; it will render empty.",
+                                ),
                                 key=item.key,
                             )
             elif isinstance(block, TableBlueprint):

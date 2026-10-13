@@ -13,6 +13,7 @@ from app.db.models.core.representative_localization import RepresentativeLocaliz
 from app.db.models.references.language import Language
 from app.services.errors import EntityNotFound, InvalidSelection
 from app.services.sentinel import UNSET, Unset
+from app.core.messages import QT_TRANSLATE_NOOP
 
 
 @dataclass(slots=True, frozen=True)
@@ -152,7 +153,7 @@ class RepresentativeRepository:
             raise InvalidSelection(
                 f"representative {representative_id} is still attached to "
                 f"{len(representative.organizations)} organization(s)",
-                user_message="Detach selected representative from every organization first.",
+                user_message=QT_TRANSLATE_NOOP("messages", "Detach the selected representative from every organization first."),
                 context={
                     "representative_id": representative_id,
                     "organization_ids": [ o.id for o in representative.organizations ],
@@ -171,7 +172,7 @@ class RepresentativeRepository:
         if not localizations:
             raise InvalidSelection(
                 "representative needs at least one localization",
-                user_message="Enter the representative's name in at least one language.",
+                user_message=QT_TRANSLATE_NOOP("messages", "Enter the representative's name in at least one language."),
             )
 
         for code in localizations:

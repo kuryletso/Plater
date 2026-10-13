@@ -21,6 +21,7 @@ from app.services.representative.repository import (
     RepresentativeRepository,
     RepresentativeText,
 )
+from app.gui.i18n import error_text
 
 FIELDS = (
     ("name", "Name"),
@@ -139,7 +140,7 @@ class RepresentativeDialog(QDialog):
 
         except ServiceError as e:
             self._session.rollback()
-            self.banner.show_message(e.user_message or str(e))
+            self.banner.show_message(error_text(e))
             return
 
         self.accept()

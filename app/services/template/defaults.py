@@ -116,7 +116,7 @@ def seed_default_templates(session: Session) -> list[TemplateSeedResult]:
                     code,
                     "rebuilt" if outcome.action == "rebuilt" else "failed",
                     template.id,
-                    outcome.detail,
+                    str(outcome.error) if outcome.error is not None else None,
                 ))
                 continue
 

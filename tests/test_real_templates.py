@@ -1085,6 +1085,8 @@ def test_an_unsupported_field_keeps_the_text_it_showed(tmp_path, fixture_provide
 
     assert "".join(texts(pipeline.finalize(result.draft))) == "Issued 24.09.2026"
     assert "field_kept_as_text" in codes(result.diagnostics)
+    (warning,) = [d for d in result.diagnostics.items if d.code == "field_kept_as_text"]
+    assert warning.text == "'DATE' fields are not supported; kept as the text it last showed."
 
 
 # --- Task 24: text inside hyperlinks and other run containers ----------------

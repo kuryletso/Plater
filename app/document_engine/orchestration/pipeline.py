@@ -4,6 +4,7 @@ from io import BytesIO
 
 from app.core.diagnostics import DiagnosticCollector
 from app.core.errors import AppError, Severity
+from app.core.messages import QT_TRANSLATE_NOOP
 from app.assets.hashing import hash_bytes
 from app.assets.service import AssetBlob
 from app.assets.mime import detect_mime_type
@@ -78,7 +79,7 @@ class TemplateIngestionPipeline:
             diagnostics.record(e.as_diagnostic(Severity.ERROR))
             raise IngestionError(
                 f"Template ingestion failed in {e.layer}: {e}.",
-                user_message="The template could not be processed.",
+                user_message=QT_TRANSLATE_NOOP("messages", "The template could not be processed."),
                 context={"source": name, "cause": e.code},
             ) from e
         
@@ -125,7 +126,7 @@ class TemplateRenderingPipeline:
             diagnostics.record(e.as_diagnostic(Severity.ERROR))
             raise RenderingFailedError(
                 f"Rendering failed in {e.layer}: {e}:",
-                user_message="The document could not be rendered.",
+                user_message=QT_TRANSLATE_NOOP("messages", "The document could not be rendered."),
                 context={"cause": e.code},
             ) from e
         
@@ -153,7 +154,7 @@ class TemplateRenderingPipeline:
             diagnostics.record(e.as_diagnostic(Severity.ERROR))
             raise RenderingFailedError(
                 f"Raw rendering failed in {e.layer}: {e}.",
-                user_message="The template could not be rendered.",
+                user_message=QT_TRANSLATE_NOOP("messages", "The template could not be rendered."),
                 context={"cause": e.code},
             ) from e
 

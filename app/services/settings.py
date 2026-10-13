@@ -9,6 +9,7 @@ from app.db.models.references.language import Language
 from app.db.models.registries.document_type import DocumentTypeRegistry
 from app.services.sentinel import Unset, UNSET
 from app.services.errors import EntityNotFound, InvalidSelection
+from app.core.messages import QT_TRANSLATE_NOOP
 
 
 class TemplateDefaultService:
@@ -49,7 +50,7 @@ class TemplateDefaultService:
         if row is None:
             raise EntityNotFound(
                 "template defaults have not been initialised",
-                user_message="Application defaults are missing",
+                user_message=QT_TRANSLATE_NOOP("messages", "Application defaults are missing."),
             )
 
         return row
@@ -83,7 +84,7 @@ class TemplateDefaultService:
         if new_secondary is not None and new_secondary == new_primary:
             raise InvalidSelection(
                 "the secondary language must differ from the primary one",
-                user_message="Select different secondary language.",
+                user_message=QT_TRANSLATE_NOOP("messages", "Select a different secondary language."),
                 context={"language": row.primary_language_code},
             )
 
@@ -128,7 +129,7 @@ class TemplateDefaultService:
         if not row.active:
             raise InvalidSelection(
                 f"document_type {code!r} is disabled",
-                user_message="Selected document type is not longer available.",
+                user_message=QT_TRANSLATE_NOOP("messages", "Selected document type is no longer available."),
                 context={"code": code},
             )
 

@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from app.core.errors import Layer, Severity
+from app.core.messages import fill
 
 
 @dataclass(slots=True, frozen=True)
@@ -7,8 +8,14 @@ class Diagnostic:
     layer: Layer
     severity: Severity
     code: str
-    message: str
+    message: str        # a template marked with QT_TRANSLATE_NOOP, filled from context
     context: dict | None = None
+
+    @property
+    def text(self) -> str:
+        """The message in English, filled in. The GUI translates it."""
+
+        return fill(self.message, self.context)
 
 
 @dataclass(slots=True)

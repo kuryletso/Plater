@@ -19,6 +19,7 @@ from app.document_engine.blueprint.assets import collect_assets_ids
 from app.document_engine.blueprint.serialize import dump_blueprint, load_blueprint
 from app.services.errors import EntityNotFound, InvalidSelection, BlueprintUnreadable
 from app.services.sentinel import Unset, UNSET
+from app.core.messages import QT_TRANSLATE_NOOP
 
 class TemplateRepository:
 
@@ -70,7 +71,7 @@ class TemplateRepository:
         if self._template(template_id).system:
             raise InvalidSelection(
                 f"template {template_id} is built in and cannot be edited",
-                user_message="This is a built-in template. Make a copy to edit it.",
+                user_message=QT_TRANSLATE_NOOP("messages", "This is a built-in template. Make a copy of it to edit."),
                 context={"template_id": template_id},
             )
 
@@ -231,8 +232,8 @@ class TemplateRepository:
             raise BlueprintUnreadable(
                 f"template {row.template_id} v{row.version} does not match the "
                 f"current blueprint models",
-                user_message="This template was saved by an older version of Plater "
-                             "and has to be rebuilt before it can be used.",
+                user_message=QT_TRANSLATE_NOOP("messages", "This template was saved by an older version of Plater "
+                                                            "and has to be rebuilt before it can be used."),
                 context={
                     "template_id": row.template_id,
                     "version": row.version,
@@ -261,7 +262,7 @@ class TemplateRepository:
         if template.system:
             raise InvalidSelection(
                 f"template {template_id} is built in and cannot be deleted",
-                user_message="Built in templates can only be hidden, not deleted.",
+                user_message=QT_TRANSLATE_NOOP("messages", "Built-in templates can only be hidden, not deleted."),
                 context={"template_id": template_id},
             )
 
@@ -301,7 +302,7 @@ class TemplateRepository:
         if template.system:
             raise InvalidSelection(
                 f"template {template_id} is built in and cannot be edited",
-                user_message="This is a built-in template. Make a copy of it to edit.",
+                user_message=QT_TRANSLATE_NOOP("messages", "This is a built-in template. Make a copy of it to edit."),
                 context={"template_id": template_id},
             )
 
@@ -594,6 +595,6 @@ class TemplateRepository:
         if not row.active:
             raise InvalidSelection(
                 f"document type {code!r} is disabled",
-                user_message="Selected document type is no longer available.",
+                user_message=QT_TRANSLATE_NOOP("messages", "Selected document type is no longer available."),
                 context={"code": code},
             )

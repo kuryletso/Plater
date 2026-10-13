@@ -35,6 +35,7 @@ from app.document_engine.rendering.docx.settings_xml import build_settings
 from app.document_engine.rendering.docx.xml import qn
 from app.document_engine.rendering.docx.numbering_xml import build_numbering
 from app.document_engine.rendering.docx.fonts_xml import build_font_table, font_extension
+from app.core.messages import QT_TRANSLATE_NOOP
 
 
 class DocxEmitter:
@@ -141,8 +142,11 @@ class DocxEmitter:
         if ext is None:
             self._diag.warn(
                 Layer.RENDER,
-                "unsuported_image_mime",
-                f"Unsupported image type '{run.asset.mime}'; skipped.",
+                "unsupported_image_mime",
+                QT_TRANSLATE_NOOP(
+                    "messages",
+                    "Unsupported image type '{mime}'; skipped.",
+                ),
                 mime=run.asset.mime,
             )
             return None

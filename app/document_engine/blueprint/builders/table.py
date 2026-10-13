@@ -43,6 +43,7 @@ from app.document_engine.enums.enums import (
     TableWidthType,
     VerticalMerge,
 )
+from app.core.messages import QT_TRANSLATE_NOOP
 
 
 DEFAULT_STANDALONE_TABLE_BORDER = TableBorderBlueprint(
@@ -233,7 +234,8 @@ def _promote_placeholder_rows(
                                     
                                     if i in placeholder_cells:
                                         raise PlaceholderSyntaxError(
-                                            "Only one invoice line placeholder per cell is supported."
+                                            code="several_line_placeholders_in_cell",
+                                            user_message=QT_TRANSLATE_NOOP("messages", "Only one invoice line placeholder per cell is supported."),
                                         )
                                     
                                     placeholder_cells[i] = CellPlaceholder(
@@ -330,8 +332,11 @@ def promote_standalone_table(
         context.diagnostics.warn(
             Layer.BLUEPRINT,
             "table_placeholder_not_alone",
-            f"'{table_segment.key}' must be the only content of its paragraph "
-            f"to become a table; left as text.",
+            QT_TRANSLATE_NOOP(
+                "messages",
+                "'{key}' must be the only content of its paragraph "
+                "to become a table; left as text.",
+            ),
             key=table_segment.key,
         )
         return paragraph
@@ -390,8 +395,11 @@ def _split_repeated_merges(
     context.diagnostics.warn(
         Layer.BLUEPRINT,
         "vertical_merge_in_repeated_row",
-        f"{len(restarts)} merged cell(s) starting in an invoice-line row were split int "
-        f"separate cells, since that row repeats once per invoice line.",
+        QT_TRANSLATE_NOOP(
+            "messages",
+            "{count} merged cell(s) starting in an invoice-line row were split into "
+            "separate cells, since that row repeats once per invoice line.",
+        ),
         count=len(restarts),
     )
 

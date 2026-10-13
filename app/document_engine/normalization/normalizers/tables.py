@@ -29,6 +29,7 @@ from app.document_engine.utils.overlay_dataclass import overlay_dataclass_strict
 from app.core.diagnostics import DiagnosticCollector
 from app.core.errors import Layer
 from app.document_engine.enums.enums import TableAlignment, VerticalMerge
+from app.core.messages import QT_TRANSLATE_NOOP
 
 
 def normalize_table_width(
@@ -44,7 +45,11 @@ def normalize_table_width(
         diagnostics.warn(
             Layer.NORMALIZATION,
             "missing_table_width",
-            f"Table width value missing for type '{type}'; using the default width.",
+            QT_TRANSLATE_NOOP(
+                "messages",
+                "Table width value missing for type '{width_type}'; using the default width.",
+            ),
+            width_type=type,
         )
         return DEFAULT_TABLE_WIDTH
     
@@ -57,7 +62,12 @@ def normalize_table_width(
         diagnostics.warn(
             Layer.NORMALIZATION,
             "invalid_table_width",
-            f"Invalid table width attribute ({type=}, {value=}); using the default width.",
+            QT_TRANSLATE_NOOP(
+                "messages",
+                "Invalid table width ({width_type}, {value}); using the default width.",
+            ),
+            width_type=type,
+            value=value,
         )
         return DEFAULT_TABLE_WIDTH
 
@@ -251,7 +261,11 @@ def _table_alignment(
         diagnostics.warn(
             Layer.NORMALIZATION,
             "invalid_table_alignment",
-            f"Unsupported table alignment '{value}'; aligned left.",
+            QT_TRANSLATE_NOOP(
+                "messages",
+                "Unsupported table alignment '{value}'; aligned left.",
+            ),
+            value=value,
         )
         return None
 

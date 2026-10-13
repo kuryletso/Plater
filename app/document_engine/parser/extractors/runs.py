@@ -10,36 +10,12 @@ from app.document_engine.parser.errors import ParserSecurityError, ParserAssetEr
 from app.core.errors import Layer
 from app.document_engine.utils.intrinsic_emu import intrinsic_emu
 from app.document_engine.enums.enums import BreakType
+from app.core.messages import QT_TRANSLATE_NOOP
 
 type ParsedInlineNode = RunNode | ImageNode | BreakNode | FieldNode
 
 MAX_IMAGE_SIZE_BYTES = 25 * 1024 * 1024
 _HARD_BREAKS = {kind.value for kind in BreakType}
-
-
-### Replaced by extract_run_parts()
-# def extract_run_text(run: _Element) -> str:
-#     parts: list[str] = []
-
-#     for child in run:
-#         tag = child.tag
-
-#         if tag == f"{{{NS["w"]}}}t":
-#             if child.text:
-#                 parts.append(child.text)
-
-#         elif tag == f"{{{NS["w"]}}}tab":
-#             parts.append("\t")
-
-#         elif tag == f"{{{NS["w"]}}}cr":
-#             parts.append("\n")
-
-#         elif tag == f"{{{NS["w"]}}}br":
-#             br_type = child.get(f"{{{NS["w"]}}}type")
-#             if br_type in (None, "textWrapping"):
-#                 parts.append("\n")
-
-#     return "".join(parts)
 
 
 def extract_run_parts(run: _Element) -> list[str | BreakType | FieldChar | InstrText]:
@@ -108,7 +84,10 @@ def extract_extent(
     context.diagnostics.warn(
         Layer.PARSER,
         "image_missing_extent",
-        "Image has no usable wp:extent; size set to 0.",
+        QT_TRANSLATE_NOOP(
+            "messages",
+            "An image has no usable size and will not be visible.",
+        ),
         target=target,
     )
     return 0,0
@@ -128,7 +107,10 @@ def parse_image(run: _Element, context: ParserContext) -> ImageNode | None:
         context.diagnostics.warn(
             Layer.PARSER,
             "image_relationship_missing",
-            f"Image reference '{relationship_id}' has no relationship; skipped.",
+            QT_TRANSLATE_NOOP(
+                "messages",
+                "Image reference '{relationship_id}' points at nothing; skipped.",
+            ),
             relationship_id=relationship_id,
         )
         return None
@@ -136,8 +118,11 @@ def parse_image(run: _Element, context: ParserContext) -> ImageNode | None:
         context.diagnostics.warn(
             Layer.PARSER,
             "image_relationship_not_an_image",
-            f"Image reference '{relationship_id}' points at '{relationship.target}', "
-            f"which is not an image; skipped.",
+            QT_TRANSLATE_NOOP(
+                "messages",
+                "Image reference '{relationship_id}' points at '{target}', "
+                "which is not an image; skipped.",
+            ),
             relationship_id=relationship_id,
             target=relationship.target,
         )
@@ -173,7 +158,10 @@ def parse_image(run: _Element, context: ParserContext) -> ImageNode | None:
             context.diagnostics.warn(
                 Layer.PARSER,
                 "image_unsizable",
-                "Image has no extent and unreadable dimensions; skipped.",
+                QT_TRANSLATE_NOOP(
+                    "messages",
+                    "An image has no size and its dimensions cannot be read; skipped.",
+                ),
                 target=target,
             )
             return None

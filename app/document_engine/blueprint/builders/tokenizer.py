@@ -2,6 +2,7 @@ from enum import Enum, auto
 from dataclasses import dataclass
 
 from app.document_engine.blueprint.errors import PlaceholderSyntaxError
+from app.core.messages import QT_TRANSLATE_NOOP
 
 
 DOUBLE_QUOTES = frozenset('"“”„«»')
@@ -80,7 +81,9 @@ def tokenize_placeholder(
                     i += 1
             else:
                 raise PlaceholderSyntaxError(
-                    f"Missing closing quote in placeholder: {content}."
+                    code="unclosed_quote",
+                    user_message=QT_TRANSLATE_NOOP("messages", "Missing closing quote in placeholder: {content}."),
+                    context={"content": content},
                 )
 
             tokens.append(Token(TK.STRING, "".join(buf)))
@@ -94,7 +97,9 @@ def tokenize_placeholder(
 
         else:
             raise PlaceholderSyntaxError(
-                f"Unexpected character '{ch}' in placeholder: {content}."
+                code="unexpected_character",
+                user_message=QT_TRANSLATE_NOOP("messages", "Unexpected character '{character}' in placeholder: {content}."),
+                context={"character": ch, "content": content},
             )
         
     return tokens

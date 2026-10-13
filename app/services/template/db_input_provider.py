@@ -9,6 +9,7 @@ from app.db.models.configs.default_template_config import DefaultTemplateConfig
 from app.db.models.registries.placeholder import PlaceholderRegistry
 from app.document_engine.blueprint.models.template import TemplateConfig
 from app.services.errors import EntityNotFound
+from app.core.messages import QT_TRANSLATE_NOOP
 
 
 class DbTemplateInputProvider:
@@ -31,7 +32,7 @@ class DbTemplateInputProvider:
             if row is None:
                 raise EntityNotFound(
                     "no default template config configured",
-                    user_message="Application defaults are missing.",
+                    user_message=QT_TRANSLATE_NOOP("messages", "Application defaults are missing."),
                 )
             
             self._config = TemplateConfig(

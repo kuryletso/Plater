@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 
 from app.gui.dialogs.widgets import ErrorBanner
 from app.services.errors import ServiceError
+from app.gui.i18n import error_text
 
 AssetId = int | str
 
@@ -199,7 +200,7 @@ class ManagerDialog(QDialog):
             if self._asset.delete is not None:      # for static type checking, self._delete() is only called if self._asset.delete isn't None
                 self._asset.delete(item.data(Qt.ItemDataRole.UserRole))
         except ServiceError as e:
-            self.banner.show_message(e.user_message or str(e))
+            self.banner.show_message(error_text(e))
             return
 
         self.changed = True
@@ -216,7 +217,7 @@ class ManagerDialog(QDialog):
         try:
             changed = action(self, asset_id)
         except ServiceError as e:
-            self.banner.show_message(e.user_message or str(e))
+            self.banner.show_message(error_text(e))
             return
 
         if changed:

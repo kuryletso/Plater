@@ -18,6 +18,7 @@ from app.gui.dialogs.sequence import SequenceDialog
 from app.services.doc_sequence.repository import SequenceRepository
 from app.services.organization.repository import OrganizationRepository
 from app.services.errors import ServiceError
+from app.gui.i18n import error_text
 
 
 class PartyRole(StrEnum):
@@ -495,7 +496,7 @@ class PartyColumn(QWidget):
             self._seq_repo.update(sequence_id, counter=wanted - 1)
         except ServiceError as e:
             self._refresh_number()
-            self.ui.next_number_edit.setToolTip(e.user_message or str(e))
+            self.ui.next_number_edit.setToolTip(error_text(e))
             return
 
         self._refresh_number()
@@ -587,7 +588,7 @@ class PartyColumn(QWidget):
         except ServiceError as e:
             QMessageBox.warning(
                 self, "Cannot delete",
-                e.user_message or str(e),
+                error_text(e),
             )
             return
 

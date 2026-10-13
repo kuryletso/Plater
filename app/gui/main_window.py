@@ -42,6 +42,7 @@ from app.services.invoice.generate import InvoiceGenerateService, GenerationResu
 from app.services.invoice.draft import InvoiceDraft
 from app.services.invoice_line.repository import InvoiceLineRepository, InvoiceLineText
 from app.services.template.rebuild_service import TemplateRebuildService
+from app.gui.i18n import error_text, diagnostic_text, severity_label
 
 
 def _stub_content(title: str) -> QWidget:
@@ -156,7 +157,9 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(
                 self,
                 "Some templates could not be rebuilt",
-                "\n".join(f"{o.name}: {o.detail}" for o in failed),
+                # Only 'rebuilt' have o.error as None, so they won't be present in failed;
+                # following None check performed for static type checking
+                "\n".join(f"{o.name}: {error_text(o.error) if o.error is not None else ''}" for o in failed),
             )
 
 
@@ -206,10 +209,6 @@ class MainWindow(QMainWindow):
 
 
     def _build_footer(self) -> QWidget:
-        self.warning_label = QLabel()
-        self.warning_label.setProperty("role", "warning")
-        self.warning_label.hide()
-
         self.generate_button = QPushButton("Generate")
         self.generate_button.clicked.connect(self._on_generate)
         self.generate_button.setEnabled(False)
@@ -218,7 +217,6 @@ class MainWindow(QMainWindow):
         footer = QWidget()
         layout = QHBoxLayout(footer)
         layout.setContentsMargins(0,0,0,0)
-        layout.addWidget(self.warning_label)
         layout.addStretch(1)
         layout.addWidget(self.generate_button)
 
@@ -238,10 +236,6 @@ class MainWindow(QMainWindow):
         self.generate_button.setToolTip(
             "Ready to generate." if not gaps else " | ".join(gaps) 
         )
-
-        warnings = self.draft.warning()
-        self.warning_label.setText("   ".join( f"⚠ {text}" for text in warnings ))
-        self.warning_label.setVisible(bool(warnings))
 
 
     def _on_generate(self) -> None:
@@ -273,7 +267,7 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(
                 self,
                 "Generation failed",
-                error.user_message or str(error),
+                error_text(error),
             )
             return
 
@@ -326,7 +320,7 @@ class MainWindow(QMainWindow):
         box.setWindowTitle("Generation failed")
         box.setText("The document could not be generated, so no number was used.")
         box.setDetailedText("\n".join(
-            f"[{item.severity}] {item.code}: {item.message}"
+            f"[{severity_label(item.severity)}] {item.code}: {diagnostic_text(item)}"
             for item in result.diagnostics.items
         ))
         box.exec()
@@ -350,7 +344,7 @@ class MainWindow(QMainWindow):
         try:
             result = InvoiceGenerateService(self._session).preview(self.draft.to_draft())
         except ServiceError as e:
-            self.preview.show_notice(e.user_message or str(e))
+            self.preview.show_notice(error_text(e))
             return
 
         self.preview.show_result(result.number.formatted, result.diagnostics)

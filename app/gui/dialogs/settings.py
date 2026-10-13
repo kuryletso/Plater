@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QGroupBox,
     QLineEdit,
+    QLabel,
 )
 from sqlalchemy.orm import Session
 
@@ -22,9 +23,11 @@ from app.gui.dialogs.widgets import (
     show_code,
 )
 from app.gui.settings import SUPPORTED_LANGUAGES, set_ui_language, ui_language
+from app.gui.i18n import error_text
 from app.services.errors import ServiceError
 from app.services.settings import TemplateDefaultService
 
+# each in its own language so it can be found whatever the interface is in
 LANGUAGE_NAMES = {"ENG": "English", "UKR": "Українська"}
 
 
@@ -45,32 +48,39 @@ class SettingsDialog(QDialog):
         self._original_language = ui_language()
         self.language_changed = False
 
-        self.setWindowTitle("Settings")
+        self.setWindowTitle(self.tr("Settings"))
         self.setMinimumWidth(460)
 
         self.language_combo = QComboBox()
         for code in SUPPORTED_LANGUAGES:
             self.language_combo.addItem(LANGUAGE_NAMES.get(code, code), code)
 
-        interface = QGroupBox("Interface")
+        self.restart_note = QLabel(self.tr("The new language is used the next time Plater starts."))
+        self.restart_note.setWordWrap(True)
+        self.restart_note.setEnabled(False)
+        self.restart_note.hide()
+        self.language_combo.currentIndexChanged.connect(self._on_language)
+
+        interface = QGroupBox(self.tr("Interface"))
         interface_form = QFormLayout(interface)
-        interface_form.addRow("Language", self.language_combo)
+        interface_form.addRow(self.tr("Language"), self.language_combo)
+        interface_form.addRow(self.restart_note)
 
         languages = language_items(session)
         self.primary_combo = searchable_combo(languages)
-        self.secondary_combo = searchable_combo([("", "(none)", ()), *languages])
+        self.secondary_combo = searchable_combo([("", self.tr("(none)"), ()), *languages])
         self.type_combo = searchable_combo(document_type_items(session))
         self.name_edit = QLineEdit()
         self.description_edit = QLineEdit()
-        self.currency_check = QCheckBox("Append the currency to money values")
+        self.currency_check = QCheckBox(self.tr("Append the currency to money values"))
 
-        defaults = QGroupBox("New template defaults")
+        defaults = QGroupBox(self.tr("New template defaults"))
         defaults_form = QFormLayout(defaults)
-        defaults_form.addRow("Primary language", self.primary_combo)
-        defaults_form.addRow("Secondary language", self.secondary_combo)
-        defaults_form.addRow("Document type", self.type_combo)
-        defaults_form.addRow("Name", self.name_edit)
-        defaults_form.addRow("Description", self.description_edit)
+        defaults_form.addRow(self.tr("Primary language"), self.primary_combo)
+        defaults_form.addRow(self.tr("Secondary language"), self.secondary_combo)
+        defaults_form.addRow(self.tr("Document type"), self.type_combo)
+        defaults_form.addRow(self.tr("Name"), self.name_edit)
+        defaults_form.addRow(self.tr("Description"), self.description_edit)
         defaults_form.addRow("", self.currency_check)
 
         self.banner = ErrorBanner()
@@ -105,6 +115,12 @@ class SettingsDialog(QDialog):
         self.currency_check.setChecked(row.append_currency)
 
 
+    def _on_language(self) -> None:
+        self.restart_note.setVisible(
+            self.language_combo.currentData() != self._original_language
+        )
+
+
     def _save(self) -> None:
         self.banner.clear_message()
 
@@ -115,7 +131,7 @@ class SettingsDialog(QDialog):
         or document_type is None \
         or not self.name_edit.text().strip():
             self.banner.show_message(
-                "Primary language, document type and name required."
+                self.tr("Primary language, document type and name required.")
             )
             return
 
@@ -130,7 +146,7 @@ class SettingsDialog(QDialog):
             )
         except ServiceError as e:
             self._session.rollback()
-            self.banner.show_message(e.user_message or str(e))
+            self.banner.show_message(error_text(e))
             return
 
         selected = self.language_combo.currentData()

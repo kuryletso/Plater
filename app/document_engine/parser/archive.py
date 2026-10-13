@@ -8,6 +8,7 @@ from os import PathLike
 from lxml import etree
 
 from app.document_engine.parser.errors import ParserFormatError
+from app.core.messages import QT_TRANSLATE_NOOP
 
 
 @dataclass(frozen=True)
@@ -36,7 +37,9 @@ class DocxArchive:
             self.zip = ZipFile(source)
         except BadZipFile as e:
             raise ParserFormatError(
-                f"Not a valid .docx (unreadable zip archive): {self.name}."
+                f"Not a valid .docx (unreadable zip archive): {self.name}.",
+                code="not_a_docx",
+                user_message=QT_TRANSLATE_NOOP("messages", "This file is not a Word (.docx) document."),
             ) from e
 
     def __enter__(self):

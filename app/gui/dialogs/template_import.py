@@ -35,6 +35,7 @@ from app.services.template.db_input_provider import DbTemplateInputProvider
 from app.services.template.import_service import TemplateImportService
 from app.services.template.repository import TemplateRepository
 from app.services.errors import ServiceError
+from app.gui.i18n import error_text, diagnostic_text, severity_label
 
 
 class TemplateImportDialog(QDialog):
@@ -138,7 +139,7 @@ class TemplateImportDialog(QDialog):
             try:
                 config = self._inherited_config(template_id)
             except ServiceError as e:
-                self.banner.show_message(e.user_message or str(e))
+                self.banner.show_message(error_text(e))
                 self.path_edit.setEnabled(False)
                 return
             
@@ -199,7 +200,7 @@ class TemplateImportDialog(QDialog):
         try:
             config = self._config()
         except ServiceError as e:
-            self.banner.show_message(e.user_message or str(e))
+            self.banner.show_message(error_text(e))
             return
 
         if not path or config is None:
@@ -214,11 +215,11 @@ class TemplateImportDialog(QDialog):
         try:
             result = service.ingest(Path(path))
         except AppError as e:
-            self.banner.show_message(e.user_message or str(e))
+            self.banner.show_message(error_text(e))
             return
 
         for item in result.diagnostics.items:
-            self.diagnostics_list.addItem(f"[{item.severity}] {item.code}: {item.message}")
+            self.diagnostics_list.addItem(f"[{severity_label(item.severity)}] {item.code}: {diagnostic_text(item)}")
         if not result.diagnostics.items:
             self.diagnostics_list.addItem("No issues found.")
 
@@ -246,7 +247,7 @@ class TemplateImportDialog(QDialog):
                 self.template_id = self._service.commit(self._result)
         except AppError as e:
             self._session.rollback()
-            self.banner.show_message(e.user_message or str(e))
+            self.banner.show_message(error_text(e))
             return
 
         self.accept()

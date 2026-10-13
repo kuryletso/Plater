@@ -23,6 +23,7 @@ from app.services.invoice.assembler import (
 from app.services.invoice.draft import InvoiceDraft
 from app.services.invoice.mapper import InvoiceMapper
 from app.services.template.repository import TemplateRepository
+from app.core.messages import QT_TRANSLATE_NOOP
 
 
 @dataclass(slots=True, frozen=True)
@@ -86,8 +87,8 @@ class InvoiceGenerateService:
         if consumed != number:
             raise SequenceConflict(
                 f"rendered {number.formatted!r} but consumed {consumed.formatted!r}",
-                user_message="The document number changed during generation. "
-                             "Generate the document again.",
+                user_message=QT_TRANSLATE_NOOP("messages", "The document number changed during generation. "
+                                                            "Generate the document again."),
                 context={"rendered": number.formatted, "consumed": consumed.formatted},
             )
 
@@ -121,14 +122,25 @@ class InvoiceGenerateService:
             render.diagnostics.warn(
                 Layer.PERSISTENCE,
                 "stale_blueprint",
-                "This template was imported by an older version of the document engine. " \
-                "Rebuild it (Edit > Template > Rebuild) to pick up the " \
-                "latest rendering fixes.",
+                QT_TRANSLATE_NOOP(
+                    "messages",
+                    "This template was imported by an older version of the document engine. " \
+                    "Rebuild it (Edit > Templates > Rebuild) to pick up the " \
+                    "latest rendering fixes.",
+                ),
                 template_id=draft.template_id,
                 engine_version=blueprint.config.engine_version,
             )
 
         _warn_blank_descriptions(blueprint, codes, data, render.diagnostics)
+
+        if draft.provider.organization_id == draft.client.organization_id:
+            render.diagnostics.warn(
+                Layer.PERSISTENCE,
+                "same_party",
+                QT_TRANSLATE_NOOP("messages", "The provider and the client are the same organization."),
+                organization_id=draft.provider.organization_id,
+            )
 
         return GenerationResult(
             docx=render.docx,
@@ -150,8 +162,8 @@ class InvoiceGenerateService:
                 f"sequence {draft.sequence_id} numbers "
                 f"{sequence.document_type_code!r} documents, template "
                 f"{draft.template_id} is {template_type!r}",
-                user_message="The numbering sequence does not match the "
-                             "document type of the selected template.",
+                user_message=QT_TRANSLATE_NOOP("messages", "The numbering sequence does not match the "
+                                                            "document type of the selected template."),
                 context={
                     "sequence_id": draft.sequence_id,
                     "sequence_type": sequence.document_type_code,
@@ -180,7 +192,7 @@ def _warn_blank_descriptions(
                 diagnostics.warn(
                     Layer.RENDER,
                     "blank_description",
-                    f"Line {number} has no {language} description; it will print blank.",
+                    QT_TRANSLATE_NOOP("messages", "Line {line} has no {language} description; it will print blank."),
                     line=number,
                     language=language,
                 )

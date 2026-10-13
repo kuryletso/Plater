@@ -135,6 +135,21 @@ def test_a_failed_rebuild_leaves_the_stored_blueprint_intact(session: Session, s
     assert after.sections == sections_before
 
 
+def test_a_failed_rebuild_carries_the_error_the_gui_shows(session: Session, store):
+    """The GUI translates the error's user message; a string could not be translated."""
+    template_id, _ = store(["Invoice for {{ org_name }}"])
+    current = TemplateRepository(session).current_version(template_id)
+    session.get(Asset, current.source_sha256).data = b"not a docx"
+    session.commit()
+
+    result = TemplateRebuildService(session).rebuild(template_id)
+
+    assert result.action == "failed"
+    assert result.error is not None
+    assert result.error.context["cause"] == "not_a_docx"
+    assert result.error.user_message is not None, "what the GUI translates and shows"
+
+
 # --- ingest_bytes ------------------------------------------------------------
 
 def test_ingesting_bytes_matches_ingesting_the_file(real_template):

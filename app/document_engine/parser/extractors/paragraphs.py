@@ -13,6 +13,7 @@ from app.document_engine.parser.models.styles import RunStyle, ParagraphStyle, P
 from app.document_engine.parser.namespaces import NS
 from app.document_engine.parser.utils.get_attribute import get_attr
 from app.core.errors import Layer
+from app.core.messages import QT_TRANSLATE_NOOP
 
 WORD_NAMESPACE = NS["w"]
 
@@ -153,7 +154,10 @@ def _with_numbering(style: ParagraphStyle, paragraph: _Element, context: ParserC
         context.diagnostics.warn(
             Layer.PARSER,
             "numbering_missing",
-            f"List {style.num_id} has no level {level_id}; the paragraph is left unnumbered.",
+            QT_TRANSLATE_NOOP(
+                "messages",
+                "List {num_id} has no level {level}; the paragraph is left unnumbered.",
+            ),
             num_id=style.num_id,
             level=level_id,
         )

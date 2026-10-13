@@ -21,6 +21,7 @@ from app.gui.dialogs.widgets import (
 )
 from app.services.doc_sequence.repository import SequenceRepository
 from app.services.errors import ServiceError
+from app.gui.i18n import error_text
 
 
 class SequenceDialog(QDialog):
@@ -134,7 +135,7 @@ class SequenceDialog(QDialog):
                 ).id
         except ServiceError as error:
             self._session.rollback()
-            self.banner.show_message(error.user_message or str(error))
+            self.banner.show_message(error_text(error))
             return
         
         self.accept()

@@ -1,5 +1,3 @@
-from app.core.errors import Layer
-
 from app.document_engine.blueprint.template_builder import TemplateBuilderContext
 from app.document_engine.blueprint.models.segment import (
     ImageSegment,
@@ -11,8 +9,9 @@ from app.document_engine.blueprint.models.segment import (
 )
 from app.document_engine.blueprint.builders.tokenizer import tokenize_placeholder, TK, Token
 from app.document_engine.blueprint.errors import PlaceholderSyntaxError
-
 from app.document_engine.normalization.models.inlines import NormalizedImageNode, NormalizedTextNode, NormalizedTextStyle
+from app.core.errors import Layer, Severity
+from app.core.messages import QT_TRANSLATE_NOOP
 
 
 def text_style_bp_from_normalized(
@@ -56,19 +55,25 @@ def split_placeholder_key(
     
     if len(parts) != 2:
         raise PlaceholderSyntaxError(
-            f"Invalid placeholder key '{key}': only one '.' separator is allowed."
+            code="placeholder_key_several_dots",
+            user_message=QT_TRANSLATE_NOOP("messages", "Invalid placeholder key '{key}': only one '.' separator is allowed."),
+            context={"key": key},
         )
     
     base, language = parts
 
     if not base:
         raise PlaceholderSyntaxError(
-            f"Invalid placeholder key '{key}': missing base before '.'."
+            code="placeholder_key_no_base",
+            user_message=QT_TRANSLATE_NOOP("messages", "Invalid placeholder key '{key}': missing base before '.'."),
+            context={"key": key},
         )
     
     if not language:
         raise PlaceholderSyntaxError(
-            f"Invalid placeholder key '{key}': missing language parameter."
+            code="placeholder_key_no_language",
+            user_message=QT_TRANSLATE_NOOP("messages", "Invalid placeholder key '{key}': missing language after '.'."),
+            context={"key": key},
         )
     
     return base.lower(), language.upper()
@@ -78,6 +83,7 @@ def _parse_grouped(
     tokens: list[Token],
     style: TextStyleBlueprint,
     context: TemplateBuilderContext,
+    content: str,
 ) -> GroupedPlaceholderSegment:
     
     groups = []
@@ -94,7 +100,9 @@ def _parse_grouped(
         if t.kind == TK.LPAREN:
             if in_group:
                 raise PlaceholderSyntaxError(
-                    "Unexpected '(' in grouped placeholder."
+                    code="unexpected_token",
+                    user_message=QT_TRANSLATE_NOOP("messages", "Unexpected '{token}' in grouped placeholder: {content}."),
+                    context={"token": t.value, "content": content},
                 )
             else:
                 in_group = True
@@ -113,7 +121,9 @@ def _parse_grouped(
                 language = language or context.default_language
                 if language not in context.languages:
                     raise PlaceholderSyntaxError(
-                        f"Invalid placeholder key '{t.value}': invalid language."
+                        code="unknown_language",
+                        user_message=QT_TRANSLATE_NOOP("messages", "Invalid placeholder key '{key}': '{language}' is not a language of this template."),
+                        context={"key": t.value, "language": language},
                     )
                 ph_type = context.register_placeholder(base)
                 
@@ -134,12 +144,16 @@ def _parse_grouped(
                     i += 2
                 else:
                     raise PlaceholderSyntaxError(
-                        "Invalid separator syntax in grouped placeholder."
+                        code="invalid_separator",
+                        user_message=QT_TRANSLATE_NOOP("messages", "Invalid separator syntax in grouped placeholder: {content}."),
+                        context={"content": content},
                     )
 
             else:
                 raise PlaceholderSyntaxError(
-                    f"Ungrouped key {t.value} in grouped placeholder."
+                    code="ungrouped_key",
+                    user_message=QT_TRANSLATE_NOOP("messages", "Ungrouped key '{key}' in grouped placeholder: {content}."),
+                    context={"key": t.value, "content": content},
                 )
             
         elif t.kind == TK.STRING:
@@ -153,7 +167,9 @@ def _parse_grouped(
                 )
             else:
                 raise PlaceholderSyntaxError(
-                    f"Ungrouped text literal {t.value} in grouped placeholder."
+                    code="ungrouped_text",
+                    user_message=QT_TRANSLATE_NOOP("messages", "Ungrouped text '{text}' in grouped placeholder: {content}."),
+                    context={"text": t.value, "content": content},
                 )
             
         elif t.kind == TK.COMMA:
@@ -161,7 +177,9 @@ def _parse_grouped(
 
         elif t.kind == TK.EQ:
             raise PlaceholderSyntaxError(
-                "Unexpected '=' in grouped placeholder."
+                code="unexpected_token",
+                user_message=QT_TRANSLATE_NOOP("messages", "Unexpected '{token}' in grouped placeholder: {content}."),
+                context={"token": t.value, "content": content},
             )
         
         i += 1
@@ -179,6 +197,7 @@ def _parse_joined(
     tokens: list[Token],
     style: TextStyleBlueprint,
     context: TemplateBuilderContext,
+    content: str,
 ) -> JoinedPlaceholderSegment:
     
     items = []
@@ -191,7 +210,9 @@ def _parse_joined(
 
         if t.kind in (TK.LPAREN, TK.RPAREN, TK.EQ):
             raise PlaceholderSyntaxError(
-                f"Unexpected '{t.value}' in joined placeholder."
+                code="unexpected_token",
+                user_message=QT_TRANSLATE_NOOP("messages", "Unexpected '{token}' in joined placeholder: {content}."),
+                context={"token": t.value, "content": content},
             )
         
         elif t.kind == TK.IDENT:
@@ -203,14 +224,18 @@ def _parse_joined(
                     i += 2
                 else:
                     raise PlaceholderSyntaxError(
-                        "Invalid separator syntax in joined placeholder."
+                        code="invalid_separator",
+                        user_message=QT_TRANSLATE_NOOP("messages", "Invalid separator syntax in joined placeholder: {content}."),
+                        context={"content": content},
                     )
             else:
                 base, language = split_placeholder_key(t.value)
                 language = language or context.default_language
                 if language not in context.languages:
                     raise PlaceholderSyntaxError(
-                        f"Invalid placeholder key '{t.value}': invalid language."
+                        code="unknown_language",
+                        user_message=QT_TRANSLATE_NOOP("messages", "Invalid placeholder key '{key}': '{language}' is not a language of this template."),
+                        context={"key": t.value, "language": language},
                     )
                 ph_type = context.register_placeholder(base)
                 items.append(
@@ -249,11 +274,14 @@ def _parse_simple(
     tokens: list[Token],
     style: TextStyleBlueprint,
     context: TemplateBuilderContext,
+    content: str,
 ) -> PlaceholderSegment:
     
     if len(tokens) > 1:
         raise PlaceholderSyntaxError(
-            "Invalid placeholder syntax."
+            code="invalid_placeholder",
+            user_message=QT_TRANSLATE_NOOP("messages", "Invalid placeholder syntax: {content}."),
+            context={"content": content},
         )
     
     t = tokens[0]
@@ -262,7 +290,9 @@ def _parse_simple(
         language = language or context.default_language
         if language not in context.languages:
             raise PlaceholderSyntaxError(
-                f"Invalid placeholder key '{t.value}': invalid language."
+                code="unknown_language",
+                user_message=QT_TRANSLATE_NOOP("messages", "Invalid placeholder key '{key}': '{language}' is not a language of this template."),
+                context={"key": t.value, "language": language},
             )
         ph_type = context.register_placeholder(base)
 
@@ -276,7 +306,9 @@ def _parse_simple(
 
     else:
         raise PlaceholderSyntaxError(
-            "Invalid placeholder syntax."
+            code="invalid_placeholder",
+            user_message=QT_TRANSLATE_NOOP("messages", "Invalid placeholder syntax: {content}."),
+            context={"content": content},
         )
 
 
@@ -291,15 +323,17 @@ def parse_placeholder(
 
     if not tokens:
         raise PlaceholderSyntaxError(
-            f"Empty placeholder in: {content}."
+            code="empty_placeholder",
+            user_message=QT_TRANSLATE_NOOP("messages", "Empty placeholder: {content}."),
+            context={"content": content},
         )
     
     if tokens[0].kind == TK.LPAREN:
-        return _parse_grouped(tokens, style, context)
+        return _parse_grouped(tokens, style, context, content)
     elif any(t.kind == TK.COMMA for t in tokens):
-        return _parse_joined(tokens, style, context)
+        return _parse_joined(tokens, style, context, content)
     else:
-        return _parse_simple(tokens, style, context)
+        return _parse_simple(tokens, style, context, content)
 
 
 
@@ -360,7 +394,7 @@ def extract_segments(
         context.diagnostics.warn(
             Layer.BLUEPRINT,
             "unclosed_placeholder",
-            f"Unclosed placeholder at index [{start}]; treated as literal text.",
+            QT_TRANSLATE_NOOP("messages", "Unclosed placeholder, kept as text: {content}."),
             content=text[start:],
         )
 
@@ -386,12 +420,9 @@ def extract_segments(
                         context=context,
                     )
                 )
-            except PlaceholderSyntaxError as e:     # WARNING
-                context.diagnostics.warn(
-                    Layer.BLUEPRINT,
-                    e.code,
-                    str(e),
-                    content=text[start:end]
+            except PlaceholderSyntaxError as e:     # kept as text, reported as warning
+                context.diagnostics.record(
+                    e.as_diagnostic(Severity.WARNING, content=text[start:end])
                 )
                 segments.append(
                     TextSegment(

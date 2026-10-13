@@ -11,6 +11,7 @@ from app.document_engine.parser.utils.get_attribute import get_attr, get_bool_at
 from app.document_engine.parser.utils.get_relationship import get_relationship_id
 from app.document_engine.parser.errors import ParserFormatError
 from app.core.errors import Layer
+from app.core.messages import QT_TRANSLATE_NOOP
 
 MAX_FONT_SIZE_BYTES = 24 * 1024 * 1024      # 24 MB
 
@@ -72,7 +73,10 @@ def _face(
         context.diagnostics.warn(
             Layer.PARSER,
             "embedded_font_missing",
-            f"An embedded face of '{font_name}' could not be found in the file; it was not embedded.",
+            QT_TRANSLATE_NOOP(
+                "messages",
+                "An embedded face of '{font}' could not be found in the file; it was not embedded.",
+            ),
             font=font_name,
             relationship_id=relationship_id,
         )
@@ -83,7 +87,10 @@ def _face(
         context.diagnostics.warn(
             Layer.PARSER,
             "embedded_font_too_large",
-            f"An embedded face of '{font_name}' exceed the size limit; it was not embedded.",
+            QT_TRANSLATE_NOOP(
+                "messages",
+                "An embedded face of '{font}' exceeds the size limit; it was not embedded.",
+            ),
             font=font_name,
             target=target,
         )

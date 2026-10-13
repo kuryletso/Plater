@@ -11,6 +11,7 @@ from app.db.models.references.language import Language
 from app.db.models.registries.measurement_unit import MeasurementUnitRegistry
 from app.db.models.registries.measurement_unit_localization import MeasurementUnitRegistryLocalization
 from app.services.errors import EntityNotFound, InvalidSelection
+from app.core.messages import QT_TRANSLATE_NOOP
 
 
 @dataclass(slots=True, frozen=True)
@@ -35,7 +36,7 @@ class MeasurementUnitRepository:
         if not localizations:
             raise InvalidSelection(
                 "measurement unit needs at least oen localization",
-                user_message="Enter the unit name in at least one language.",
+                user_message=QT_TRANSLATE_NOOP("messages", "Enter the unit name in at least one language."),
             )
 
         for code in localizations:
@@ -57,7 +58,7 @@ class MeasurementUnitRepository:
         if not code:
             raise InvalidSelection(
                 "measurement unit code cannot be empty",
-                user_message="Enter a short code for the unit.",
+                user_message=QT_TRANSLATE_NOOP("messages", "Enter a short code for the unit."),
             )
 
         self._check_localizations(localizations)
@@ -65,7 +66,7 @@ class MeasurementUnitRepository:
         if self._session.get(MeasurementUnitRegistry, code) is not None:
             raise InvalidSelection(
                 f"measurement unit {code!r} already exists",
-                user_message=f"A unit with the code '{code}' already exists.",
+                user_message=QT_TRANSLATE_NOOP("messages", "A unit with the code '{code}' already exists."),
                 context={"code": code},
             )
 
