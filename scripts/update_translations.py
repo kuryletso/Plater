@@ -20,6 +20,7 @@ APP_DIR = PROJECT_ROOT / "app"
 DESIGNER_DIR = APP_DIR / "gui" / "designer"
 GENERATED_DIR = APP_DIR / "gui" / "generated"
 TRANSLATIONS_DIR = APP_DIR / "gui" / "translations"
+SOURCE_LANGUAGE = TRANSLATIONS_DIR / "plater_en.ts"     # English; translation only holds plural forms
 
 
 def sources() -> list[Path]:
@@ -43,6 +44,7 @@ def update(target: Path) -> None:
             [
                 "pyside6-lupdate", f"@{listing}", "-ts",
                 str(target), "-locations", "relative", "-no-obsolete",
+                *(["-pluralonly"] if target == SOURCE_LANGUAGE else []),
             ],
             check=True,
         )
@@ -51,7 +53,7 @@ def update(target: Path) -> None:
 def main(languages: list[str]) -> int:
     TRANSLATIONS_DIR.mkdir(parents=True, exist_ok=True)
 
-    targets = {*TRANSLATIONS_DIR.glob("plater_*.ts")}
+    targets = {SOURCE_LANGUAGE, *TRANSLATIONS_DIR.glob("plater_*.ts")}
     targets |= {TRANSLATIONS_DIR / f"plater_{language}.ts" for language in languages}
 
     for target in sorted(targets):

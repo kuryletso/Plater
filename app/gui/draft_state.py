@@ -11,10 +11,11 @@ from PySide6.QtCore import QObject, Signal
 
 from app.services.invoice.draft import InvoiceDraft, PartySelection, LineInput
 
-TEMPLATE = "Template"
-PROVIDER = "Provider"
-CLIENT = "Client"
-DOCUMENT = "Document"
+# keys now so lowercase; were titles previously
+TEMPLATE = "template"
+PROVIDER = "provider"
+CLIENT = "client"
+DOCUMENT = "document"
 COLUMNS = (TEMPLATE, PROVIDER, CLIENT, DOCUMENT)
 
 
@@ -200,24 +201,24 @@ class DraftState(QObject):
         missing: dict[str, list[str]] = {}
 
         if self.template_id is None:
-            missing[TEMPLATE] = ["Select a template"]
+            missing[TEMPLATE] = [self.tr("Select a template")]
 
         provider: list[str] = []
         if self.provider_organization_id is None:
-            provider.append("Select a provider organization")
+            provider.append(self.tr("Select a provider organization"))
         elif self.provider_tax_id is None:
-            provider.append("Select the provider's tax ID")
+            provider.append(self.tr("Select the provider's tax ID"))
         if self.sequence_id is None:
-            provider.append("Select a numbering sequence")
+            provider.append(self.tr("Select a numbering sequence"))
         if provider:
             missing[PROVIDER] = provider
 
 
         client: list[str] = []
         if self.client_organization_id is None:
-            client.append("Select a client organization")
+            client.append(self.tr("Select a client organization"))
         elif self.client_tax_id is None:
-            client.append("Select the client's tax ID")
+            client.append(self.tr("Select the client's tax ID"))
         if client:
             missing[CLIENT] = client
 
@@ -225,15 +226,19 @@ class DraftState(QObject):
         primary = self.languages[0] if self.languages else None
 
         if all( row.is_blank() for row in self.rows ):
-            document.append("Add at least one invoice line")
+            document.append(self.tr("Add at least one invoice line"))
         elif primary is not None:
             for number, row in enumerate(self.rows, start=1):
                 if row.is_blank():
                     continue
                 if gaps := row.problems(primary):
-                    document.append(f"Line {number}: {' and '.join(gaps)} required")
+                    document.append(
+                        self.tr("Line {line} needs: {fields}.").format(
+                            line=number, fields=", ".join(self._field_name(gap) for gap in gaps),
+                        )
+                    )
         if self.currency_code is None:
-            document.append("Select a currency")
+            document.append(self.tr("Select a currency"))
         if document:
             missing[DOCUMENT] = document
 
@@ -287,3 +292,15 @@ class DraftState(QObject):
             if column not in self.missing_by_column():
                 self._was_complete.add(column)
         self.changed.emit()
+
+
+    def _field_name(self, gap: str) -> str:
+        """Translate single field name."""
+
+        names = {
+            "description": self.tr("description"),
+            "unit": self.tr("unit"),
+            "quantity": self.tr("quantity"),
+            "price": self.tr("price"),
+        }
+        return names.get(gap, gap)

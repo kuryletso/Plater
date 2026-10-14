@@ -67,6 +67,248 @@
     </message>
 </context>
 <context>
+    <name>DraftState</name>
+    <message>
+        <location filename="../draft_state.py" line="+203"/>
+        <source>Select a template</source>
+        <translation>Виберіть шаблон</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Select a provider organization</source>
+        <translation>Виберіть організацію постачальника</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Select the provider&apos;s tax ID</source>
+        <translation>Виберіть податковий номер постачальника</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Select a numbering sequence</source>
+        <translation>Виберіть послідовність нумерації</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Select a client organization</source>
+        <translation>Виберіть організацію клієнта</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Select the client&apos;s tax ID</source>
+        <translation>Виберіть податковий номер клієнта</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Add at least one invoice line</source>
+        <translation>Додайте хоча б один рядок рахунку</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Line {line} needs: {fields}.</source>
+        <translation>У рядку {line} не заповнено: {fields}.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Select a currency</source>
+        <translation>Виберіть валюту</translation>
+    </message>
+    <message>
+        <location line="+60"/>
+        <source>description</source>
+        <translation>опис</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>unit</source>
+        <translation>одиниця</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>quantity</source>
+        <translation>кількість</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>price</source>
+        <translation>ціна</translation>
+    </message>
+</context>
+<context>
+    <name>MainWindow</name>
+    <message numerus="yes">
+        <location filename="../main_window.py" line="+135"/>
+        <source>... and %n more</source>
+        <translation>
+            <numerusform>... і ще %n</numerusform>
+            <numerusform>... і ще %n</numerusform>
+            <numerusform>... і ще %n</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Rebuild templates?</source>
+        <translation>Перебудувати шаблони?</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+3"/>
+        <source>%n template(s) were imported by an older version of the document engine:</source>
+        <translation>
+            <numerusform>%n шаблон імпортовано старішою версією рушія документів:</numerusform>
+            <numerusform>%n шаблони імпортовано старішою версією рушія документів:</numerusform>
+            <numerusform>%n шаблонів імпортовано старішою версією рушія документів:</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Rebuilding re-reads the stored source: names, languages and version histories stay, and only the engine&apos;s reading of the document is refreshed. Rebuild now?</source>
+        <translation>Перебудова заново читає збережений оригінал: назви, мови та історія версій залишаються, оновлюється лише те, як рушій прочитав документ. Перебудувати зараз?</translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>Some templates could not be rebuilt</source>
+        <translation>Деякі шаблони не вдалося перебудувати</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>&amp;File</source>
+        <translation>&amp;Файл</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>E&amp;xit</source>
+        <translation>&amp;Вихід</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>&amp;Edit</source>
+        <translation>&amp;Редагування</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>&amp;Organizations...</source>
+        <translation>&amp;Організації...</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>&amp;Representatives...</source>
+        <translation>&amp;Представники...</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>&amp;Templates...</source>
+        <translation>&amp;Шаблони...</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>&amp;Measurement units...</source>
+        <translation>Одиниці &amp;виміру...</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>&amp;Settings</source>
+        <translation>&amp;Налаштування</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>&amp;Preferences...</source>
+        <translation>&amp;Параметри...</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>&amp;Help</source>
+        <translation>&amp;Довідка</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>&amp;About</source>
+        <translation>&amp;Про програму</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Template</source>
+        <translation>Шаблон</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Provider</source>
+        <translation>Постачальник</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Client</source>
+        <translation>Клієнт</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Document</source>
+        <translation>Документ</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Generate</source>
+        <translation>Створити</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Finish document setup to generate</source>
+        <translation>Завершіть налаштування документа, щоб створити його</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Plater — invoice generator.</source>
+        <translation>Plater — генератор рахунків.</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Ready to generate.</source>
+        <translation>Усе готово до створення.</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Save document</source>
+        <translation>Зберегти документ</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Word documents (*.docx)</source>
+        <translation>Документи Word (*.docx)</translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <location line="+52"/>
+        <source>Generation failed</source>
+        <translation>Не вдалося створити документ</translation>
+    </message>
+    <message>
+        <location line="-38"/>
+        <source>Could not save</source>
+        <translation>Не вдалося зберегти</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Number {number} was issued, but the file could not be written:
+{error}</source>
+        <translation>Номер {number} видано, але файл не вдалося записати:
+{error}</translation>
+    </message>
+    <message>
+        <location line="+38"/>
+        <source>The document could not be generated, so no number was used.</source>
+        <translation>Документ не вдалося створити, тому номер не використано.</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Document generated</source>
+        <translation>Документ створено</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Saved {number} to {file}.</source>
+        <translation>{number} збережено у файл {file}.</translation>
+    </message>
+</context>
+<context>
     <name>PartyColumn</name>
     <message>
         <location filename="../designer/party_column.ui" line="+14"/>
@@ -198,6 +440,38 @@
     </message>
 </context>
 <context>
+    <name>PreviewPanel</name>
+    <message>
+        <location filename="../preview.py" line="+29"/>
+        <source>Visual preview will appear here in a future version.</source>
+        <translation>Візуальний попередній перегляд з’явиться тут у майбутній версії.</translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>Finish document setup to preview.</source>
+        <translation>Завершіть налаштування документа для попереднього перегляду.</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>{number} cannot be generated until these issues are fixed.</source>
+        <translation>{number}: документ не можна створити, доки ці проблеми не виправлено.</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+5"/>
+        <source>{number} will generate, with %n warning(s).</source>
+        <translation>
+            <numerusform>{number}: документ буде створено з %n попередженням.</numerusform>
+            <numerusform>{number}: документ буде створено з %n попередженнями.</numerusform>
+            <numerusform>{number}: документ буде створено з %n попередженнями.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>{number} is ready to generate. No issues found.</source>
+        <translation>{number}: усе готово до створення, проблем не знайдено.</translation>
+    </message>
+</context>
+<context>
     <name>SettingsDialog</name>
     <message>
         <location filename="../dialogs/settings.py" line="+51"/>
@@ -326,7 +600,7 @@
 <context>
     <name>i18n</name>
     <message>
-        <location filename="../i18n.py" line="+94"/>
+        <location filename="../i18n.py" line="+95"/>
         <source>Error</source>
         <translation>Помилка</translation>
     </message>

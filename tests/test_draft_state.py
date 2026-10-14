@@ -277,21 +277,21 @@ def test_a_half_typed_row_is_reported_with_its_grid_position(draft):
     complete(draft)
     draft.set_rows((row(), row("Consulting", quantity=None)))
 
-    assert draft.missing_by_column()[DOCUMENT] == ["Line 2: quantity required"]
+    assert draft.missing_by_column()[DOCUMENT] == ["Line 2 needs: quantity."]
 
 
 def test_row_numbering_counts_blank_rows_the_user_can_see(draft):
     complete(draft)
     draft.set_rows((row(), LineRow(), row("Consulting", unit=None)))
 
-    assert draft.missing_by_column()[DOCUMENT] == ["Line 3: unit required"]
+    assert draft.missing_by_column()[DOCUMENT] == ["Line 3 needs: unit."]
 
 
 def test_several_gaps_in_one_row_are_named_together(draft):
     complete(draft)
     draft.set_rows((row(unit=None, quantity=None),))
 
-    assert draft.missing_by_column()[DOCUMENT] == ["Line 1: unit and quantity required"]
+    assert draft.missing_by_column()[DOCUMENT] == ["Line 1 needs: unit, quantity."]
 
 
 def test_blank_rows_are_left_out_of_the_draft(draft):

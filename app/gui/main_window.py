@@ -8,7 +8,6 @@ from PySide6.QtWidgets import (
     QWidget,
     QHBoxLayout,
     QVBoxLayout,
-    QLabel,
     QMainWindow,
     QMessageBox,
     QPushButton,
@@ -34,7 +33,7 @@ from app.gui.settings import display_languages
 from app.gui.columns.template_column import TemplateColumn
 from app.gui.columns.party_column import PartyColumn, PartyRole
 from app.gui.columns.document_column import DocumentColumn
-from app.gui.draft_state import COLUMNS, DraftState
+from app.gui.draft_state import COLUMNS, DraftState, CLIENT, DOCUMENT, PROVIDER, TEMPLATE
 
 from app.services.doc_sequence.repository import SequenceRepository
 from app.services.errors import ServiceError
@@ -45,20 +44,20 @@ from app.services.template.rebuild_service import TemplateRebuildService
 from app.gui.i18n import error_text, diagnostic_text, severity_label
 
 
-def _stub_content(title: str) -> QWidget:
-    """Filler content for the column in case column content was unable to load.
+# def _stub_content(title: str) -> QWidget:
+#     """Filler content for the column in case column content was unable to load.
     
-    Previously used as filler page until the real column content lands.
-    """
+#     Previously used as filler page until the real column content lands.
+#     """
 
-    label = QLabel(f"{title} column was unable to load.")
-    label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    label.setEnabled(False)
+#     label = QLabel(f"{title} column was unable to load.")
+#     label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+#     label.setEnabled(False)
 
-    page = QWidget()
-    QVBoxLayout(page).addWidget(label)
+#     page = QWidget()
+#     QVBoxLayout(page).addWidget(label)
 
-    return page
+#     return page
 
 
 class MainWindow(QMainWindow):
@@ -132,16 +131,25 @@ class MainWindow(QMainWindow):
             return
 
         listed = "\n".join(f" \u2022 {template.name}" for template in stale[:10])
-        more = "" if len(stale) <= 10 else f"\n ... and {len(stale) - 10} more"
+        if len(stale) > 10:
+            listed += "\n " + self.tr("... and %n more", "", len(stale) - 10)
 
         answer = QMessageBox.question(
             self,
-            "Rebuild templates?",
-            f"{len(stale)} template(s) were imported by an older version of the "
-            f"document engine: \n\n{listed}{more}\n\n"
-            f"Rebuild them now from their stored source? They keep their name, "
-            f"languages and version history -- only the engine's reading of the "
-            f"document is refreshed.",
+            self.tr("Rebuild templates?"),
+            "\n\n".join((
+                self.tr(
+                    "%n template(s) were imported by an older version of the document engine:",
+                    "",
+                    len(stale),
+                ),
+                listed,
+                self.tr(
+                    "Rebuilding re-reads the stored source: names, languages and version " \
+                    "histories stay, and only the engine's reading of the document is " \
+                    "refreshed. Rebuild now?",
+                ),
+            )),
         )
         if answer != QMessageBox.StandardButton.Yes:
             return
@@ -156,7 +164,7 @@ class MainWindow(QMainWindow):
         if failed:
             QMessageBox.warning(
                 self,
-                "Some templates could not be rebuilt",
+                self.tr("Some templates could not be rebuilt"),
                 # Only 'rebuilt' have o.error as None, so they won't be present in failed;
                 # following None check performed for static type checking
                 "\n".join(f"{o.name}: {error_text(o.error) if o.error is not None else ''}" for o in failed),
@@ -164,21 +172,21 @@ class MainWindow(QMainWindow):
 
 
     def _build_menu(self) -> None:
-        file_menu = self.menuBar().addMenu("&File")
-        file_menu.addAction("E&xit", self.close)
+        file_menu = self.menuBar().addMenu(self.tr("&File"))
+        file_menu.addAction(self.tr("E&xit"), self.close)
 
-        edit_menu = self.menuBar().addMenu("&Edit")
-        edit_menu.addAction("&Organizations...", self._manage_organizations)
-        edit_menu.addAction("&Representatives...", self._manage_representatives)
-        edit_menu.addAction("&Templates...", self._manage_templates)
+        edit_menu = self.menuBar().addMenu(self.tr("&Edit"))
+        edit_menu.addAction(self.tr("&Organizations..."), self._manage_organizations)
+        edit_menu.addAction(self.tr("&Representatives..."), self._manage_representatives)
+        edit_menu.addAction(self.tr("&Templates..."), self._manage_templates)
         edit_menu.addSeparator()
-        edit_menu.addAction("&Measurement units...", self._manage_units)
+        edit_menu.addAction(self.tr("&Measurement units..."), self._manage_units)
 
-        settings_menu = self.menuBar().addMenu("&Settings")
-        settings_menu.addAction("&Preferences...", self._open_settings)
+        settings_menu = self.menuBar().addMenu(self.tr("&Settings"))
+        settings_menu.addAction(self.tr("&Preferences..."), self._open_settings)
 
-        help_menu = self.menuBar().addMenu("&Help")
-        help_menu.addAction("&About", self._about)
+        help_menu = self.menuBar().addMenu(self.tr("&Help"))
+        help_menu.addAction(self.tr("&About"), self._about)
 
 
     def _build_workspace(self) -> QWidget:
@@ -191,14 +199,15 @@ class MainWindow(QMainWindow):
         self._columns: dict[str, CollapsibleColumn] = {}
 
         contents = {
-            "Template": self.template_column,
-            "Provider": self.provider_column,
-            "Client": self.client_column,
-            "Document": self.document_column,
+            TEMPLATE: (self.tr("Template"), self.template_column),
+            PROVIDER: (self.tr("Provider"), self.provider_column),
+            CLIENT: (self.tr("Client"), self.client_column),
+            DOCUMENT: (self.tr("Document"), self.document_column),
         }
-        for title in COLUMNS:
-            column = CollapsibleColumn(title, contents.get(title) or _stub_content(title))
-            self._columns[title] = column
+        for key in COLUMNS:
+            title, content = contents[key]
+            column = CollapsibleColumn(title, content)
+            self._columns[key] = column
             self.accordion.add_column(column)
 
         workspace = QFrame()
@@ -209,10 +218,10 @@ class MainWindow(QMainWindow):
 
 
     def _build_footer(self) -> QWidget:
-        self.generate_button = QPushButton("Generate")
+        self.generate_button = QPushButton(self.tr("Generate"))
         self.generate_button.clicked.connect(self._on_generate)
         self.generate_button.setEnabled(False)
-        self.generate_button.setToolTip("Finish document setup to generate")
+        self.generate_button.setToolTip(self.tr("Finish document setup to generate"))
 
         footer = QWidget()
         layout = QHBoxLayout(footer)
@@ -224,17 +233,17 @@ class MainWindow(QMainWindow):
 
 
     def _about(self) -> None:
-        QMessageBox.about(self, "Plater", "Plater — invoice generator.")
+        QMessageBox.about(self, "Plater", self.tr("Plater — invoice generator."))
 
 
     def _refresh_readiness(self) -> None:
-        for title, status in self.draft.statuses().items():
-            self._columns[title].set_status(status)
+        for key, status in self.draft.statuses().items():
+            self._columns[key].set_status(status)
 
         gaps = [ g for gaps in self.draft.missing_by_column().values() for g in gaps ]
         self.generate_button.setEnabled(not gaps)
         self.generate_button.setToolTip(
-            "Ready to generate." if not gaps else " | ".join(gaps) 
+            self.tr("Ready to generate.") if not gaps else " | ".join(gaps) 
         )
 
 
@@ -250,9 +259,9 @@ class MainWindow(QMainWindow):
         # ask before generating: cancelling here must not burn a number
         chosen, _ = QFileDialog.getSaveFileName(
             self,
-            "Save document",
+            self.tr("Save document"),
             str(Path(documents) / f"{number.formatted}.docx"),
-            "Word documents (*.docx)",
+            self.tr("Word documents (*.docx)"),
         )
         if not chosen:
             return
@@ -266,7 +275,7 @@ class MainWindow(QMainWindow):
         except ServiceError as error:
             QMessageBox.critical(
                 self,
-                "Generation failed",
+                self.tr("Generation failed"),
                 error_text(error),
             )
             return
@@ -280,9 +289,10 @@ class MainWindow(QMainWindow):
         except OSError as error:
             QMessageBox.critical(
                 self,
-                "Could not save",
-                f"Number {result.number.formatted} was issued, but the file "
-                f"could not be written:\n{error}",
+                self.tr("Could not save"),
+                self.tr("Number {number} was issued, but the file could not be written:\n{error}").format(
+                    number=result.number.formatted, error=error,
+                ),
             )
             return
 
@@ -317,8 +327,8 @@ class MainWindow(QMainWindow):
     def _report_failure(self, result: GenerationResult) -> None:
         box = QMessageBox(self)
         box.setIcon(QMessageBox.Icon.Warning)
-        box.setWindowTitle("Generation failed")
-        box.setText("The document could not be generated, so no number was used.")
+        box.setWindowTitle(self.tr("Generation failed"))
+        box.setText(self.tr("The document could not be generated, so no number was used."))
         box.setDetailedText("\n".join(
             f"[{severity_label(item.severity)}] {item.code}: {diagnostic_text(item)}"
             for item in result.diagnostics.items
@@ -329,8 +339,10 @@ class MainWindow(QMainWindow):
     def _report_success(self, result: GenerationResult, target: Path) -> None:
         QMessageBox.information(
             self,
-            "Document generated",
-            f"Saved {result.number.formatted} to {target.name}.",
+            self.tr("Document generated"),
+            self.tr("Saved {number} to {file}.").format(
+                number=result.number.formatted, file=target.name,
+            ),
         )
 
 
@@ -338,7 +350,7 @@ class MainWindow(QMainWindow):
         """Must run preview() which renders without consuming a number."""
 
         if not self.draft.is_complete():
-            self.preview.show_notice("Finish document setup to preview.")
+            self.preview.show_incomplete()
             return
 
         try:

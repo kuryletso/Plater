@@ -23,7 +23,7 @@ from app.core.messages import CONTEXT, fill
 
 TRANSLATIONS_DIR = Path(__file__).resolve().parent / "translations"
 
-# English is the source langauge. Each of the following needs app/gui/translations/plater_<locale>.qm
+# English is the source language. Each of the following needs app/gui/translations/plater_<locale>.qm
 LOCALES = {"UKR": "uk_UA"}
 
 log = logging.getLogger("plater.i18n")
@@ -45,6 +45,7 @@ def install(
 
     name = LOCALES.get(code)
     if name is None:
+        _install_english(app, directory)
         return True
 
     locale = QLocale(name)
@@ -72,7 +73,7 @@ def uninstall() -> None:
 
 
 def message_text(template: str, values: Mapping[str, object] | None = None) -> str:
-    """A tempalte marked with QT_TRANSLATE_NOOP, translated and filled in."""
+    """A template marked with QT_TRANSLATE_NOOP, translated and filled in."""
 
     return fill(QCoreApplication.translate(CONTEXT, template), values)
 
@@ -93,6 +94,17 @@ def severity_label(severity: Severity) -> str:
     if severity is Severity.ERROR:
         return QCoreApplication.translate("i18n", "Error")
     return QCoreApplication.translate("i18n", "Warning")
+
+
+def _install_english(app: QCoreApplication, directory: Path) -> None:
+    """English is the source text and needs no translation. Only its plural 
+    forms ("1 template" vs "1 template(s)") need one. plater_en.qm holds nothing else. 
+    Without it the source text is shown.
+    """
+
+    english = QTranslator(app)
+    if english.load("plater_en", str(directory)):
+        _add(app, english)
 
 
 def _add(app: QCoreApplication, translator: QTranslator) -> None:

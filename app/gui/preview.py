@@ -26,7 +26,7 @@ class PreviewPanel(QFrame):
         self.issues_view = QTextBrowser()
         self.issues_view.setOpenExternalLinks(False)
 
-        footnote = QLabel("Visual preview will appear here in a future version.")
+        footnote = QLabel(self.tr("Visual preview will appear here in a future version."))
         footnote.setAlignment(Qt.AlignmentFlag.AlignCenter)
         footnote.setEnabled(False)
 
@@ -35,12 +35,16 @@ class PreviewPanel(QFrame):
         layout.addWidget(self.issues_view, 1)
         layout.addWidget(footnote)
 
-        self.show_notice("Finish document setup to preview")
+        self.show_incomplete()
 
 
     def show_notice(self, text: str) -> None:
         self._set_status(text, role="")
         self.issues_view.clear()
+
+
+    def show_incomplete(self) -> None:
+        self.show_notice(self.tr("Finish document setup to preview."))
 
 
     def show_result(self, number: str, diagnostics) -> None:
@@ -57,17 +61,17 @@ class PreviewPanel(QFrame):
 
         if diagnostics.has_errors:
             self._set_status(
-                f"{number} cannot be generated until these issues are fixed.",
+                self.tr("{number} cannot be generated until these issues are fixed.").format(number=number),
                 role="error",
             )
         elif warnings:
             self._set_status(
-                f"{number} will generate, with {warnings} warning(s).",
+                self.tr("{number} will generate, with %n warning(s).", "", warnings).format(number=number),
                 role="warning",
             )
         else:
             self._set_status(
-                f"{number} is ready to generate. No issues found.",
+                self.tr("{number} is ready to generate. No issues found.").format(number=number),
                 role="",
             )
 

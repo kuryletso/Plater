@@ -19,6 +19,8 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 APP_DIR = PROJECT_ROOT / "app"
 TRANSLATIONS_DIR = APP_DIR / "gui" / "translations"
 UKRAINIAN = TRANSLATIONS_DIR / "plater_uk.ts"
+ENGLISH = TRANSLATIONS_DIR / "plater_en.ts"     # the source language: plural forms only
+TRANSLATIONS = (ENGLISH, UKRAINIAN)
 
 FIELD = re.compile(r"\{(\w+)\}")
 
@@ -72,10 +74,12 @@ def app_modules(*parts: str) -> list[Path]:
 def compiled(tmp_path) -> Path:
     """The committed .ts compiled into a temporary directory: the .qm is not committed."""
 
-    subprocess.run(
-        [qt_tool("pyside6-lrelease"), "-silent", str(UKRAINIAN), "-qm", str(tmp_path / "plater_uk.qm")],
-        check=True,
-    )
+    for ts in TRANSLATIONS:
+        if ts.exists():
+            subprocess.run(
+                [qt_tool("pyside6-lrelease"), "-silent", str(ts), "-qm", str(tmp_path / f"{ts.stem}.qm")],
+                check=True,
+            )
     return tmp_path
 
 
@@ -84,6 +88,15 @@ def ukrainian(qt_app, compiled):
     from app.gui.i18n import install, uninstall
 
     assert install(qt_app, "UKR", compiled)
+    yield
+    uninstall()
+
+
+@pytest.fixture
+def english(qt_app, compiled):
+    from app.gui.i18n import install, uninstall
+
+    assert install(qt_app, "ENG", compiled)
     yield
     uninstall()
 
@@ -230,7 +243,11 @@ def test_errors_are_translated_where_they_are_shown(ukrainian):
 
 # --- the .ts -----------------------------------------------------------------------
 
-def test_the_translation_source_is_up_to_date_with_the_code(tmp_path):
+@pytest.mark.parametrize("ts", [
+    pytest.param(ENGLISH, id="en"),
+    pytest.param(UKRAINIAN, id="uk"),
+])
+def test_the_translation_source_is_up_to_date_with_the_code(tmp_path, ts):
     """Run scripts/update_translations.py when this fails."""
 
     spec = importlib.util.spec_from_file_location("update_translations", PROJECT_ROOT / "scripts" / "update_translations.py")
@@ -240,8 +257,8 @@ def test_the_translation_source_is_up_to_date_with_the_code(tmp_path):
     listing = tmp_path / "sources.lst"
     listing.write_text("\n".join(str(path) for path in script.sources()), encoding="utf-8")
 
-    refreshed = tmp_path / UKRAINIAN.name
-    shutil.copy(UKRAINIAN, refreshed)
+    refreshed = tmp_path / ts.name
+    shutil.copy(ts, refreshed)
     subprocess.run(
         [
             qt_tool("pyside6-lupdate"), f"@{listing}",
@@ -249,20 +266,24 @@ def test_the_translation_source_is_up_to_date_with_the_code(tmp_path):
             "-locations", "none",
             "-no-obsolete",
             "-silent",
+            *(["-pluralonly"] if ts == ENGLISH else []),
         ],
         check=True,
     )
 
-    added = entries(refreshed) - entries(UKRAINIAN)
-    gone = entries(UKRAINIAN) - entries(refreshed)
+    added = entries(refreshed) - entries(ts)
+    gone = entries(ts) - entries(refreshed)
     assert not added and not gone, f"new in the code: {sorted(added)}; gone from it: {sorted(gone)}"
 
 
-@pytest.mark.xfail(strict=True, reason="phase 4: the Ukrainian draft is complete")
-def test_everything_is_translated():
+@pytest.mark.parametrize("ts", [
+    pytest.param(ENGLISH, id="en"),
+    pytest.param(UKRAINIAN, id="uk", marks=pytest.mark.xfail(strict=True, reason="phase 4: the Ukrainian draft is complete")),
+])
+def test_everything_is_translated(ts):
     missing = [
         f"[{context_of(m)}] {m.findtext('source')}"
-        for m in messages(UKRAINIAN) if unfinished(m)
+        for m in messages(ts) if unfinished(m)
     ]
     assert missing == []
 
@@ -271,7 +292,7 @@ def test_a_translation_keeps_the_fields_of_its_source():
     """fill() leaves a misspelled field as written, so the user would see '{lnie}'."""
 
     wrong = []
-    for message in messages(UKRAINIAN):
+    for message in (m for ts in TRANSLATIONS if ts.exists() for m in messages(ts)):
         if unfinished(message):
             continue
         source = message.findtext("source") or ""
@@ -459,3 +480,66 @@ def test_the_gui_shows_errors_and_diagnostics_only_through_i18n():
         if isinstance(node, ast.Attribute) and node.attr in {"user_message", "user_text", "message"}
     ]
     assert wrong == []
+
+
+# --- the interface -------------------------------------------------------------------
+
+def preview_status(warnings: int) -> str:
+    from app.core.diagnostics import DiagnosticCollector
+    from app.core.errors import Layer
+    from app.gui.preview import PreviewPanel
+
+    diagnostics = DiagnosticCollector()
+    for _ in range(warnings):
+        diagnostics.warn(Layer.RENDER, "w", "A warning.")
+
+    panel = PreviewPanel()
+    panel.show_result("INV-7", diagnostics)
+    return panel.status_label.text()
+
+
+def test_the_english_file_holds_only_plural_forms():
+    assert messages(ENGLISH)
+    assert all(m.get("numerus") == "yes" for m in messages(ENGLISH))
+
+
+def test_english_counts_read_as_english(english):
+    """Without plater_en.qm the source shows: "with 1 warning(s)"."""
+
+    assert preview_status(1) == "INV-7 will generate, with 1 warning."
+    assert preview_status(3) == "INV-7 will generate, with 3 warnings."
+
+
+def test_ukrainian_counts_take_the_right_form(ukrainian):
+    """Three forms, and 21 takes the form of 1."""
+
+    assert preview_status(1).endswith("з 1 попередженням.")
+    assert preview_status(3).endswith("з 3 попередженнями.")
+    assert preview_status(21).endswith("з 21 попередженням.")
+
+
+def test_the_main_window_is_ukrainian(ukrainian, session, monkeypatch):
+    from app.gui import main_window as module
+
+    monkeypatch.setattr(module, "SessionLocal", lambda: session)
+    window = module.MainWindow()
+
+    assert [action.text() for action in window.menuBar().actions()] == \
+        ["&Файл", "&Редагування", "&Налаштування", "&Довідка"]
+    assert window.generate_button.text() == "Створити"
+
+
+def test_the_stale_template_message_names_the_menus_as_they_are_labelled(ukrainian):
+    """The message gives a menu path, so the menus must carry those very names."""
+    from PySide6.QtCore import QCoreApplication
+
+    from app.gui.i18n import message_text
+
+    def label(text: str) -> str:
+        return QCoreApplication.translate("MainWindow", text).replace("&", "").removesuffix("...")
+
+    message = message_text(
+        "This template was imported by an older version of the document engine. "
+        "Rebuild it (Edit > Templates > Rebuild) to pick up the latest rendering fixes."
+    )
+    assert f"({label('&Edit')} > {label('&Templates...')} >" in message
