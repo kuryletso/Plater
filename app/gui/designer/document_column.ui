@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Form</string>
+   <string notr="true">Form</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,3,0,0">
    <item>
@@ -105,10 +105,10 @@
         </font>
        </property>
        <property name="toolTip">
-        <string>Add new line below</string>
+        <string>Add a line</string>
        </property>
        <property name="text">
-        <string>+ Add row</string>
+        <string>+ Add line</string>
        </property>
        <property name="autoRaise">
         <bool>true</bool>
@@ -133,7 +133,7 @@
       <item row="0" column="1">
        <widget class="QLabel" name="subtotal_value">
         <property name="text">
-         <string>TextLabel</string>
+         <string notr="true">TextLabel</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
@@ -150,7 +150,7 @@
       <item row="1" column="1">
        <widget class="QLabel" name="tax_value">
         <property name="text">
-         <string>TextLabel</string>
+         <string notr="true">TextLabel</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
@@ -167,7 +167,7 @@
       <item row="2" column="1">
        <widget class="QLabel" name="total_value">
         <property name="text">
-         <string>TextLabel</string>
+         <string notr="true">TextLabel</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>

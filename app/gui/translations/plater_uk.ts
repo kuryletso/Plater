@@ -4,72 +4,65 @@
 <context>
     <name>DocumentColumn</name>
     <message>
-        <location filename="../designer/document_column.ui" line="+14"/>
-        <source>Form</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+8"/>
+        <location filename="../designer/document_column.ui" line="+22"/>
         <source>Issue date</source>
-        <translation type="unfinished"></translation>
+        <translation>Дата виставлення</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>Currency</source>
-        <translation type="unfinished"></translation>
+        <translation>Валюта</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>Select a template first.</source>
-        <translation type="unfinished"></translation>
+        <translation>Спершу виберіть шаблон.</translation>
     </message>
     <message>
         <location line="+32"/>
         <source>New unit</source>
-        <translation type="unfinished"></translation>
+        <translation>Нова одиниця</translation>
     </message>
     <message>
         <location line="+28"/>
-        <source>Add new line below</source>
-        <translation type="unfinished"></translation>
+        <source>Add a line</source>
+        <translation>Додати рядок</translation>
     </message>
     <message>
         <location line="+3"/>
-        <source>+ Add row</source>
-        <translation type="unfinished"></translation>
+        <source>+ Add line</source>
+        <translation>+ Додати рядок</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>Totals</source>
-        <translation type="unfinished"></translation>
+        <translation>Підсумки</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Subtotal</source>
-        <translation type="unfinished"></translation>
+        <translation>Проміжний підсумок</translation>
     </message>
     <message>
-        <location line="+7"/>
         <location line="+17"/>
-        <location line="+17"/>
-        <source>TextLabel</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="-24"/>
         <source>Tax</source>
-        <translation type="unfinished"></translation>
+        <translation>Податок</translation>
     </message>
     <message>
         <location line="+17"/>
         <source>Total</source>
-        <translation type="unfinished"></translation>
+        <translation>Загальна сума</translation>
+    </message>
+    <message>
+        <location filename="../columns/document_column.py" line="+172"/>
+        <source>Select...</source>
+        <translation>Виберіть...</translation>
     </message>
 </context>
 <context>
     <name>DraftState</name>
     <message>
-        <location filename="../draft_state.py" line="+203"/>
+        <location filename="../draft_state.py" line="+204"/>
         <source>Select a template</source>
         <translation>Виберіть шаблон</translation>
     </message>
@@ -132,6 +125,54 @@
         <location line="+1"/>
         <source>price</source>
         <translation>ціна</translation>
+    </message>
+</context>
+<context>
+    <name>LineRowWidget</name>
+    <message>
+        <location filename="../columns/lines_row.py" line="+91"/>
+        <source>Description ({language})</source>
+        <translation>Опис ({language})</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Unit</source>
+        <translation>Одиниця</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Qty</source>
+        <translation>К-сть</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Price</source>
+        <translation>Ціна</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Tax %</source>
+        <translation>Под. %</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Move up</source>
+        <translation>Перемістити вгору</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Move down</source>
+        <translation>Перемістити вниз</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Remove line</source>
+        <translation>Видалити рядок</translation>
+    </message>
+    <message>
+        <location line="+119"/>
+        <source>Template renders {language} descriptions; this line will print blank.</source>
+        <translation>Шаблон друкує описи мовою {language}; у цьому рядку опис буде порожнім.</translation>
     </message>
 </context>
 <context>
@@ -311,132 +352,152 @@
 <context>
     <name>PartyColumn</name>
     <message>
-        <location filename="../designer/party_column.ui" line="+14"/>
-        <source>Form</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+8"/>
+        <location filename="../designer/party_column.ui" line="+22"/>
         <source>Search organizations...</source>
-        <translation type="unfinished"></translation>
+        <translation>Пошук організацій...</translation>
     </message>
     <message>
-        <location line="+15"/>
-        <source>Create new Organization</source>
-        <translation type="unfinished"></translation>
+        <location filename="../columns/party_column.py" line="+86"/>
+        <location line="+196"/>
+        <source>Select...</source>
+        <translation>Виберіть...</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <location line="+91"/>
-        <location line="+18"/>
-        <location line="+18"/>
-        <location line="+25"/>
-        <source>+</source>
-        <translation type="unfinished"></translation>
+        <location line="-22"/>
+        <source>Select a template first</source>
+        <translation>Спершу виберіть шаблон</translation>
     </message>
     <message>
-        <location line="-138"/>
-        <source>Nothing selected</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+12"/>
-        <source>Edit organization</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <location line="+168"/>
-        <location line="+18"/>
-        <location line="+18"/>
-        <location line="+18"/>
-        <source>✎</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="-207"/>
-        <source>Delete organization</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>🗑</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+15"/>
-        <source>Clear selection</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>X</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+12"/>
-        <source>Selection</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+11"/>
-        <source>Add new Bank account</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+18"/>
-        <source>Add new Tax ID</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+18"/>
-        <source>Add new Sequence</source>
-        <translation type="unfinished"></translation>
+        <location line="+1"/>
+        <source>Select an organization first</source>
+        <translation>Спершу виберіть організацію</translation>
     </message>
     <message>
         <location line="+13"/>
-        <source>Sequence</source>
-        <translation type="unfinished"></translation>
+        <source>(no prefix)</source>
+        <translation>(без префікса)</translation>
     </message>
     <message>
-        <location line="+12"/>
-        <source>Add new Representative</source>
-        <translation type="unfinished"></translation>
+        <location line="+9"/>
+        <source>No sequences for this organization</source>
+        <translation>Для цієї організації немає послідовностей</translation>
     </message>
     <message>
-        <location line="+16"/>
-        <source>Tax ID</source>
-        <translation type="unfinished"></translation>
+        <location line="+47"/>
+        <location filename="../designer/party_column.ui" line="+32"/>
+        <source>Nothing selected</source>
+        <translation>Нічого не вибрано</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+17"/>
+        <source>No matches for &quot;{search}&quot;</source>
+        <translation>Нічого не знайдено за запитом «{search}»</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>No organizations yet</source>
+        <translation>Організацій ще немає</translation>
+    </message>
+    <message>
+        <location line="+165"/>
+        <source>This number may already have been issued.</source>
+        <translation>Цей номер, можливо, уже видано.</translation>
+    </message>
+    <message>
+        <location line="+69"/>
+        <source>Delete &quot;{name}&quot; and everything attached to it?</source>
+        <translation>Видалити «{name}» разом з усім, що до неї прив’язано?</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Cannot delete</source>
+        <translation>Не вдалося видалити</translation>
+    </message>
+    <message>
+        <location filename="../designer/party_column.ui" line="+12"/>
+        <source>Edit organization</source>
+        <translation>Редагувати організацію</translation>
+    </message>
+    <message>
+        <location filename="../columns/party_column.py" line="-10"/>
+        <location filename="../designer/party_column.ui" line="+18"/>
+        <source>Delete organization</source>
+        <translation>Видалити організацію</translation>
+    </message>
+    <message>
+        <location filename="../designer/party_column.ui" line="+18"/>
+        <source>Clear selection</source>
+        <translation>Скасувати вибір</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>Selection</source>
+        <translation>Вибір</translation>
+    </message>
+    <message>
+        <location line="+95"/>
         <source>Representative</source>
-        <translation type="unfinished"></translation>
+        <translation>Представник</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>Bank account</source>
-        <translation type="unfinished"></translation>
+        <translation>Банківський рахунок</translation>
+    </message>
+    <message>
+        <location line="-185"/>
+        <source>Add an organization</source>
+        <translation>Додати організацію</translation>
+    </message>
+    <message>
+        <location line="+91"/>
+        <source>Add a bank account</source>
+        <translation>Додати банківський рахунок</translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>Add a tax ID</source>
+        <translation>Додати податковий номер</translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>Add a numbering sequence</source>
+        <translation>Додати послідовність нумерації</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>* Sequence</source>
+        <translation>* Нумерація</translation>
     </message>
     <message>
         <location line="+12"/>
-        <source>Edit document sequence</source>
-        <translation type="unfinished"></translation>
+        <source>Add a representative</source>
+        <translation>Додати представника</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>* Tax ID</source>
+        <translation>* Податковий номер</translation>
+    </message>
+    <message>
+        <location line="+29"/>
+        <source>Edit numbering sequence</source>
+        <translation>Редагувати послідовність нумерації</translation>
     </message>
     <message>
         <location line="+18"/>
         <source>Edit tax ID</source>
-        <translation type="unfinished"></translation>
+        <translation>Редагувати податковий номер</translation>
     </message>
     <message>
         <location line="+18"/>
         <source>Edit representative</source>
-        <translation type="unfinished"></translation>
+        <translation>Редагувати представника</translation>
     </message>
     <message>
         <location line="+18"/>
         <source>Edit bank account</source>
-        <translation type="unfinished"></translation>
+        <translation>Редагувати банківський рахунок</translation>
     </message>
 </context>
 <context>
@@ -542,59 +603,101 @@
 <context>
     <name>TemplateColumn</name>
     <message>
-        <location filename="../designer/template_column.ui" line="+14"/>
-        <source>Form</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+8"/>
+        <location filename="../designer/template_column.ui" line="+22"/>
         <source>Search templates...</source>
-        <translation type="unfinished"></translation>
+        <translation>Пошук шаблонів...</translation>
     </message>
     <message>
         <location line="+15"/>
-        <source>+</source>
-        <translation type="unfinished"></translation>
+        <source>Import a template</source>
+        <translation>Імпортувати шаблон</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location filename="../columns/template_column.py" line="+67"/>
+        <source>Built-in template</source>
+        <translation>Вбудований шаблон</translation>
+    </message>
+    <message>
+        <location line="+53"/>
+        <source>This template cannot be loaded.</source>
+        <translation>Цей шаблон не вдалося завантажити.</translation>
+    </message>
+    <message>
+        <location line="+28"/>
+        <source>Type:</source>
+        <translation>Тип:</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Languages:</source>
+        <translation>Мови:</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Version:</source>
+        <translation>Версія:</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Description:</source>
+        <translation>Опис:</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Imported by an older engine. Rebuild it to pick up the latest fixes.</source>
+        <translation>Імпортовано старішою версією рушія. Перебудуйте шаблон, щоб отримати найновіші виправлення.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>This template cannot be read and must be rebuilt.</source>
+        <translation>Цей шаблон неможливо прочитати; його потрібно перебудувати.</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <location filename="../designer/template_column.ui" line="+20"/>
         <source>Nothing selected</source>
-        <translation type="unfinished"></translation>
+        <translation>Нічого не вибрано</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+9"/>
+        <source>No matches for &quot;{search}&quot;</source>
+        <translation>Нічого не знайдено за запитом «{search}»</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>No templates yet</source>
+        <translation>Шаблонів ще немає</translation>
+    </message>
+    <message>
+        <location line="+39"/>
+        <source>Delete &quot;{name}&quot;?</source>
+        <translation>Видалити «{name}»?</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Cannot delete</source>
+        <translation>Не вдалося видалити</translation>
+    </message>
+    <message>
+        <location filename="../designer/template_column.ui" line="+12"/>
         <source>Edit template</source>
-        <translation type="unfinished"></translation>
+        <translation>Редагувати шаблон</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>✎</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+15"/>
+        <location filename="../columns/template_column.py" line="-10"/>
+        <location filename="../designer/template_column.ui" line="+18"/>
         <source>Delete template</source>
-        <translation type="unfinished"></translation>
+        <translation>Видалити шаблон</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>🗑</source>
-        <translation type="unfinished"></translation>
+        <location filename="../designer/template_column.ui" line="+18"/>
+        <source>Clear selection</source>
+        <translation>Скасувати вибір</translation>
     </message>
     <message>
         <location line="+15"/>
-        <source>Clear selection</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>╳</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+12"/>
         <source>Details</source>
-        <translation type="unfinished"></translation>
+        <translation>Відомості</translation>
     </message>
 </context>
 <context>

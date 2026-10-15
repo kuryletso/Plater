@@ -278,7 +278,7 @@ def test_the_translation_source_is_up_to_date_with_the_code(tmp_path, ts):
 
 @pytest.mark.parametrize("ts", [
     pytest.param(ENGLISH, id="en"),
-    pytest.param(UKRAINIAN, id="uk", marks=pytest.mark.xfail(strict=True, reason="phase 4: the Ukrainian draft is complete")),
+    pytest.param(UKRAINIAN, id="uk"),
 ])
 def test_everything_is_translated(ts):
     missing = [
@@ -543,3 +543,57 @@ def test_the_stale_template_message_names_the_menus_as_they_are_labelled(ukraini
         "Rebuild it (Edit > Templates > Rebuild) to pick up the latest rendering fixes."
     )
     assert f"({label('&Edit')} > {label('&Templates...')} >" in message
+
+
+def test_designer_placeholders_are_not_for_translation():
+    """'Form', 'TextLabel' and the symbol buttons have *translatable* unticked in Designer."""
+
+    sources = {m.findtext("source") for m in messages(UKRAINIAN)}
+    assert not sources & {"Form", "TextLabel", "+", "✎", "🗑", "╳", "X"}
+
+
+def test_the_columns_are_ukrainian(ukrainian, session, monkeypatch):
+    from app.gui import main_window as module
+
+    monkeypatch.setattr(module, "SessionLocal", lambda: session)
+    window = module.MainWindow()
+
+    assert window.template_column.ui.search_edit.placeholderText() == "Пошук шаблонів..."
+    assert window.template_column.ui.selection_label.text() == "Нічого не вибрано"
+    assert window.provider_column.ui.search_edit.placeholderText() == "Пошук організацій..."
+    assert window.document_column.ui.add_button.text() == "+ Додати рядок"
+
+
+def _interface_text(node: ast.AST) -> str | None:
+    """The literal text of a tr() or QCoreApplication.translate() call, if `node` is one."""
+
+    if not isinstance(node, ast.Call):
+        return None
+    function, arguments = node.func, node.args
+    if isinstance(function, ast.Attribute) and function.attr == "tr" and arguments and _is_text(arguments[0]):
+        return arguments[0].value
+    if isinstance(function, ast.Attribute) and function.attr == "translate" \
+    and isinstance(function.value, ast.Name) and function.value.id == "QCoreApplication" \
+    and len(arguments) > 1 and _is_text(arguments[1]):
+        return arguments[1].value
+    return None
+
+
+def test_formatted_interface_text_gets_exactly_the_fields_it_names():
+    """str.format raises KeyError on a field it has no value for, so a mismatch
+    crashes the widget that shows the text, in every language."""
+
+    wrong = []
+    for path in app_modules("gui"):
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                    and node.func.attr == "format"):
+                continue
+            text = _interface_text(node.func.value)
+            if text is None:
+                continue
+            names = {keyword.arg for keyword in node.keywords}
+            if node.args or set(FIELD.findall(text)) != names:
+                wrong.append(f"{path.relative_to(PROJECT_ROOT)}:{node.lineno} {text!r} <- {sorted(names)}")
+
+    assert wrong == []

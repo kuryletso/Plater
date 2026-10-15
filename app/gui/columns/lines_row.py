@@ -88,7 +88,7 @@ class LineRowWidget(QWidget):
         self.description_edits: dict[str, QLineEdit] = {}
         for code in languages:
             edit = QLineEdit()
-            edit.setPlaceholderText(f"Description ({code})")
+            edit.setPlaceholderText(self.tr("Description ({language})").format(language=code))
             edit.setText(row.descriptions.get(code, ""))
             edit.textEdited.connect(lambda text, c=code: self._on_description(c, text))
             layout.addWidget(edit, 3)
@@ -101,16 +101,16 @@ class LineRowWidget(QWidget):
         self.unit_combo = ReferenceCombo(units)     # built-in setEditable(True)
         self.unit_combo.setMinimumWidth(90)
         internal_line_edit = cast(QLineEdit, self.unit_combo.lineEdit())      # static checker fails to see self.unit_combo.setEditable(True) that prevents .lineEdit() from returning None
-        internal_line_edit.setPlaceholderText("Unit")
+        internal_line_edit.setPlaceholderText(self.tr("Unit"))
         self.unit_combo.set_code(row.unit_code)
 
         self.unit_combo.activated.connect(self._on_unit_picked)
         internal_line_edit.editingFinished.connect(self._on_unit_typed)
         layout.addWidget(self.unit_combo, 1)
 
-        self.quantity_edit = _decimal_edit("Qty", 3, 55)
-        self.price_edit = _decimal_edit("Price", 2, 70)
-        self.tax_edit = _decimal_edit("Tax %", 2, 50)
+        self.quantity_edit = _decimal_edit(self.tr("Qty"), 3, 55)
+        self.price_edit = _decimal_edit(self.tr("Price"), 2, 70)
+        self.tax_edit = _decimal_edit(self.tr("Tax %"), 2, 50)
 
         if row.quantity is not None:
             self.quantity_edit.setText(_plain(row.quantity))
@@ -126,9 +126,9 @@ class LineRowWidget(QWidget):
             layout.addWidget(edit)
 
         for text, slot, tooltip in (
-            ("▲", lambda: self.move_requested.emit(self, -1), "Move up"),
-            ("▼", lambda: self.move_requested.emit(self,  1), "Move down"),
-            ("✕", lambda: self.remove_requested.emit(self), "Remove line"),
+            ("▲", lambda: self.move_requested.emit(self, -1), self.tr("Move up")),
+            ("▼", lambda: self.move_requested.emit(self,  1), self.tr("Move down")),
+            ("✕", lambda: self.remove_requested.emit(self), self.tr("Remove line")),
         ):
             button = QToolButton()
             button.setText(text)
@@ -247,9 +247,9 @@ class LineRowWidget(QWidget):
             if bool(edit.property("warn")) != warn:
                 edit.setProperty("warn", warn)
                 edit.setToolTip(
-                    f"Template renders {code} descriptions; "
-                    f"this line will print blank."
-                    if warn else ""
+                    self.tr("Template renders {language} descriptions; this line will print blank.")
+                        .format(language=code)
+                        if warn else ""
                 )
                 edit.style().unpolish(edit)
                 edit.style().polish(edit)

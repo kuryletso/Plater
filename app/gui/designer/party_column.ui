@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Form</string>
+   <string notr="true">Form</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout" stretch="0,1,0,0">
    <item>
@@ -34,10 +34,10 @@
         </font>
        </property>
        <property name="toolTip">
-        <string>Create new Organization</string>
+        <string>Add an organization</string>
        </property>
        <property name="text">
-        <string>+</string>
+        <string notr="true">+</string>
        </property>
       </widget>
      </item>
@@ -66,7 +66,7 @@
         <string>Edit organization</string>
        </property>
        <property name="text">
-        <string>✎</string>
+        <string notr="true">✎</string>
        </property>
        <property name="autoRaise">
         <bool>true</bool>
@@ -84,7 +84,7 @@
         <string>Delete organization</string>
        </property>
        <property name="text">
-        <string>🗑</string>
+        <string notr="true">🗑</string>
        </property>
        <property name="autoRaise">
         <bool>true</bool>
@@ -102,7 +102,7 @@
         <string>Clear selection</string>
        </property>
        <property name="text">
-        <string>X</string>
+        <string notr="true">✕</string>
        </property>
        <property name="autoRaise">
         <bool>true</bool>
@@ -125,10 +125,10 @@
          </font>
         </property>
         <property name="toolTip">
-         <string>Add new Bank account</string>
+         <string>Add a bank account</string>
         </property>
         <property name="text">
-         <string>+</string>
+         <string notr="true">+</string>
         </property>
         <property name="autoRaise">
          <bool>true</bool>
@@ -143,10 +143,10 @@
          </font>
         </property>
         <property name="toolTip">
-         <string>Add new Tax ID</string>
+         <string>Add a tax ID</string>
         </property>
         <property name="text">
-         <string>+</string>
+         <string notr="true">+</string>
         </property>
         <property name="autoRaise">
          <bool>true</bool>
@@ -161,10 +161,10 @@
          </font>
         </property>
         <property name="toolTip">
-         <string>Add new Sequence</string>
+         <string>Add a numbering sequence</string>
         </property>
         <property name="text">
-         <string>+</string>
+         <string notr="true">+</string>
         </property>
         <property name="autoRaise">
          <bool>true</bool>
@@ -174,7 +174,7 @@
       <item row="3" column="0">
        <widget class="QLabel" name="sequence_label">
         <property name="text">
-         <string>Sequence</string>
+         <string>* Sequence</string>
         </property>
        </widget>
       </item>
@@ -186,10 +186,10 @@
          </font>
         </property>
         <property name="toolTip">
-         <string>Add new Representative</string>
+         <string>Add a representative</string>
         </property>
         <property name="text">
-         <string>+</string>
+         <string notr="true">+</string>
         </property>
         <property name="autoRaise">
          <bool>true</bool>
@@ -202,7 +202,7 @@
       <item row="0" column="0">
        <widget class="QLabel" name="tax_label">
         <property name="text">
-         <string>Tax ID</string>
+         <string>* Tax ID</string>
         </property>
        </widget>
       </item>
@@ -231,10 +231,10 @@
          </font>
         </property>
         <property name="toolTip">
-         <string>Edit document sequence</string>
+         <string>Edit numbering sequence</string>
         </property>
         <property name="text">
-         <string>✎</string>
+         <string notr="true">✎</string>
         </property>
         <property name="autoRaise">
          <bool>true</bool>
@@ -252,7 +252,7 @@
          <string>Edit tax ID</string>
         </property>
         <property name="text">
-         <string>✎</string>
+         <string notr="true">✎</string>
         </property>
         <property name="autoRaise">
          <bool>true</bool>
@@ -270,7 +270,7 @@
          <string>Edit representative</string>
         </property>
         <property name="text">
-         <string>✎</string>
+         <string notr="true">✎</string>
         </property>
         <property name="autoRaise">
          <bool>true</bool>
@@ -288,7 +288,7 @@
          <string>Edit bank account</string>
         </property>
         <property name="text">
-         <string>✎</string>
+         <string notr="true">✎</string>
         </property>
         <property name="autoRaise">
          <bool>true</bool>

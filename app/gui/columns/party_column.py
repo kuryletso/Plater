@@ -83,7 +83,7 @@ class PartyColumn(QWidget):
         self.ui.clear_button.clicked.connect(self.clear_selection)
         self._show_selected(None)
 
-        self.ui.tax_combo.setPlaceholderText("Select...")
+        self.ui.tax_combo.setPlaceholderText(self.tr("Select..."))
 
         self.ui.search_edit.textChanged.connect(self.refresh_organizations)
         self.ui.organization_list.currentItemChanged.connect(self._on_org_selected)
@@ -206,7 +206,7 @@ class PartyColumn(QWidget):
             self.ui.tax_combo.clear()
             for tax in org.tax_ids:
                 self.ui.tax_combo.addItem(
-                    f"{tax.value} ({tax.tax_id_system_code})",
+                    f"{tax.value} ({localized(tax.tax_id_system.localizations, "name")})",
                     tax.id,
                 )
             self.ui.tax_combo.setCurrentIndex(-1)
@@ -257,8 +257,8 @@ class PartyColumn(QWidget):
 
         if organization_id is None or document_type is None:
             combo.setPlaceholderText(
-                "Select a template first" if document_type is None
-                else "Select an organization first"
+                self.tr("Select a template first") if document_type is None
+                else self.tr("Select an organization first")
             )
             combo.setEnabled(False)
             return
@@ -271,7 +271,7 @@ class PartyColumn(QWidget):
         with QSignalBlocker(combo):
             for sequence in sequences:
                 combo.addItem(
-                    sequence.prefix or "(no prefix)",
+                    sequence.prefix or self.tr("(no prefix)"),
                     sequence.id,
                 )
 
@@ -279,8 +279,8 @@ class PartyColumn(QWidget):
 
         combo.setEnabled(bool(sequences))
         combo.setPlaceholderText(
-            "Select..." if sequences
-            else "No sequences for this organization"
+            self.tr("Select...") if sequences
+            else self.tr("No sequences for this organization")
         )
 
         self._sync_picker(combo, self._draft.sequence_id, self._draft.set_sequence)
@@ -327,7 +327,7 @@ class PartyColumn(QWidget):
 
 
     def _show_selected(self, name: str | None) -> None:
-        self.ui.selection_label.setText(name or "Nothing selected")
+        self.ui.selection_label.setText(name or self.tr("Nothing selected"))
         self.ui.selection_label.setEnabled(name is not None)
         self.ui.edit_organization_button.setEnabled(name is not None)
         self.ui.delete_organization_button.setEnabled(name is not None)
@@ -344,7 +344,8 @@ class PartyColumn(QWidget):
 
     def _show_empty_notice(self, search: str | None) -> None:
         item = QListWidgetItem(
-            f'No matches for "{search}"' if search else "No organization yet"
+            self.tr('No matches for "{search}"').format(search=search)
+                if search else self.tr("No organizations yet")
         )
 
         item.setFlags(Qt.ItemFlag.NoItemFlags)
@@ -509,7 +510,7 @@ class PartyColumn(QWidget):
         edit = self.ui.next_number_edit
         edit.setProperty("warn", warn)
         edit.setToolTip(
-            "This number may already have been issued." if warn else ""
+            self.tr("This number may already have been issued.") if warn else ""
         )
         edit.style().unpolish(edit)
         edit.style().polish(edit)
@@ -577,8 +578,8 @@ class PartyColumn(QWidget):
             return
 
         confirmed = QMessageBox.question(
-            self, "Delete organization",
-            f'Delete "{self.ui.selection_label.text()}" and everything attached to it?',
+            self, self.tr("Delete organization"),
+            self.tr('Delete "{name}" and everything attached to it?').format(name=self.ui.selection_label.text()),
         )
         if confirmed != QMessageBox.StandardButton.Yes:
             return
@@ -587,7 +588,7 @@ class PartyColumn(QWidget):
             self._org_repo.delete(organization_id)
         except ServiceError as e:
             QMessageBox.warning(
-                self, "Cannot delete",
+                self, self.tr("Cannot delete"),
                 error_text(e),
             )
             return

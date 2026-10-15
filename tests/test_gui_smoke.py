@@ -1578,3 +1578,27 @@ def test_the_template_column_greys_out_delete_for_a_built_in(window, session: Se
     column.ui.template_list.setCurrentRow(0)
 
     assert not column.ui.delete_template_button.isEnabled()
+
+
+# --- names, not codes ------------------------------------------------------------
+
+def test_template_details_name_the_document_type_in_words(window, session: Session):
+    from app.db.models.registries.document_type import DocumentTypeRegistry
+    from app.db.models.registries.document_type_localization import DocumentTypeRegistryLocalization
+
+    column = window.template_column
+    assert column._document_type_name("invoice") == "invoice", "a type with no names shows its code"
+
+    invoice = session.get(DocumentTypeRegistry, "invoice")
+    invoice.localizations["ENG"] = DocumentTypeRegistryLocalization(language_code="ENG", name="Invoice")
+    session.flush()
+
+    assert column._document_type_name("invoice") == "Invoice"
+
+
+def test_the_tax_id_picker_names_the_tax_system(window, make_org):
+    make_org("Acme", tax_value="12345678")
+    column = window.provider_column
+    select_organization(column, "Acme")
+
+    assert column.ui.tax_combo.itemText(0) == "12345678 (EDRPOU)"

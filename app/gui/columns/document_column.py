@@ -169,7 +169,7 @@ class DocumentColumn(QWidget):
 
     def _populate_currencies(self) -> None:
         combo = self.ui.currency_combo
-        combo.setPlaceholderText("Select...")
+        combo.setPlaceholderText(self.tr("Select..."))
 
         with QSignalBlocker(combo):
             for currency in self._session.scalars(

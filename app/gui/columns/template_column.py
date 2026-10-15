@@ -14,7 +14,9 @@ from app.services.template.repository import TemplateRepository
 from app.services.template.rebuild_service import BlueprintState, TemplateRebuildService
 from app.services.errors import ServiceError
 from app.db.models.core.template_version import TemplateVersion
+from app.db.models.registries.document_type import DocumentTypeRegistry
 from app.gui.i18n import error_text
+from app.gui.text import localized
 
 
 class TemplateColumn(QWidget):
@@ -62,7 +64,7 @@ class TemplateColumn(QWidget):
                 item = QListWidgetItem(template.name)
                 item.setData(Qt.ItemDataRole.UserRole, (template.id, template.type))
                 if template.system:
-                    item.setToolTip("Built-in template")
+                    item.setToolTip(self.tr("Built-in template"))
                 widget.addItem(item)
 
                 if template.id == selected:
@@ -115,10 +117,8 @@ class TemplateColumn(QWidget):
         except ServiceError as e:
             self._show_selected(current.text())
             # an exception escaping a slot is swallowed by Qt
-            self.ui.details_label.setText(
-                f"<b>This template cannot be loaded.</b><br>"
-                f"{escape(error_text(e))}"
-            )
+            heading = escape(self.tr("This template cannot be loaded."))
+            self.ui.details_label.setText(f"<b>{heading}</b><br>{escape(error_text(e))}")
             self._draft.set_template(None, None, ())
             return
         
@@ -144,26 +144,28 @@ class TemplateColumn(QWidget):
         )
         description = escape(config.get("description") or "") or "--"
 
+        rows = (
+            (self.tr("Type:"), escape(self._document_type_name(config.get("type")))),
+            (self.tr("Languages:"), languages),
+            (self.tr("Version:"), str(version.version)),
+            (self.tr("Description:"), description),
+        )
+        text = "<br>".join(f"<b>{escape(label)}</b> {value}" for label, value in rows)
+
         notice = {
             BlueprintState.STALE:
-                '<br><span style="color:#8a6d00">Imported by an older engine — '
-                'rebuild it to pick up the latest fixes.</span>',
+                ("#8a6d00", self.tr("Imported by an older engine. Rebuild it to pick up the latest fixes.")),
             BlueprintState.UNREADABLE:
-                '<br><span style="color:#c0392b">This template cannot be read and '
-                'must be rebuilt.</span>',
-        }.get(TemplateRebuildService(self._session).state(version.template_id), "")
+                ("#c0392b", self.tr("This template cannot be read and must be rebuilt.")),
+        }.get(TemplateRebuildService(self._session).state(version.template_id))
+        if notice is not None:
+            color, message = notice
+            text += f'<br><span style="color:{color}">{escape(message)}</span>'
 
-        self.ui.details_label.setText(
-            f"<b>Type:</b> {escape(config.get('type', '?'))}<br>"
-            f"<b>Languages:</b> {languages}<br>"
-            f"<b>Version:</b> {version.version}<br>"
-            f"<b>Description:</b> {description}"
-            f"{notice}"
-        )
-
+        self.ui.details_label.setText(text)
 
     def _show_selected(self, name: str | None, *, built_in: bool = False) -> None:
-        self.ui.selection_label.setText(name or "Nothing selected")
+        self.ui.selection_label.setText(name or self.tr("Nothing selected"))
         self.ui.selection_label.setEnabled(name is not None)
         self.ui.edit_template_button.setEnabled(name is not None and not built_in)      # built-ins are read only
         self.ui.delete_template_button.setEnabled(name is not None and not built_in)        # built-ins can only be hidden
@@ -172,7 +174,7 @@ class TemplateColumn(QWidget):
 
     def _show_empty_notice(self, search: str | None) -> None:
         item = QListWidgetItem(
-            f'No matches for "{search}"' if search else "No templates yet"
+            self.tr('No matches for "{search}"').format(search=search) if search else self.tr("No templates yet")
         )
         item.setFlags(Qt.ItemFlag.NoItemFlags)
         item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -210,8 +212,8 @@ class TemplateColumn(QWidget):
             return
 
         confirmed = QMessageBox.question(
-            self, "Delete template",
-            f'Delete "{self.ui.selection_label.text()}"?',
+            self, self.tr("Delete template"),
+            self.tr('Delete "{name}"?').format(name=self.ui.selection_label.text()),
         )
         if confirmed != QMessageBox.StandardButton.Yes:
             return
@@ -220,9 +222,18 @@ class TemplateColumn(QWidget):
             self._repo.delete(template_id)
         except ServiceError as e:
             QMessageBox.warning(
-                self, "Cannot delete",
+                self, self.tr("Cannot delete"),
                 error_text(e),
             )
             return
 
         self.catalog_changed.emit()
+
+
+    def _document_type_name(self, code: str | None) -> str:
+        """The name in the interface language, or the code for a type with no names."""
+
+        row = self._session.get(DocumentTypeRegistry, code) if code else None
+        if row is None or not row.localizations:
+            return code or "?"
+        return localized(row.localizations, "name")
