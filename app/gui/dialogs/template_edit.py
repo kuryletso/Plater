@@ -42,13 +42,13 @@ class TemplateEditDialog(QDialog):
         self._repo = TemplateRepository(session)
         self._template_id = template_id
 
-        self.setWindowTitle("Edit template")
+        self.setWindowTitle(self.tr("Edit template"))
         self.setMinimumWidth(460)
 
         self.name_edit = QLineEdit()
         self.type_combo = searchable_combo(document_type_items(session))
         self.description_edit = QLineEdit()
-        self.currency_check = QCheckBox("Append the currency to money values")
+        self.currency_check = QCheckBox(self.tr("Append the currency to money values"))
         self.languages_label = QLabel()
         self.languages_label.setEnabled(False)
         self.banner = ErrorBanner()
@@ -56,10 +56,10 @@ class TemplateEditDialog(QDialog):
         fields = QWidget()
         form = QFormLayout(fields)
         form.setContentsMargins(0,0,0,0)
-        form.addRow("Name", self.name_edit)
-        form.addRow("Document type", self.type_combo)
-        form.addRow("Description", self.description_edit)
-        form.addRow("Languages", self.languages_label)
+        form.addRow(self.tr("Name"), self.name_edit)
+        form.addRow(self.tr("Document type"), self.type_combo)
+        form.addRow(self.tr("Description"), self.description_edit)
+        form.addRow(self.tr("Languages"), self.languages_label)
         form.addRow("", self.currency_check)
 
         buttons = QDialogButtonBox(
@@ -92,7 +92,7 @@ class TemplateEditDialog(QDialog):
             if code
         )
 
-        self.languages_label.setText(f"{languages} (re-import to change)")
+        self.languages_label.setText(self.tr("{languages} (re-import to change)").format(languages=languages))
 
 
     def _save(self) -> None:
@@ -102,7 +102,7 @@ class TemplateEditDialog(QDialog):
         document_type = selected_code(self.type_combo)
 
         if not name or document_type is None:
-            self.banner.show_message("Enter a name and select a document type.")
+            self.banner.show_message(self.tr("Enter a name and select a document type."))
             return
 
         try:

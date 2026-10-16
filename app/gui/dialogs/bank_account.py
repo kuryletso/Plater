@@ -24,11 +24,6 @@ from app.services.errors import ServiceError
 from app.gui.i18n import error_text
 
 
-FIELDS = (
-    ("bank_name", "Bank name"),
-    ("bank_info", "Bank details"),
-)
-
 class BankAccountDialog(QDialog):
     """Add bank account to an organization. Its localized names are optional."""
 
@@ -48,14 +43,18 @@ class BankAccountDialog(QDialog):
         self.bank_account_id: int | None = None
         self._editing = bank_account_id
 
-        self.setWindowTitle("Add bank account")
+        self.setWindowTitle(self.tr("Edit bank account") 
+                            if bank_account_id else self.tr("Add bank account"))
         self.setMinimumWidth(460)
 
         self.iban_edit = QLineEdit()
         self.swift_edit = QLineEdit()
         self.currency_combo = searchable_combo(currency_items(session))
         self.country_combo = searchable_combo(country_items(session))
-        self.localizations = LocalizedFields(session, FIELDS)
+        self.localizations = LocalizedFields(session, (
+            ("bank_name", self.tr("Bank name")),
+            ("bank_info", self.tr("Bank details")),
+        ))
         self.banner = ErrorBanner()
 
         fields = QWidget()
@@ -63,8 +62,8 @@ class BankAccountDialog(QDialog):
         form.setContentsMargins(0,0,0,0)
         form.addRow("IBAN", self.iban_edit)
         form.addRow("SWIFT", self.swift_edit)
-        form.addRow("Currency", self.currency_combo)
-        form.addRow("Country", self.country_combo)
+        form.addRow(self.tr("Currency"), self.currency_combo)
+        form.addRow(self.tr("Country"), self.country_combo)
 
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Save
@@ -116,7 +115,7 @@ class BankAccountDialog(QDialog):
 
         if not iban or currency is None or country is None:
             self.banner.show_message(
-                "Enter an IBAN, selected currency and country.",
+                self.tr("Enter an IBAN, select currency and country."),
             )
             return
 

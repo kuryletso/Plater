@@ -41,7 +41,7 @@ class TaxIdDialog(QDialog):
         self.tax_id_id: int | None = None
         self._editing = tax_id_id
 
-        self.setWindowTitle("Edit tax ID" if tax_id_id else "Add tax ID")
+        self.setWindowTitle(self.tr("Edit tax ID") if tax_id_id else self.tr("Add tax ID"))
         self.setMinimumWidth(400)
 
         self.system_combo = searchable_combo(tax_system_items(session))
@@ -52,9 +52,9 @@ class TaxIdDialog(QDialog):
         fields = QWidget()
         form = QFormLayout(fields)
         form.setContentsMargins(0,0,0,0)
-        form.addRow("System", self.system_combo)
-        form.addRow("Country", self.country_combo)
-        form.addRow("Number", self.value_edit)
+        form.addRow(self.tr("Tax system"), self.system_combo)
+        form.addRow(self.tr("Country"), self.country_combo)
+        form.addRow(self.tr("Number"), self.value_edit)
 
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Save
@@ -89,7 +89,7 @@ class TaxIdDialog(QDialog):
 
         if system is None or country is None or not value:
             self.banner.show_message(
-                "Select a system and country, enter the number."
+                self.tr("Select a system and country, enter the number.")
             )
             return
 

@@ -15,8 +15,6 @@ from app.services.errors import ServiceError
 from app.services.measurement_unit.repository import MeasurementUnitRepository, MeasurementUnitText
 from app.gui.i18n import error_text
 
-FIELDS = (("name", "Name"),)
-
 
 class MeasurementUnitDialog(QDialog):
     """Register user added unit beside seeded ones."""
@@ -35,18 +33,21 @@ class MeasurementUnitDialog(QDialog):
         self.unit_code: str | None = None
         self._editing = unit_code
 
-        self.setWindowTitle("Edit measurement unit" if unit_code else "New measurement unit")
+        self.setWindowTitle(self.tr("Edit measurement unit") 
+                            if unit_code else self.tr("New measurement unit"))
         self.setMinimumWidth(420)
 
         self.code_edit = QLineEdit(code)
         self.code_edit.setPlaceholderText("hour")
-        self.localizations = LocalizedFields(session, FIELDS)
+        self.localizations = LocalizedFields(session, (
+            ("name", self.tr("Name")),
+        ))
         self.banner = ErrorBanner()
 
         fields = QWidget()
         form = QFormLayout(fields)
         form.setContentsMargins(0,0,0,0)
-        form.addRow("Code", self.code_edit)
+        form.addRow(self.tr("Code"), self.code_edit)
 
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Save
@@ -83,7 +84,7 @@ class MeasurementUnitDialog(QDialog):
             texts[code] = MeasurementUnitText(name=value["name"])
 
         if not texts:
-            self.banner.show_message("Enter the unit name in at least one language.")
+            self.banner.show_message(self.tr("Enter the unit name in at least one language."))
             return
 
         try:

@@ -2,6 +2,44 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="uk_UA">
 <context>
+    <name>BankAccountDialog</name>
+    <message>
+        <location filename="../dialogs/bank_account.py" line="+46"/>
+        <source>Edit bank account</source>
+        <translation>Редагування банківського рахунку</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Add bank account</source>
+        <translation>Новий банківський рахунок</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Bank name</source>
+        <translation>Назва банку</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Bank details</source>
+        <translation>Реквізити банку</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Currency</source>
+        <translation>Валюта</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Country</source>
+        <translation>Країна</translation>
+    </message>
+    <message>
+        <location line="+52"/>
+        <source>Enter an IBAN, select currency and country.</source>
+        <translation>Введіть IBAN і виберіть валюту та країну.</translation>
+    </message>
+</context>
+<context>
     <name>DocumentColumn</name>
     <message>
         <location filename="../designer/document_column.ui" line="+22"/>
@@ -176,6 +214,25 @@
     </message>
 </context>
 <context>
+    <name>LocalizedFields</name>
+    <message>
+        <location filename="../dialogs/widgets.py" line="+193"/>
+        <location line="+72"/>
+        <source>Add a language</source>
+        <translation>Додати мову</translation>
+    </message>
+    <message>
+        <location line="-66"/>
+        <source>Remove this language</source>
+        <translation>Прибрати цю мову</translation>
+    </message>
+    <message>
+        <location line="+66"/>
+        <source>Language:</source>
+        <translation>Мова:</translation>
+    </message>
+</context>
+<context>
     <name>MainWindow</name>
     <message numerus="yes">
         <location filename="../main_window.py" line="+135"/>
@@ -347,6 +404,82 @@
         <location line="+1"/>
         <source>Saved {number} to {file}.</source>
         <translation>{number} збережено у файл {file}.</translation>
+    </message>
+</context>
+<context>
+    <name>MeasurementUnitDialog</name>
+    <message>
+        <location filename="../dialogs/measurement_unit.py" line="+36"/>
+        <source>Edit measurement unit</source>
+        <translation>Редагування одиниці виміру</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>New measurement unit</source>
+        <translation>Нова одиниця виміру</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Name</source>
+        <translation>Назва</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Code</source>
+        <translation>Код</translation>
+    </message>
+    <message>
+        <location line="+37"/>
+        <source>Enter the unit name in at least one language.</source>
+        <translation>Введіть назву одиниці хоча б однією мовою.</translation>
+    </message>
+</context>
+<context>
+    <name>OrganizationDialog</name>
+    <message>
+        <location filename="../dialogs/organization.py" line="+37"/>
+        <source>Edit organization</source>
+        <translation>Редагування організації</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>New organization</source>
+        <translation>Нова організація</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Legal form</source>
+        <translation>Організаційно-правова форма</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Legal name</source>
+        <translation>Повна назва</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Address</source>
+        <translation>Адреса</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Email</source>
+        <translation>Ел. пошта</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Phone</source>
+        <translation>Телефон</translation>
+    </message>
+    <message>
+        <location line="+45"/>
+        <source>{language}: legal form and name are both required.</source>
+        <translation>{language}: потрібно вказати і форму, і назву.</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Enter the legal form and name in at least one language.</source>
+        <translation>Введіть форму та назву хоча б однією мовою.</translation>
     </message>
 </context>
 <context>
@@ -533,6 +666,107 @@
     </message>
 </context>
 <context>
+    <name>RepresentativeDialog</name>
+    <message>
+        <location filename="../dialogs/representative.py" line="+47"/>
+        <source>Edit representative</source>
+        <translation>Редагування представника</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Add representative</source>
+        <translation>Новий представник</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Search representative...</source>
+        <translation>Пошук представника...</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Name</source>
+        <translation>Ім’я</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Title</source>
+        <translation>Посада</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Existing</source>
+        <translation>Наявний</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>New</source>
+        <translation>Новий</translation>
+    </message>
+    <message>
+        <location line="+82"/>
+        <source>Select a representative, or create a new one.</source>
+        <translation>Виберіть представника або створіть нового.</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>{language}: a name is required.</source>
+        <translation>{language}: потрібно вказати ім’я.</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Enter a name in at least one language.</source>
+        <translation>Введіть ім’я хоча б однією мовою.</translation>
+    </message>
+</context>
+<context>
+    <name>SequenceDialog</name>
+    <message>
+        <location filename="../dialogs/sequence.py" line="+52"/>
+        <source>Edit numbering sequence</source>
+        <translation>Редагування послідовності нумерації</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>New numbering sequence</source>
+        <translation>Нова послідовність нумерації</translation>
+    </message>
+    <message>
+        <location line="+24"/>
+        <source>Document type</source>
+        <translation>Тип документа</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Prefix</source>
+        <translation>Префікс</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Last issued number</source>
+        <translation>Останній виданий номер</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Digits</source>
+        <translation>Кількість цифр</translation>
+    </message>
+    <message>
+        <location line="+28"/>
+        <source>Next document: {number}</source>
+        <translation>Наступний документ: {number}</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Choose a document type</source>
+        <translation>Виберіть тип документа</translation>
+    </message>
+    <message>
+        <location line="+38"/>
+        <source>Change the next number in the provider column.</source>
+        <translation>Наступний номер змінюється в колонці постачальника.</translation>
+    </message>
+</context>
+<context>
     <name>SettingsDialog</name>
     <message>
         <location filename="../dialogs/settings.py" line="+51"/>
@@ -601,6 +835,39 @@
     </message>
 </context>
 <context>
+    <name>TaxIdDialog</name>
+    <message>
+        <location filename="../dialogs/tax_id.py" line="+44"/>
+        <source>Edit tax ID</source>
+        <translation>Редагування податкового номера</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Add tax ID</source>
+        <translation>Новий податковий номер</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Tax system</source>
+        <translation>Система</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Country</source>
+        <translation>Країна</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Number</source>
+        <translation>Номер</translation>
+    </message>
+    <message>
+        <location line="+35"/>
+        <source>Select a system and country, enter the number.</source>
+        <translation>Виберіть систему та країну і введіть номер.</translation>
+    </message>
+</context>
+<context>
     <name>TemplateColumn</name>
     <message>
         <location filename="../designer/template_column.ui" line="+22"/>
@@ -613,7 +880,7 @@
         <translation>Імпортувати шаблон</translation>
     </message>
     <message>
-        <location filename="../columns/template_column.py" line="+67"/>
+        <location filename="../columns/template_column.py" line="+66"/>
         <source>Built-in template</source>
         <translation>Вбудований шаблон</translation>
     </message>
@@ -698,6 +965,142 @@
         <location line="+15"/>
         <source>Details</source>
         <translation>Відомості</translation>
+    </message>
+</context>
+<context>
+    <name>TemplateEditDialog</name>
+    <message>
+        <location filename="../dialogs/template_edit.py" line="+45"/>
+        <source>Edit template</source>
+        <translation>Редагування шаблону</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Append the currency to money values</source>
+        <translation>Додавати валюту до грошових сум</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Name</source>
+        <translation>Назва</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Document type</source>
+        <translation>Тип документа</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Description</source>
+        <translation>Опис</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Languages</source>
+        <translation>Мови</translation>
+    </message>
+    <message>
+        <location line="+33"/>
+        <source>{languages} (re-import to change)</source>
+        <translation>{languages} (щоб змінити, імпортуйте шаблон повторно)</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Enter a name and select a document type.</source>
+        <translation>Введіть назву й виберіть тип документа.</translation>
+    </message>
+</context>
+<context>
+    <name>TemplateImportDialog</name>
+    <message>
+        <location filename="../dialogs/template_import.py" line="+58"/>
+        <source>Add template version</source>
+        <translation>Нова версія шаблону</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Import template</source>
+        <translation>Імпорт шаблону</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Choose a .docx template, or drop one here...</source>
+        <translation>Виберіть шаблон .docx або перетягніть його сюди...</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Browse...</source>
+        <translation>Огляд...</translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>(none)</source>
+        <translation>(немає)</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Append the currency to money values</source>
+        <translation>Додавати валюту до грошових сум</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>File</source>
+        <translation>Файл</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Name</source>
+        <translation>Назва</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Template</source>
+        <translation>Шаблон</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Document type</source>
+        <translation>Тип документа</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Primary language</source>
+        <translation>Основна мова</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Secondary language</source>
+        <translation>Додаткова мова</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Description</source>
+        <translation>Опис</translation>
+    </message>
+    <message>
+        <location line="+57"/>
+        <source>Select a template</source>
+        <translation>Виберіть шаблон</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Word documents (*.docx)</source>
+        <translation>Документи Word (*.docx)</translation>
+    </message>
+    <message>
+        <location line="+51"/>
+        <source>Choose a document type and primary language.</source>
+        <translation>Виберіть тип документа та основну мову.</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>No issues found.</source>
+        <translation>Проблем не знайдено.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>This template cannot be imported until the errors above are fixed.</source>
+        <translation>Цей шаблон не можна імпортувати, доки не виправлено помилки вище.</translation>
     </message>
 </context>
 <context>

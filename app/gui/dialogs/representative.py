@@ -23,10 +23,6 @@ from app.services.representative.repository import (
 )
 from app.gui.i18n import error_text
 
-FIELDS = (
-    ("name", "Name"),
-    ("title", "Title"),
-)
 
 class RepresentativeDialog(QDialog):
     """Representatives are shared between organizations. This dialog both attached an existing one 
@@ -48,12 +44,13 @@ class RepresentativeDialog(QDialog):
         self._organization_id = organization_id
         self._editing = representative_id
 
-        self.setWindowTitle("Edit representative" if representative_id is not None else "Add representative")
+        self.setWindowTitle(self.tr("Edit representative")
+                            if representative_id is not None else self.tr("Add representative"))
         self.setMinimumWidth(460)
 
         # existing representative
         self.search_edit = QLineEdit()
-        self.search_edit.setPlaceholderText("Search representative...")
+        self.search_edit.setPlaceholderText(self.tr("Search representative..."))
         self.search_edit.setClearButtonEnabled(True)
         self.existing_list = QListWidget()
 
@@ -63,11 +60,14 @@ class RepresentativeDialog(QDialog):
         existing_layout.addWidget(self.existing_list)
 
         # new representative
-        self.localizations = LocalizedFields(session, FIELDS)
+        self.localizations = LocalizedFields(session, (
+            ("name", self.tr("Name")),
+            ("title", self.tr("Title")),
+        ))
 
         self.tabs = QTabWidget()
-        self.tabs.addTab(existing, "Existing")
-        self.tabs.addTab(self.localizations, "New")
+        self.tabs.addTab(existing, self.tr("Existing"))
+        self.tabs.addTab(self.localizations, self.tr("New"))
         self.tabs.setTabVisible(0, organization_id is not None and representative_id is None)
 
         self.banner = ErrorBanner()
@@ -149,7 +149,7 @@ class RepresentativeDialog(QDialog):
     def _chosen_existing(self) -> int | None:
         item = self.existing_list.currentItem()
         if item is None:
-            self.banner.show_message("Select a representative, or create a new one.")
+            self.banner.show_message(self.tr("Select a representative, or create a new one."))
             return None
 
         return item.data(Qt.ItemDataRole.UserRole)
@@ -161,7 +161,8 @@ class RepresentativeDialog(QDialog):
         for code, values in self.localizations.values().items():
             if not values.get("name"):
                 self.banner.show_message(
-                    f"{self.localizations.language_name(code)}: a name is required.",
+                    self.tr("{language}: a name is required.")
+                        .format(language=self.localizations.language_name(code)),
                 )
                 return None
 
@@ -171,7 +172,7 @@ class RepresentativeDialog(QDialog):
             )
 
         if not texts:
-            self.banner.show_message("Enter a name in at least one language.")
+            self.banner.show_message(self.tr("Enter a name in at least one language."))
             return None
 
         return texts

@@ -10,13 +10,12 @@ from app.gui.generated.ui_template_column import Ui_TemplateColumn
 from app.gui.draft_state import DraftState
 from app.gui.dialogs.template_import import TemplateImportDialog
 from app.gui.dialogs.template_edit import TemplateEditDialog
+from app.gui.dialogs.widgets import document_type_name
 from app.services.template.repository import TemplateRepository
 from app.services.template.rebuild_service import BlueprintState, TemplateRebuildService
 from app.services.errors import ServiceError
 from app.db.models.core.template_version import TemplateVersion
-from app.db.models.registries.document_type import DocumentTypeRegistry
 from app.gui.i18n import error_text
-from app.gui.text import localized
 
 
 class TemplateColumn(QWidget):
@@ -145,7 +144,7 @@ class TemplateColumn(QWidget):
         description = escape(config.get("description") or "") or "--"
 
         rows = (
-            (self.tr("Type:"), escape(self._document_type_name(config.get("type")))),
+            (self.tr("Type:"), escape(document_type_name(self._session, config.get("type")))),
             (self.tr("Languages:"), languages),
             (self.tr("Version:"), str(version.version)),
             (self.tr("Description:"), description),
@@ -228,12 +227,3 @@ class TemplateColumn(QWidget):
             return
 
         self.catalog_changed.emit()
-
-
-    def _document_type_name(self, code: str | None) -> str:
-        """The name in the interface language, or the code for a type with no names."""
-
-        row = self._session.get(DocumentTypeRegistry, code) if code else None
-        if row is None or not row.localizations:
-            return code or "?"
-        return localized(row.localizations, "name")

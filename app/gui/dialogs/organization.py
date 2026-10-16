@@ -10,17 +10,10 @@ from PySide6.QtWidgets import (
 )
 from sqlalchemy.orm import Session
 
-from app.db.models.configs.default_template_config import DefaultTemplateConfig
 from app.gui.dialogs.widgets import ErrorBanner, LocalizedFields, default_languages
 from app.services.errors import ServiceError
 from app.services.organization.repository import OrganizationRepository, OrganizationText
 from app.gui.i18n import error_text
-
-FIELDS = (
-    ("org_type", "Legal form"),
-    ("legal_name", "Legal name"),
-    ("address", "Address"),
-)
 
 
 class OrganizationDialog(QDialog):
@@ -40,10 +33,14 @@ class OrganizationDialog(QDialog):
         self._repo = OrganizationRepository(session)
         self.organization_id = organization_id
 
-        self.setWindowTitle("Edit organization" if organization_id else "New organization")
+        self.setWindowTitle(self.tr("Edit organization") if organization_id else self.tr("New organization"))
         self.setMinimumWidth(460)
 
-        self.localizations = LocalizedFields(session, FIELDS)
+        self.localizations = LocalizedFields(session, (
+            ("org_type", self.tr("Legal form")),
+            ("legal_name", self.tr("Legal name")),
+            ("address", self.tr("Address")),
+        ))
         self.email_edit = QLineEdit()
         self.phone_edit = QLineEdit()
         self.banner = ErrorBanner()
@@ -51,8 +48,8 @@ class OrganizationDialog(QDialog):
         contacts = QWidget()
         form = QFormLayout(contacts)
         form.setContentsMargins(0,0,0,0)
-        form.addRow("Email", self.email_edit)
-        form.addRow("Phone", self.phone_edit)
+        form.addRow(self.tr("Email"), self.email_edit)
+        form.addRow(self.tr("Phone"), self.phone_edit)
 
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Save
@@ -89,21 +86,6 @@ class OrganizationDialog(QDialog):
             for code, row in organization.localizations.items()
         })
 
-    ######### moved to app.gui.dialogs.widgets as shared function default_languages()
-    #
-    # def _default_languages(self) -> tuple[str, ...]:
-    #     config = self._session.scalars(select(DefaultTemplateConfig)).first()
-    #     if config is None:
-    #         return ("ENG",)
-
-    #     return tuple(
-    #         code for code
-    #         in (
-    #             config.primary_language_code,
-    #             config.secondary_language_code,
-    #         ) if code
-    #     )
-    ############################
 
     def _save(self) -> None:
         self.banner.clear_message()
@@ -112,8 +94,8 @@ class OrganizationDialog(QDialog):
         for code, values in self.localizations.values().items():
             if not values.get("org_type") or not values.get("legal_name"):
                 self.banner.show_message(
-                    f"{self.localizations.language_name(code)}: "
-                    f"legal from and name are both required."
+                    self.tr("{language}: legal form and name are both required.")
+                        .format(language=self.localizations.language_name(code))
                 )
                 return
 
@@ -125,7 +107,7 @@ class OrganizationDialog(QDialog):
 
         if not texts:
             self.banner.show_message(
-                "Enter the legal form and name in at least one language."
+                self.tr("Enter the legal form and name in at least one language.")
             )
             return
 

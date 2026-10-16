@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+import functools
+from collections.abc import Sequence, Iterable
 
-from PySide6.QtCore import Qt, QSignalBlocker
+from PySide6.QtCore import Qt, QSignalBlocker, QCollator
 from PySide6.QtWidgets import (
     QCompleter,
     QComboBox,
-    QGridLayout,
     QHBoxLayout,
     QVBoxLayout,
     QFormLayout,
@@ -27,7 +27,9 @@ from app.db.models.references.language import Language
 from app.db.models.registries.tax_id_system import TaxIdSystemRegistry
 from app.db.models.registries.document_type import DocumentTypeRegistry
 from app.db.models.configs.default_template_config import DefaultTemplateConfig
-from app.gui.text import localized
+from app.gui.text import localized, preferred_languages
+
+type Item = tuple[str, str, tuple[str, ...]]        # code, label, aliases
 
 
 def searchable_combo(
@@ -45,78 +47,62 @@ def show_code(combo: ReferenceCombo, code: str | None) -> None:
     combo.set_code(code)
 
 
-def language_items(session: Session) -> list[tuple[str, str, tuple[str, ...]]]:
-    return [
+def language_items(session: Session) -> list[Item]:
+    """Language named in the interface. The language table only carries English and Ukrainian names."""
+
+    ukrainian = preferred_languages()[0] == "UKR"
+    return _by_label(
         (
             row.code,
-            f"{row.label_en} ({row.code})",
+            f"{row.label_uk if ukrainian and row.label_uk else row.label_en} ({row.code})",
             (row.label_en, row.label_uk, row.code_alpha_2),
-        )
-        for row in session.scalars(
-            select(Language)
-            .order_by(Language.label_en)
-        )
-    ]
-
-def country_items(session: Session) -> list[tuple[str, str, tuple[str, ...]]]:
-    return sorted(
-        (
-            (
-                row.code,
-                localized(row.localizations, "name"),
-                _localized_names(row),
-            )
-            for row in session.scalars(select(Country)).unique()
-        ),
-        key=lambda item: item[1],
+        ) for row in session.scalars(select(Language))
     )
 
 
-def currency_items(session: Session) -> list[tuple[str, str, tuple[str, ...]]]:
-    return sorted(
+def country_items(session: Session) -> list[Item]:
+    return _by_label(
         (
-            (
-                row.code,
-                f"{row.code} — {localized(row.localizations, 'name')}",
-                _localized_names(row),
-            )
-            for row in session.scalars(select(Currency)).unique()
-        ),
-        key=lambda item: item[1],
+            row.code,
+            localized(row.localizations, "name"),
+            _localized_names(row),
+        ) for row in session.scalars(select(Country)).unique()
     )
 
 
-def tax_system_items(session: Session) -> list[tuple[str, str, tuple[str, ...]]]:
-    return sorted(
+def currency_items(session: Session) -> list[Item]:
+    return _by_label(
         (
-            (
-                row.code,
-                localized(row.localizations, "name"),
-                _localized_names(row),
-            )
-            for row in session.scalars(
-                select(TaxIdSystemRegistry)
-                .where(TaxIdSystemRegistry.active.is_(True))
-            ).unique()
-        ),
-        key=lambda item: item[1],
+            row.code,
+            f"{row.code} — {localized(row.localizations, 'name')}",
+            _localized_names(row),
+        ) for row in session.scalars(select(Currency)).unique()
     )
 
 
-def document_type_items(session: Session) -> list[tuple[str, str, tuple[str, ...]]]:
-    return sorted(
+def tax_system_items(session: Session) -> list[Item]:
+    return _by_label(
         (
-            (
-                row.code,
-                localized(row.localizations, "name"),
-                _localized_names(row),
-            )
-            for row in session.scalars(
-                select(DocumentTypeRegistry)
-                .where(DocumentTypeRegistry.active.is_(True))
-            ).unique()
-        ),
-        key=lambda item: item[1]
+            row.code,
+            localized(row.localizations, 'name'),
+            _localized_names(row),
+        ) for row in session.scalars(
+            select(TaxIdSystemRegistry)
+            .where(TaxIdSystemRegistry.active.is_(True))
+        ).unique()
+    )
+
+
+def document_type_items(session: Session) -> list[Item]:
+    return _by_label(
+        (
+            row.code,
+            localized(row.localizations, 'name'),
+            _localized_names(row),
+        ) for row in session.scalars(
+            select(DocumentTypeRegistry)
+            .where(DocumentTypeRegistry.active.is_(True))
+        ).unique()
     )
 
 
@@ -138,12 +124,30 @@ def default_document_type(session: Session) -> str | None:
     return config.document_type_code if config is not None else None
 
 
+def document_type_name(session: Session, code: str | None) -> str:
+    """The name in the interface language if present, otherwise code."""
+
+    row = session.get(DocumentTypeRegistry, code) if code else None
+    if row is None or not row.localizations:
+        return code or "?"
+    return localized(row.localizations, "name")
+
+
 def _localized_names(row) -> tuple[str, ...]:
     return tuple(
         localization.name
         for localization in row.localizations.values()
         if localization.name
     )
+
+
+def _by_label(items: Iterable[Item]) -> list[Item]:
+    """Alphabetical order in the interface langauge. Python orders by Unicode index, thus 
+    Ukrainian І, Ї, Є, Ґ are misordered.
+    """
+
+    order = functools.cmp_to_key(QCollator().compare)
+    return sorted(items, key=lambda item: order(item[1]))
 
 
 class ErrorBanner(QLabel):
@@ -185,13 +189,13 @@ class LocalizedFields(QWidget):
         add_button = QToolButton()
         add_button.setText("+")
         add_button.setAutoRaise(True)
-        add_button.setToolTip("Add a language")
+        add_button.setToolTip(self.tr("Add a language"))
         add_button.clicked.connect(self._add_language)
 
         remove_button = QToolButton()
-        remove_button.setText("−")
+        remove_button.setText("—")
         remove_button.setAutoRaise(True)
-        remove_button.setToolTip("Remove this language")
+        remove_button.setToolTip(self.tr("Remove this language"))
         remove_button.clicked.connect(self._remove_current)
 
         corner = QWidget()
@@ -257,7 +261,7 @@ class LocalizedFields(QWidget):
             return
 
         name, accepted = QInputDialog.getItem(
-            self, "Add a language", "Language:",
+            self, self.tr("Add a language"), self.tr("Language:"),
             [item[1] for item in available], 0, False,
         )
         if not accepted:

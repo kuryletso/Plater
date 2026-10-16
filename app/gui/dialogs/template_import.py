@@ -30,6 +30,7 @@ from app.gui.dialogs.widgets import (
     show_code,
     default_languages,
     default_document_type,
+    document_type_name,
 )
 from app.services.template.db_input_provider import DbTemplateInputProvider
 from app.services.template.import_service import TemplateImportService
@@ -54,14 +55,15 @@ class TemplateImportDialog(QDialog):
         self._template_id = template_id
         self.version: int | None = None
 
-        self.setWindowTitle("Add template version" if template_id is not None else "Import template")
+        self.setWindowTitle(self.tr("Add template version") 
+                            if template_id is not None else self.tr("Import template"))
         self.setMinimumWidth(560)
         self.setAcceptDrops(True)
 
         self.path_edit = QLineEdit()
         self.path_edit.setReadOnly(True)
-        self.path_edit.setPlaceholderText("Browse a .docx template, or drop one here...")
-        browse = QPushButton("Browse...")
+        self.path_edit.setPlaceholderText(self.tr("Choose a .docx template, or drop one here..."))
+        browse = QPushButton(self.tr("Browse..."))
         browse.clicked.connect(self._browse)
 
         self.inherited_label = QLabel()
@@ -79,8 +81,8 @@ class TemplateImportDialog(QDialog):
         self.name_edit = QLineEdit()
         self.type_combo = searchable_combo(document_type_items(session))
         self.primary_combo = searchable_combo(languages)
-        self.secondary_combo = searchable_combo([("", "(none)", ()), *languages])
-        self.currency_check = QCheckBox("Append the currency to money value")
+        self.secondary_combo = searchable_combo([("", self.tr("(none)"), ()), *languages])
+        self.currency_check = QCheckBox(self.tr("Append the currency to money values"))
         self.description_edit = QLineEdit()
 
         show_code(self.primary_combo, defaults[0] if defaults else None)
@@ -92,13 +94,13 @@ class TemplateImportDialog(QDialog):
         fields = QWidget()
         form = QFormLayout(fields)
         form.setContentsMargins(0,0,0,0)
-        form.addRow("File", file_row)
-        form.addRow("Name", self.name_edit)
-        form.addRow("Template", self.inherited_label)
-        form.addRow("Document type", self.type_combo)
-        form.addRow("Primary language", self.primary_combo)
-        form.addRow("Secondary language", self.secondary_combo)
-        form.addRow("Description", self.description_edit)
+        form.addRow(self.tr("File"), file_row)
+        form.addRow(self.tr("Name"), self.name_edit)
+        form.addRow(self.tr("Template"), self.inherited_label)
+        form.addRow(self.tr("Document type"), self.type_combo)
+        form.addRow(self.tr("Primary language"), self.primary_combo)
+        form.addRow(self.tr("Secondary language"), self.secondary_combo)
+        form.addRow(self.tr("Description"), self.description_edit)
         form.addRow("", self.currency_check)
 
         self.diagnostics_list = QListWidget()
@@ -144,7 +146,7 @@ class TemplateImportDialog(QDialog):
                 return
             
             self.inherited_label.setText(
-                f"{config.name} | {config.type} | "
+                f"{config.name} | {document_type_name(session, config.type)} | "
                 f"{' / '.join( c for c in (config.primary_language, config.secondary_language) if c )}"
             )
 
@@ -155,7 +157,7 @@ class TemplateImportDialog(QDialog):
 
     def _browse(self) -> None:
         chosen, _ = QFileDialog.getOpenFileName(
-            self, "Select a template", "", "Word documents (*.docx)",
+            self, self.tr("Select a template"), "", self.tr("Word documents (*.docx)"),
         )
         if chosen:
             self._use_file(Path(chosen))
@@ -203,8 +205,10 @@ class TemplateImportDialog(QDialog):
             self.banner.show_message(error_text(e))
             return
 
-        if not path or config is None:
-            self.banner.show_message("Choose a document type and primary language.")
+        if not path:
+            return
+        if config is None:
+            self.banner.show_message(self.tr("Choose a document type and primary language."))
             return
 
         service = TemplateImportService(
@@ -221,11 +225,11 @@ class TemplateImportDialog(QDialog):
         for item in result.diagnostics.items:
             self.diagnostics_list.addItem(f"[{severity_label(item.severity)}] {item.code}: {diagnostic_text(item)}")
         if not result.diagnostics.items:
-            self.diagnostics_list.addItem("No issues found.")
+            self.diagnostics_list.addItem(self.tr("No issues found."))
 
         if result.diagnostics.has_errors:
             self.banner.show_message(
-                "This template cannot be imported until the errors above are fixed."
+                self.tr("This template cannot be imported until the errors above are fixed.")
             )
             return
 

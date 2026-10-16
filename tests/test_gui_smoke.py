@@ -1582,18 +1582,18 @@ def test_the_template_column_greys_out_delete_for_a_built_in(window, session: Se
 
 # --- names, not codes ------------------------------------------------------------
 
-def test_template_details_name_the_document_type_in_words(window, session: Session):
+def test_template_details_name_the_document_type_in_words(session: Session):
     from app.db.models.registries.document_type import DocumentTypeRegistry
     from app.db.models.registries.document_type_localization import DocumentTypeRegistryLocalization
+    from app.gui.dialogs.widgets import document_type_name
 
-    column = window.template_column
-    assert column._document_type_name("invoice") == "invoice", "a type with no names shows its code"
+    assert document_type_name(session, "invoice") == "invoice", "a type with no names shows its code"
 
     invoice = session.get(DocumentTypeRegistry, "invoice")
     invoice.localizations["ENG"] = DocumentTypeRegistryLocalization(language_code="ENG", name="Invoice")
     session.flush()
 
-    assert column._document_type_name("invoice") == "Invoice"
+    assert document_type_name(session, "invoice") == "Invoice"
 
 
 def test_the_tax_id_picker_names_the_tax_system(window, make_org):
@@ -1602,3 +1602,55 @@ def test_the_tax_id_picker_names_the_tax_system(window, make_org):
     select_organization(column, "Acme")
 
     assert column.ui.tax_combo.itemText(0) == "12345678 (EDRPOU)"
+
+
+def test_the_bank_dialog_says_when_it_edits(qt_app, session: Session, organization_with_details):
+    from app.gui.dialogs.bank_account import BankAccountDialog
+
+    organization, _, account = organization_with_details
+
+    assert BankAccountDialog(session, organization.id).windowTitle() == "Add bank account"
+    assert BankAccountDialog(session, organization.id, account.id).windowTitle() == "Edit bank account"
+
+
+def test_the_import_dialog_waits_for_a_file_before_asking_for_anything(qt_app, session: Session,
+                                                                     seeded_inputs):
+    """Changing a field before choosing a file re-reads nothing, so there is nothing to report."""
+    from app.gui.dialogs.template_import import TemplateImportDialog
+
+    dialog = TemplateImportDialog(session)
+    dialog.currency_check.toggle()
+
+    assert dialog.banner.isHidden()
+
+
+def test_languages_are_named_in_the_interface_language(session: Session):
+    from app.gui.dialogs.widgets import language_items
+    from app.gui.text import preferred_languages, set_preferred_languages
+
+    before = preferred_languages()
+    try:
+        set_preferred_languages(("UKR", "ENG"))
+        assert [label for _, label, _ in language_items(session)] == ["Англійська (ENG)", "Українська (UKR)"]
+
+        set_preferred_languages(("ENG", "UKR"))
+        assert [label for _, label, _ in language_items(session)] == ["English (ENG)", "Ukrainian (UKR)"]
+    finally:
+        set_preferred_languages(before)
+
+
+def test_reference_lists_sort_in_the_interface_language(qt_app):
+    """Python's own order puts Є, І and Ї before А, and capitals before lowercase."""
+    from PySide6.QtCore import QLocale
+
+    from app.gui.dialogs.widgets import _by_label
+
+    names = ["Італійська", "Англійська", "Їдиш", "Українська", "Ґуджараті"]
+    items = [(name, name, ()) for name in names]
+
+    QLocale.setDefault(QLocale("uk_UA"))
+    try:
+        assert [label for _, label, _ in _by_label(items)] == \
+            ["Англійська", "Ґуджараті", "Італійська", "Їдиш", "Українська"]
+    finally:
+        QLocale.setDefault(QLocale.system())

@@ -597,3 +597,17 @@ def test_formatted_interface_text_gets_exactly_the_fields_it_names():
                 wrong.append(f"{path.relative_to(PROJECT_ROOT)}:{node.lineno} {text!r} <- {sorted(names)}")
 
     assert wrong == []
+
+
+def test_the_dialogs_are_ukrainian(ukrainian, session, organization_with_bank):
+    from app.gui.dialogs.bank_account import BankAccountDialog
+    from app.gui.dialogs.organization import OrganizationDialog
+
+    organization = organization_with_bank
+    assert OrganizationDialog(session).windowTitle() == "Нова організація"
+    assert BankAccountDialog(session, organization.id).windowTitle() == "Новий банківський рахунок"
+
+
+@pytest.fixture
+def organization_with_bank(make_org):
+    return make_org("Acme")

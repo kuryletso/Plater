@@ -49,7 +49,8 @@ class SequenceDialog(QDialog):
         self.sequence_id: int | None = sequence_id
 
         self.setWindowTitle(
-            "Edit numbering sequence" if sequence_id is not None else "New numbering sequence"
+            self.tr("Edit numbering sequence") 
+                if sequence_id is not None else self.tr("New numbering sequence")
         )
         self.setMinimumWidth(440)
 
@@ -73,10 +74,10 @@ class SequenceDialog(QDialog):
         fields = QWidget()
         form = QFormLayout(fields)
         form.setContentsMargins(0,0,0,0)
-        form.addRow("Document type", self.type_combo)
-        form.addRow("Prefix", self.prefix_edit)
-        form.addRow("Last issued number", self.counter_spin)
-        form.addRow("Digits", self.padding_spin)
+        form.addRow(self.tr("Document type"), self.type_combo)
+        form.addRow(self.tr("Prefix"), self.prefix_edit)
+        form.addRow(self.tr("Last issued number"), self.counter_spin)
+        form.addRow(self.tr("Digits"), self.padding_spin)
         form.addRow("", self.preview_label)
 
         buttons = QDialogButtonBox(
@@ -104,7 +105,7 @@ class SequenceDialog(QDialog):
     def _refresh_preview(self) -> None:
         number = str(self.counter_spin.value() + 1).zfill(self.padding_spin.value())
         self.preview_label.setText(
-            f"Next document: {self.prefix_edit.text().strip()}{number}"
+            self.tr("Next document: {number}").format(number=f"{self.prefix_edit.text().strip()}{number}")
         )
 
 
@@ -113,7 +114,7 @@ class SequenceDialog(QDialog):
 
         document_type = selected_code(self.type_combo)
         if document_type is None:
-            self.banner.show_message("Choose a document_type")
+            self.banner.show_message(self.tr("Choose a document type"))
             return
 
         prefix = self.prefix_edit.text().strip() or None
@@ -151,4 +152,4 @@ class SequenceDialog(QDialog):
 
         self.type_combo.setEnabled(False)
         self.counter_spin.setEnabled(False)
-        self.counter_spin.setToolTip("Change the next number in the provider column.")
+        self.counter_spin.setToolTip(self.tr("Change the next number in the provider column."))
