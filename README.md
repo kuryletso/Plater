@@ -13,8 +13,8 @@ profile. Nothing is sent anywhere.
 ## Status
 
 Functionally complete for a first release and in active use, but still
-**pre-release**: there are no installers yet, so it runs from source, and the
-interface is English-only until the translation pass lands.
+**pre-release**: there are no installers yet, so it runs from source.
+The interface is in English and Ukrainian (*Settings -> Preferences*).
 
 ## Features
 
@@ -22,6 +22,8 @@ interface is English-only until the translation pass lands.
   option to restore previous version. Four built-in templates ship with the app.
 - **Bilingual documents.** Each template has a primary and an optional secondary
   language, and any placeholder can be pinned to either.
+- **English and Ukrainian interface.** Menus, dialogs, import warnings, the preview and error messages. 
+  Changing language takes effect on the next start.
 - **Parties.** Organizations with localized names and addresses, tax IDs, bank
   accounts, and representatives shared between organizations.
 - **Numbering.** Per-organization sequences for each document type, with a prefix
@@ -46,8 +48,8 @@ uv run python scripts/build_ui.py
 uv run python -m app.gui.main
 ```
 
-`build_ui.py` compiles the Qt Designer forms in `app/gui/designer/`. The compiled
-files are not committed, so run it after cloning and whenever a `.ui` file changes.
+`build_ui.py` compiles the Qt Designer forms in `app/gui/designer/` and the translations 
+in `app/gui/translations/`. Neither is committed, so run it after cloning and whenever a `.ui` or `.ts` file changes.
 
 The database is created and migrated on first launch, together with the built-in
 templates and reference data (languages, countries, currencies, tax systems and
@@ -147,6 +149,11 @@ than real editors do, and synthetic fixtures miss most real-world bugs.
 
 - **Forms:** edit the `.ui` files in `app/gui/designer/` with
   `uv run pyside6-designer`, then rerun `scripts/build_ui.py`.
+- **Translations:** after changing interface text, run 
+  `scripts/update_translations.py`, translate what is new with
+  `uv run pyside6-linguist app/gui/translations/plater_uk.ts`, then rerun
+  `scripts/build_ui.py`. `plater_en.ts` only holds English plural forms. The test suite fails 
+  while any text lacks a translation. 
 - **Manual checks:** `scripts/render_invoice.py` renders a full invoice from a
   throwaway database, and `scripts/render_raw.py` renders a template with its
   placeholders left in place. Output goes to `scripts/output/`.
@@ -185,6 +192,9 @@ scripts/
   logged at the service boundary with `@logged` from `app/core/log.py`. Log ids,
   counts and diagnostic codes. DO NOT log user-provided data (names, addresses, descriptions etc.), including user_message from diagnostics service.
 - **Empty values** are `None`, never `""` (empty string).
+- **Text for users.** In the GUI `self.tr("...")` always goes with a literal;
+  values go in `{named}` fields filled with `.format()`, never in an f-string, and never call `tr()` 
+  inside f-string. A count uses `%n` through `self.tr()` only. `QCoreApplication.translate()` loses its plural forms unless the count is a literal number. Outside the GUI (services and the engine), a user message or diagnostic is a template marked with `QT_TRANSLATE_NOOP("messages", "...")`, filled from the error's or diagnostic's context, so the user's data is only ever a value.
 
 ## License
 

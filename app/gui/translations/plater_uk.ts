@@ -216,7 +216,7 @@
 <context>
     <name>LocalizedFields</name>
     <message>
-        <location filename="../dialogs/widgets.py" line="+193"/>
+        <location filename="../dialogs/widgets.py" line="+192"/>
         <location line="+72"/>
         <source>Add a language</source>
         <translation>Додати мову</translation>
@@ -407,6 +407,166 @@
     </message>
 </context>
 <context>
+    <name>ManagerDialog</name>
+    <message>
+        <location filename="../dialogs/manager_dialog.py" line="+73"/>
+        <source>Search...</source>
+        <translation>Пошук...</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>New...</source>
+        <translation>Створити...</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Edit...</source>
+        <translation>Редагувати...</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <location line="+93"/>
+        <source>Delete</source>
+        <translation>Видалити</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Delete &quot;{name}&quot;?</source>
+        <translation>Видалити «{name}»?</translation>
+    </message>
+</context>
+<context>
+    <name>Managers</name>
+    <message>
+        <location filename="../dialogs/managers.py" line="+54"/>
+        <source>Organizations</source>
+        <translation>Організації</translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <source>built-in</source>
+        <translation>вбудований</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+132"/>
+        <source>hidden</source>
+        <translation>приховано</translation>
+    </message>
+    <message>
+        <location line="-114"/>
+        <source>Duplicate template</source>
+        <translation>Дублювання шаблону</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Name:</source>
+        <translation>Назва:</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>{name} (copy)</source>
+        <translation>{name} (копія)</translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <location line="+116"/>
+        <source>Hide</source>
+        <translation>Приховати</translation>
+    </message>
+    <message>
+        <location line="-114"/>
+        <location line="+116"/>
+        <source>Show again</source>
+        <translation>Показати знову</translation>
+    </message>
+    <message>
+        <location line="-103"/>
+        <source>The rebuild failed.</source>
+        <translation>Перебудова не вдалася.</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Could not rebuild</source>
+        <translation>Не вдалося перебудувати</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>Templates</source>
+        <translation>Шаблони</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Versions...</source>
+        <translation>Версії...</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Duplicate</source>
+        <translation>Дублювати</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Rebuild</source>
+        <translation>Перебудувати</translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>{name} (organizations: {count})</source>
+        <translation>{name} (організацій: {count})</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Representatives</source>
+        <translation>Представники</translation>
+    </message>
+    <message>
+        <location line="+43"/>
+        <source>Measurement units</source>
+        <translation>Одиниці виміру</translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>Version {number} — {date}</source>
+        <translation>Версія {number} — {date}</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>current</source>
+        <translation>поточна</translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>The restore failed</source>
+        <translation>Відновлення не вдалося.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Could not restore</source>
+        <translation>Не вдалося відновити</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Versions of {name}</source>
+        <translation>Версії шаблону «{name}»</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Restore</source>
+        <translation>Відновити</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>older engine, rebuild</source>
+        <translation>старіший рушій, перебудуйте</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>cannot be read, rebuild</source>
+        <translation>не читається, перебудуйте</translation>
+    </message>
+</context>
+<context>
     <name>MeasurementUnitDialog</name>
     <message>
         <location filename="../dialogs/measurement_unit.py" line="+36"/>
@@ -437,7 +597,7 @@
 <context>
     <name>OrganizationDialog</name>
     <message>
-        <location filename="../dialogs/organization.py" line="+37"/>
+        <location filename="../dialogs/organization.py" line="+36"/>
         <source>Edit organization</source>
         <translation>Редагування організації</translation>
     </message>

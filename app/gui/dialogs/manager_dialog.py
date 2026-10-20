@@ -32,7 +32,6 @@ class ManagedAsset:
     edit: Callable[[QWidget, AssetId], bool] | None = None
     delete: Callable[[AssetId], None] | None = None
     actions: tuple[AssetAction, ...] = ()
-    delete_verb: str = "Delete"
     searchable: bool = True
     editable: Callable[[AssetId], bool] | None = None       # None means every item has edit
 
@@ -71,7 +70,7 @@ class ManagerDialog(QDialog):
         self.setMinimumSize(520, 420)
 
         self.search_edit = QLineEdit()
-        self.search_edit.setPlaceholderText("Search...")
+        self.search_edit.setPlaceholderText(self.tr("Search..."))
         self.search_edit.setClearButtonEnabled(True)
         self.search_edit.setVisible(asset.searchable)
 
@@ -82,9 +81,9 @@ class ManagerDialog(QDialog):
         actions_layout = QHBoxLayout(actions)
         actions_layout.setContentsMargins(0,0,0,0)
 
-        self.new_button = QPushButton("New...")
+        self.new_button = QPushButton(self.tr("New..."))
 
-        self.edit_button = QPushButton("Edit...") if asset.edit is not None else None
+        self.edit_button = QPushButton(self.tr("Edit...")) if asset.edit is not None else None
         if self.edit_button is not None:
             self.edit_button.clicked.connect(self._edit)
             actions_layout.addWidget(self.edit_button)
@@ -96,7 +95,7 @@ class ManagerDialog(QDialog):
             actions_layout.addWidget(button)
             self._extra_buttons.append(button)
 
-        self.delete_button = QPushButton(asset.delete_verb) if asset.delete else None
+        self.delete_button = QPushButton(self.tr("Delete")) if asset.delete else None
         if self.delete_button is not None:
             self.delete_button.clicked.connect(self._delete)
             actions_layout.addWidget(self.delete_button)
@@ -189,8 +188,8 @@ class ManagerDialog(QDialog):
 
         confirmed = QMessageBox.question(
             self,
-            self._asset.delete_verb,
-            f'{self._asset.delete_verb} "{item.text().splitlines()[0]}"?',
+            self.tr("Delete"),
+            self.tr('Delete "{name}"?').format(name=item.text().splitlines()[0]),
         )
         if confirmed != QMessageBox.StandardButton.Yes:
             return

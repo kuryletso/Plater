@@ -542,7 +542,8 @@ def test_the_stale_template_message_names_the_menus_as_they_are_labelled(ukraini
         "This template was imported by an older version of the document engine. "
         "Rebuild it (Edit > Templates > Rebuild) to pick up the latest rendering fixes."
     )
-    assert f"({label('&Edit')} > {label('&Templates...')} >" in message
+    rebuild = QCoreApplication.translate("Managers", "Rebuild")
+    assert f"({label('&Edit')} > {label('&Templates...')} > {rebuild})" in message
 
 
 def test_designer_placeholders_are_not_for_translation():
@@ -611,3 +612,15 @@ def test_the_dialogs_are_ukrainian(ukrainian, session, organization_with_bank):
 @pytest.fixture
 def organization_with_bank(make_org):
     return make_org("Acme")
+
+
+def test_the_managers_are_ukrainian(ukrainian, session):
+    from app.gui.dialogs.manager_dialog import ManagerDialog
+    from app.gui.dialogs.managers import template_asset
+
+    dialog = ManagerDialog(template_asset(session))
+
+    assert dialog.windowTitle() == "Шаблони"
+    assert dialog.new_button.text() == "Створити..."
+    assert [button.text() for button in dialog._extra_buttons] == \
+        ["Версії...", "Дублювати", "Приховати", "Перебудувати"]

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from PySide6.QtCore import QCoreApplication
 from PySide6.QtWidgets import QWidget, QDialog, QInputDialog, QMessageBox
 from sqlalchemy.orm import Session
 
@@ -9,6 +10,7 @@ from app.gui.dialogs.template_import import TemplateImportDialog
 from app.gui.dialogs.template_edit import TemplateEditDialog
 from app.gui.dialogs.representative import RepresentativeDialog
 from app.gui.dialogs.measurement_unit import MeasurementUnitDialog
+from app.gui.dialogs.widgets import document_type_name
 from app.gui.text import organization_label, localized
 from app.services.organization.repository import OrganizationRepository
 from app.services.template.repository import TemplateRepository
@@ -18,10 +20,7 @@ from app.services.measurement_unit.repository import MeasurementUnitRepository
 from app.gui.i18n import error_text
 
 
-STATE_MARKS = {
-    BlueprintState.STALE: " | older engine, rebuild",
-    BlueprintState.UNREADABLE: " | cannot be read, rebuild",
-}
+# counts here are a values, not %n, due to lupdate seeing a plural only when the count is a literal number
 
 
 def organization_asset(session: Session) -> ManagedAsset:
@@ -52,7 +51,7 @@ def organization_asset(session: Session) -> ManagedAsset:
 
 
     return ManagedAsset(
-        title="Organization",
+        title=QCoreApplication.translate("Managers", "Organizations"),
         list_items=list_items,
         create=create,
         edit=edit,
@@ -73,16 +72,16 @@ def template_asset(session: Session) -> ManagedAsset:
         return dialog.changed
 
     def list_items(search: str | None) -> list[tuple[AssetId, str]]:
-        return [
-            (
-                template.id,
-                f"{template.name} ({template.type})"
-                + ("  | built-in" if template.system else "")
-                + ("  | hidden" if not template.active else "")
-                + STATE_MARKS.get(rebuilds.state(template.id), ""),
+        rows = []
+        for template in repository.list(search=search, include_inactive=True):
+            parts = (
+                f"{template.name} ({document_type_name(session, template.type)})",
+                QCoreApplication.translate("Managers", "built-in") if template.system else None,
+                QCoreApplication.translate("Managers", "hidden") if not template.active else None,
+                _state_mark(rebuilds.state(template.id)),
             )
-            for template in repository.list(search=search, include_inactive=True)
-        ]
+            rows.append((template.id, " | ".join(part for part in parts if part)))
+        return rows
 
     def create(parent):
         dialog = TemplateImportDialog(session, parent=parent)
@@ -95,7 +94,10 @@ def template_asset(session: Session) -> ManagedAsset:
         )
 
         name, accepted = QInputDialog.getText(
-            parent, "Duplicate template", "Name:", text=f"{origin.name} (copy)",
+            parent,
+            QCoreApplication.translate("Managers", "Duplicate template"),
+            QCoreApplication.translate("Managers", "Name:"),
+            text=QCoreApplication.translate("Managers", "{name} (copy)").format(name=origin.name),
         )
         if not accepted or not name.strip():
             return False
@@ -113,9 +115,9 @@ def template_asset(session: Session) -> ManagedAsset:
         return True
 
     def toggle_label(asset_id: AssetId | None) -> str:
-        return "Hide" \
+        return QCoreApplication.translate("Managers", "Hide") \
             if asset_id is None or repository.get(int(asset_id)).active \
-            else "Show again"
+            else QCoreApplication.translate("Managers", "Show again")
 
     def edit(parent: QWidget, asset_id: AssetId) -> bool:
         dialog = TemplateEditDialog(session, int(asset_id), parent=parent)
@@ -127,12 +129,14 @@ def template_asset(session: Session) -> ManagedAsset:
         outcome = rebuilds.rebuild(int(asset_id))
 
         if outcome.action != "rebuilt":
+            reason = error_text(outcome.error) if outcome.error is not None \
+                else QCoreApplication.translate("Managers", "The rebuild failed.")
             QMessageBox.warning(
-                parent, "Could not rebuild",
-                f"{outcome.name}: {error_text(outcome.error) if outcome.error is not None else 'The rebuild failed.'}",
-            )
+                parent,
+                QCoreApplication.translate("Managers", "Could not rebuild"),
+                f"{outcome.name}: {reason}")
             return False
-
+        
         return True
 
     def rebuildable(asset_id: AssetId) -> bool:
@@ -146,16 +150,16 @@ def template_asset(session: Session) -> ManagedAsset:
         return not repository.get(int(asset_id)).system
 
     return ManagedAsset(
-        title="Templates",
+        title=QCoreApplication.translate("Managers", "Templates"),
         list_items=list_items,
         create=create,
         edit=edit,
         editable=editable,
         actions=(
-            AssetAction(label="Versions...", run=versions),
-            AssetAction(label="Duplicate", run=duplicate),
+            AssetAction(label=QCoreApplication.translate("Managers", "Versions..."), run=versions),
+            AssetAction(label=QCoreApplication.translate("Managers", "Duplicate"), run=duplicate),
             AssetAction(label=toggle_label, run=toggle),
-            AssetAction(label="Rebuild", run=rebuild, enabled=rebuildable),
+            AssetAction(label=QCoreApplication.translate("Managers", "Rebuild"), run=rebuild, enabled=rebuildable),
         ),
         delete=lambda asset_id: repository.delete(int(asset_id)),
     )
@@ -171,7 +175,10 @@ def representative_asset(session: Session) -> ManagedAsset:
             title = localized(person.localizations, "title")
             attached = len(person.organizations)
             label = f"{name} — {title}" if title != "?" else name
-            rows.append((person.id, f"{label} ({attached} organization(s))"))
+            rows.append((
+                person.id,
+                QCoreApplication.translate("Managers", "{name} (organizations: {count})").format(name=label, count=attached),
+            ))
         return rows
 
 
@@ -186,7 +193,7 @@ def representative_asset(session: Session) -> ManagedAsset:
 
 
     return ManagedAsset(
-        title="Representative",
+        title=QCoreApplication.translate("Managers", "Representatives"),
         list_items=list_items,
         create=create,
         edit=edit,
@@ -202,7 +209,7 @@ def measurement_unit_asset(session: Session) -> ManagedAsset:
             (
                 unit.code,
                 f"{localized(unit.localizations, 'name')} ({unit.code})"
-                + ("  | hidden" if not unit.active else ""),
+                + (" | " + QCoreApplication.translate("Managers", "hidden") if not unit.active else ""),
             )
             for unit in repository.list(search=search, include_inactive=True)
         ]
@@ -224,18 +231,17 @@ def measurement_unit_asset(session: Session) -> ManagedAsset:
         return True
 
     def toggle_label(asset_id: AssetId | None) -> str:
-        return "Hide" \
+        return QCoreApplication.translate("Managers", "Hide") \
             if asset_id is None or repository.get(str(asset_id)).active \
-            else "Show again"
+            else QCoreApplication.translate("Managers", "Show again")
 
     return ManagedAsset(
-        title="Measurement units",
+        title=QCoreApplication.translate("Managers", "Measurement units"),
         list_items=list_items,
         create=create,
         edit=edit,
         actions=(AssetAction(label=toggle_label, run=toggle),),
         delete=None,
-        delete_verb="Hide",
     )
 
 
@@ -248,9 +254,9 @@ def template_version_asset(session: Session, template_id: int) -> ManagedAsset:
         return [
             (
                 version.version,
-                f"Version {version.version} — "
-                f"{version.created_at:%Y-%m-%d %H:%M}"
-                + (" | current" if version.version == current else ""),
+                QCoreApplication.translate("Managers", "Version {number} — {date}")
+                    .format(number=version.version, date=f"{version.created_at:%Y-%m-%d %H:%M}")
+                + (" | " + QCoreApplication.translate("Managers", "current") if version.version == current else ""),
             )
             for version in repository.versions(template_id)
         ]
@@ -271,9 +277,11 @@ def template_version_asset(session: Session, template_id: int) -> ManagedAsset:
         outcome = TemplateRebuildService(session).restore(template_id, int(asset_id))
 
         if outcome.action != "restored":
+            reason = error_text(outcome.error) if outcome.error is not None \
+                else QCoreApplication.translate("Managers", "The restore failed")
             QMessageBox.warning(
-                parent, "Could not restore",
-                f"{outcome.name}: {error_text(outcome.error) if outcome.error is not None else 'The restore failed.'}",
+                parent, QCoreApplication.translate("Managers", "Could not restore"),
+                f"{outcome.name}: {reason}",
             )
             return False
 
@@ -281,11 +289,19 @@ def template_version_asset(session: Session, template_id: int) -> ManagedAsset:
     
 
     return ManagedAsset(
-        title=f"Versions of {repository.get(template_id).name}",
+        title=QCoreApplication.translate("Managers", "Versions of {name}").format(name=repository.get(template_id).name),
         list_items=list_items,
         create=create,
         edit=None,
         delete=None,
-        actions=(AssetAction(label="Restore", run=restore),),
+        actions=(AssetAction(label=QCoreApplication.translate("Managers", "Restore"), run=restore),),
         searchable=False,
     )
+
+
+def _state_mark(state: BlueprintState) -> str | None:
+    if state is BlueprintState.STALE:
+        return QCoreApplication.translate("Managers", "older engine, rebuild")
+    if state is BlueprintState.UNREADABLE:
+        return QCoreApplication.translate("Managers", "cannot be read, rebuild")
+    return None

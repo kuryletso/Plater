@@ -1654,3 +1654,30 @@ def test_reference_lists_sort_in_the_interface_language(qt_app):
             ["Англійська", "Ґуджараті", "Італійська", "Їдиш", "Українська"]
     finally:
         QLocale.setDefault(QLocale.system())
+
+
+def test_a_representative_shows_how_many_organizations_it_serves(qt_app, session: Session, make_org):
+    """A value, not a plural: lupdate reads a translate() count only as a literal number."""
+    from app.gui.dialogs.manager_dialog import ManagerDialog
+    from app.gui.dialogs.managers import representative_asset
+
+    make_org("Acme")        # make_org attaches a representative
+
+    (label,) = labels(ManagerDialog(representative_asset(session)))
+    assert label.endswith("(organizations: 1)")
+
+
+def test_the_template_manager_names_the_document_type(qt_app, session: Session,
+                                                     make_docx, fixture_provider):
+    from app.db.models.registries.document_type import DocumentTypeRegistry
+    from app.db.models.registries.document_type_localization import DocumentTypeRegistryLocalization
+    from app.gui.dialogs.manager_dialog import ManagerDialog
+    from app.gui.dialogs.managers import template_asset
+    from app.services.template.import_service import TemplateImportService
+
+    invoice = session.get(DocumentTypeRegistry, "invoice")
+    invoice.localizations["ENG"] = DocumentTypeRegistryLocalization(language_code="ENG", name="Invoice")
+    service = TemplateImportService(session, fixture_provider)
+    service.commit(service.ingest(make_docx(["Hello"])))
+
+    assert any("(Invoice)" in label for label in labels(ManagerDialog(template_asset(session))))
