@@ -23,6 +23,9 @@ def main() -> int:
     app = QApplication(sys.argv)
     app.setApplicationName("Plater")
 
+    if sys.platform == "darwin":        # native style on macOS looks ugly
+        app.setStyle("Fusion")
+
     from app.gui.i18n import install
     install(app, ui_language())     # (!) before any widget is built
 

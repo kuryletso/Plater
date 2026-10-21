@@ -15,6 +15,7 @@ from app.services.invoice import vocabulary as v
 from app.services.money import MoneyFormat, format_quantity
 from app.services.language import LanguageSpec
 from app.services.spell_total import spell_total
+from app.services.dates import format_document_date, DEFAULT_DATE_FORMAT
 
 
 class InvoiceMapper:
@@ -24,12 +25,14 @@ class InvoiceMapper:
             languages: tuple[LanguageSpec, ...],
             labels: dict[str, Values],
             append_currency: bool,
+            date_format: str = DEFAULT_DATE_FORMAT,
     ) -> None:
         
         self._langs = languages
         self._codes = tuple(lang.code for lang in languages)
         self._labels = labels
         self._append = append_currency
+        self._date_format = date_format
 
 
     def map(
@@ -58,7 +61,11 @@ class InvoiceMapper:
     
 
     def _date(self, value: date) -> Values:
-        return self._same(value.isoformat())
+        """Month names in each document language."""
+        return {
+            lang.code: format_document_date(value, self._date_format, lang.alpha_2)
+            for lang in self._langs
+        }
     
 
     def _scalars(

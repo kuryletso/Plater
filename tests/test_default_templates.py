@@ -374,3 +374,16 @@ def test_seeding_logs_what_changed_and_is_quiet_otherwise(session: Session, ship
 
     assert first == ["built-in a created"]
     assert second == []
+
+
+def test_a_built_in_takes_its_date_format_from_the_manifest(session: Session, shipped):
+    from app.services.template.repository import TemplateRepository
+
+    shipped([entry("a", "a.docx", date_format="dd.MM.y")], {"a.docx": ["A {{ org_name }}"]})
+    seed_default_templates(session)
+    template = session.scalars(select(Template)).one()
+    assert TemplateRepository(session).current_version(template.id).config["date_format"] == "dd.MM.y"
+
+    shipped([entry("a", "a.docx", date_format="d MMMM y")], {"a.docx": ["A {{ org_name }}"]})
+    seed_default_templates(session)
+    assert TemplateRepository(session).current_version(template.id).config["date_format"] == "d MMMM y"

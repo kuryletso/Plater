@@ -4,7 +4,7 @@
 <context>
     <name>MainWindow</name>
     <message numerus="yes">
-        <location filename="../main_window.py" line="+135"/>
+        <location filename="../main_window.py" line="+142"/>
         <source>... and %n more</source>
         <translation>
             <numerusform>... and %n more</numerusform>

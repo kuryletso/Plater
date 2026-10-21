@@ -31,11 +31,14 @@ from app.gui.dialogs.widgets import (
     default_languages,
     default_document_type,
     document_type_name,
+    DateFormatCombo,
+    default_date_format,
 )
 from app.services.template.db_input_provider import DbTemplateInputProvider
 from app.services.template.import_service import TemplateImportService
 from app.services.template.repository import TemplateRepository
 from app.services.errors import ServiceError
+from app.services.dates import DEFAULT_DATE_FORMAT
 from app.gui.i18n import error_text, diagnostic_text, severity_label
 
 
@@ -83,6 +86,7 @@ class TemplateImportDialog(QDialog):
         self.primary_combo = searchable_combo(languages)
         self.secondary_combo = searchable_combo([("", self.tr("(none)"), ()), *languages])
         self.currency_check = QCheckBox(self.tr("Append the currency to money values"))
+        self.date_combo = DateFormatCombo(session)
         self.description_edit = QLineEdit()
 
         show_code(self.primary_combo, defaults[0] if defaults else None)
@@ -90,6 +94,7 @@ class TemplateImportDialog(QDialog):
         show_code(self.secondary_combo, "")     # defaults secondary language to (none)
         show_code(self.type_combo, default_document_type(session))
         self.currency_check.setChecked(True)
+        self.date_combo.set_pattern(default_date_format(session))
 
         fields = QWidget()
         form = QFormLayout(fields)
@@ -101,6 +106,7 @@ class TemplateImportDialog(QDialog):
         form.addRow(self.tr("Primary language"), self.primary_combo)
         form.addRow(self.tr("Secondary language"), self.secondary_combo)
         form.addRow(self.tr("Description"), self.description_edit)
+        form.addRow(self.tr("Date format"), self.date_combo)
         form.addRow("", self.currency_check)
 
         self.diagnostics_list = QListWidget()
@@ -124,6 +130,7 @@ class TemplateImportDialog(QDialog):
         self.primary_combo.currentIndexChanged.connect(self._reingest)
         self.secondary_combo.currentIndexChanged.connect(self._reingest)
         self.currency_check.toggled.connect(self._reingest)
+        self.date_combo.currentIndexChanged.connect(self._reingest)
 
         if template_id is None:
             form.setRowVisible(self.inherited_label, False)
@@ -135,6 +142,7 @@ class TemplateImportDialog(QDialog):
                 self.secondary_combo,
                 self.description_edit,
                 self.currency_check,
+                self.date_combo,
             ):
                 form.setRowVisible(widget, False)
 
@@ -188,6 +196,7 @@ class TemplateImportDialog(QDialog):
                 name=self.name_edit.text().strip() or Path(self.path_edit.text()).stem,
                 description=self.description_edit.text().strip(),
                 append_currency=self.currency_check.isChecked(),
+                date_format=self.date_combo.pattern(),
             )
 
 
@@ -273,6 +282,7 @@ class TemplateImportDialog(QDialog):
             name=template.name,
             description=config.get("description") or "",
             append_currency=bool(config.get("append_currency")),
+            date_format=config.get("date_format", DEFAULT_DATE_FORMAT),
         )
 
 

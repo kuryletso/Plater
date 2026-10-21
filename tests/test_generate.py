@@ -358,3 +358,26 @@ def test_two_organizations_raise_no_same_party_warning(service, template_id, sce
     result = service.preview(make_draft(template_id, scenario))
 
     assert "same_party" not in {item.code for item in result.diagnostics.items}
+
+
+# --- the template's date format ------------------------------------------------------
+
+def test_the_template_date_format_reaches_the_document(service, session, seeded_inputs,
+                                                       registered_keys, make_docx, scenario):
+    from app.db.models.registries.placeholder import PlaceholderRegistry
+    from app.document_engine.blueprint.models.template import TemplateConfig
+
+    session.add(PlaceholderRegistry(key="date", system=True, required=False,
+                                    type=PlaceholderType.SCALAR, active=True, columns=None))
+    session.commit()
+
+    path = make_docx(paragraphs=["Issued {{ date }}"], name="dated.docx")
+    importer = TemplateImportService(session, DbTemplateInputProvider(session, TemplateConfig(
+        primary_language="ENG", secondary_language=None, type="invoice", name="Dated",
+        description="", append_currency=True, date_format="dd.MM.y",
+    )))
+    template_id = importer.commit(importer.ingest(path))
+
+    result = service.generate(make_draft(template_id, scenario))
+
+    assert "Issued 10.08.2026" in document_text(result.docx)

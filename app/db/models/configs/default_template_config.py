@@ -46,3 +46,9 @@ class DefaultTemplateConfig(Base):
     append_currency: Mapped[bool] = mapped_column(
         default=False,
     )
+
+    date_format: Mapped[str] = mapped_column(
+        String(20),
+        default="y-MM-dd",
+        server_default="y-MM-dd",
+    )

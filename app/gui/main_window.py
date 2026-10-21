@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QStandardPaths, QTimer
+from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QFrame,
     QWidget,
@@ -29,7 +31,13 @@ from app.gui.dialogs.managers import (
     measurement_unit_asset,
 )
 from app.gui.text import set_preferred_languages
-from app.gui.settings import display_languages
+from app.gui.settings import (
+    display_languages,
+    last_save_dir,
+    set_window_geometry,
+    window_geometry,
+    set_last_save_dir,
+)
 from app.gui.columns.template_column import TemplateColumn
 from app.gui.columns.party_column import PartyColumn, PartyRole
 from app.gui.columns.document_column import DocumentColumn
@@ -43,21 +51,15 @@ from app.services.invoice_line.repository import InvoiceLineRepository, InvoiceL
 from app.services.template.rebuild_service import TemplateRebuildService
 from app.gui.i18n import error_text, diagnostic_text, severity_label
 
+# chars, not supported by file systems in file name
+_NOT_IN_FILE_NAMES = re.compile(r'[\\/:*?"<>|\x00-\x1f]')
 
-# def _stub_content(title: str) -> QWidget:
-#     """Filler content for the column in case column content was unable to load.
-    
-#     Previously used as filler page until the real column content lands.
-#     """
 
-#     label = QLabel(f"{title} column was unable to load.")
-#     label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-#     label.setEnabled(False)
+def file_name(template: str | None, number: str) -> str:
+    """Default {template}_{number}.docx. Not supported chars replaced with "_"."""
 
-#     page = QWidget()
-#     QVBoxLayout(page).addWidget(label)
-
-#     return page
+    stem = f"{template}_{number}" if template else number
+    return f"{_NOT_IN_FILE_NAMES.sub('_', stem).strip(' .') or 'document'}.docx"        # Windows refuses name ending in dot
 
 
 class MainWindow(QMainWindow):
@@ -78,6 +80,10 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle("Plater")
         self.resize(1280, 800)
+        
+        geometry = window_geometry()
+        if geometry is not None:
+            self.restoreGeometry(geometry)
 
         self._build_menu()
 
@@ -112,6 +118,7 @@ class MainWindow(QMainWindow):
 
 
     def closeEvent(self, event) -> None:
+        set_window_geometry(self.saveGeometry())
         self._session.close()
         super().closeEvent(event)
 
@@ -171,22 +178,34 @@ class MainWindow(QMainWindow):
             )
 
 
+    def suggested_path(self, number: str) -> Path:
+        """Returns either last save directory or default Documents."""
+
+        folder = last_save_dir() or Path(QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DocumentsLocation))
+        return folder / file_name(self.draft.template_name, number)
+
+
     def _build_menu(self) -> None:
+        """Every action should get its macOS role explicitly."""
+
+        def add(menu, text, slot, role=QAction.MenuRole.NoRole) -> None:
+            menu.addAction(text, slot).setMenuRole(role)
+
         file_menu = self.menuBar().addMenu(self.tr("&File"))
-        file_menu.addAction(self.tr("E&xit"), self.close)
+        add(file_menu, self.tr("E&xit"), self.close, QAction.MenuRole.QuitRole)
 
         edit_menu = self.menuBar().addMenu(self.tr("&Edit"))
-        edit_menu.addAction(self.tr("&Organizations..."), self._manage_organizations)
-        edit_menu.addAction(self.tr("&Representatives..."), self._manage_representatives)
-        edit_menu.addAction(self.tr("&Templates..."), self._manage_templates)
+        add(edit_menu, self.tr("&Organizations..."), self._manage_organizations)
+        add(edit_menu, self.tr("&Representatives..."), self._manage_representatives)
+        add(edit_menu, self.tr("&Templates..."), self._manage_templates)
         edit_menu.addSeparator()
-        edit_menu.addAction(self.tr("&Measurement units..."), self._manage_units)
+        add(edit_menu, self.tr("&Measurement units..."), self._manage_units)
 
         settings_menu = self.menuBar().addMenu(self.tr("&Settings"))
-        settings_menu.addAction(self.tr("&Preferences..."), self._open_settings)
+        add(settings_menu, self.tr("&Preferences..."), self._open_settings, QAction.MenuRole.PreferencesRole)
 
         help_menu = self.menuBar().addMenu(self.tr("&Help"))
-        help_menu.addAction(self.tr("&About"), self._about)
+        add(help_menu, self.tr("&About"), self._about, QAction.MenuRole.AboutRole)
 
 
     def _build_workspace(self) -> QWidget:
@@ -252,21 +271,19 @@ class MainWindow(QMainWindow):
 
         # peek only to name the file; the service runs its own peek/consume
         number = SequenceRepository(self._session).peek(draft.sequence_id)
-        documents = QStandardPaths.writableLocation(
-            QStandardPaths.StandardLocation.DocumentsLocation
-        )
 
         # ask before generating: cancelling here must not burn a number
         chosen, _ = QFileDialog.getSaveFileName(
             self,
             self.tr("Save document"),
-            str(Path(documents) / f"{number.formatted}.docx"),
+            str(self.suggested_path(number.formatted)),
             self.tr("Word documents (*.docx)"),
         )
         if not chosen:
             return
 
         target = Path(chosen)
+        set_last_save_dir(target.parent)
         if target.suffix.lower() != ".docx":
             target = target.with_suffix(".docx")
 

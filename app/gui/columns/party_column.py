@@ -427,6 +427,7 @@ class PartyColumn(QWidget):
         )
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self.refresh_sequences()
+            self._select_new(self.ui.sequence_combo, dialog.sequence_id)
 
 
     def _select_new(

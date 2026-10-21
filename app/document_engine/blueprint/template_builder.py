@@ -33,6 +33,7 @@ class TemplateDraftConfig:
     secondary_language: str | None = None
     description: str = ""
     append_currency: bool = True
+    date_format: str = "y-MM-dd"        # hardcoded value here
 
     @classmethod
     def from_template_config(
@@ -47,6 +48,7 @@ class TemplateDraftConfig:
             name=config.name,
             description=config.description,
             append_currency=config.append_currency,
+            date_format=config.date_format,
         )
 
     def to_template_config(self) -> TemplateConfig:
@@ -57,6 +59,7 @@ class TemplateDraftConfig:
             name=self.name,
             description=self.description,
             append_currency=self.append_currency,
+            date_format=self.date_format,
             engine_version=ENGINE_VERSION,
         )
 

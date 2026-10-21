@@ -42,6 +42,7 @@ class DbTemplateInputProvider:
                 name=row.name,
                 description=row.description,
                 append_currency=row.append_currency,
+                date_format=row.date_format,
             )
 
         return self._config

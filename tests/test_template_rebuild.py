@@ -295,3 +295,15 @@ def test_preview_warns_that_a_template_is_stale(session: Session, store, make_or
     result = InvoiceGenerateService(session).preview(draft)
 
     assert "stale_blueprint" in [item.code for item in result.diagnostics.items]
+
+
+def test_a_rebuild_keeps_the_date_format(session: Session, store):
+    """The rebuild rebuilds the config field by field; a new field must not reset."""
+    template_id, _ = store(["Invoice for {{ org_name }}"])
+    repo = TemplateRepository(session)
+    repo.update_metadata(template_id, date_format="dd.MM.y")
+    restamp(session, template_id, 0)
+
+    TemplateRebuildService(session).rebuild(template_id)
+
+    assert repo.current_version(template_id).config["date_format"] == "dd.MM.y"

@@ -18,6 +18,7 @@ from app.services.template.db_input_provider import DbTemplateInputProvider
 from app.services.template.import_service import TemplateImportService
 from app.services.template.repository import TemplateRepository
 from app.services.template.rebuild_service import TemplateRebuildService
+from app.services.dates import DEFAULT_DATE_FORMAT
 
 log = logging.getLogger("plater.seed")
 
@@ -41,6 +42,7 @@ def _config(entry: dict) -> TemplateConfig:
         name=entry["name"],
         description=entry["description"],
         append_currency=entry["append_currency"],
+        date_format=entry.get("date_format", DEFAULT_DATE_FORMAT),
     )
 
 
@@ -59,6 +61,7 @@ def _sync_metadata(repo: TemplateRepository, template_id: int, entry: dict) -> b
         document_type=entry["type"],
         description=entry["description"],
         append_currency=entry["append_currency"],
+        date_format=entry.get("date_format", DEFAULT_DATE_FORMAT),
     )
 
 

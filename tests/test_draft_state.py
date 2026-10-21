@@ -378,3 +378,13 @@ def test_to_draft_agrees_with_is_complete(draft):
         step()
 
     assert draft.is_complete() and draft.to_draft() is not None
+
+
+def test_the_template_name_travels_with_the_selection(draft):
+    """It names the saved file; nothing else reads it."""
+
+    draft.set_template(1, "invoice", LANGUAGES, "Invoice UA")
+    assert draft.template_name == "Invoice UA"
+
+    draft.set_template(None, None, ())
+    assert draft.template_name is None

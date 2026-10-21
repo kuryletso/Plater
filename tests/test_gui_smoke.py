@@ -1681,3 +1681,148 @@ def test_the_template_manager_names_the_document_type(qt_app, session: Session,
     service.commit(service.ingest(make_docx(["Hello"])))
 
     assert any("(Invoice)" in label for label in labels(ManagerDialog(template_asset(session))))
+
+
+# --- pre-installer fixes, batch 1 ---------------------------------------------------
+
+def test_no_test_touches_the_real_settings_file():
+    from app.paths import settings_path, user_data_dir
+
+    assert settings_path() != user_data_dir() / "plater.ini"
+
+
+def test_adding_a_numbering_sequence_selects_it(provider_with_sequence, monkeypatch):
+    """Reported by users: the new sequence was created but the old one stayed selected."""
+    from app.gui.dialogs.sequence import SequenceDialog
+
+    column, _ = provider_with_sequence
+
+    def create(dialog):
+        dialog.prefix_edit.setText("NEW-")
+        dialog._save()
+        return dialog.result()
+
+    monkeypatch.setattr(SequenceDialog, "exec", create)
+    column.ui.add_sequence_button.click()
+
+    assert column.ui.sequence_combo.currentText() == "NEW-"
+    assert column._draft.sequence_id == column.ui.sequence_combo.currentData()
+
+
+def test_selecting_a_template_records_its_name(window, session: Session, stored_template: int):
+    from app.services.template.repository import TemplateRepository
+
+    window.draft.set_template(stored_template, "invoice", ("ENG",))
+    window.template_column.revalidate()
+
+    assert window.draft.template_name == TemplateRepository(session).get(stored_template).name
+
+
+@pytest.mark.parametrize(("template", "number", "expected"), [
+    ("invoice", "TEST-005", "invoice_TEST-005.docx"),
+    ("Invoice: UA/EN", "INV/2026/005", "Invoice_ UA_EN_INV_2026_005.docx"),
+    ('a"b*c?', "1", "a_b_c__1.docx"),
+    (None, "005", "005.docx"),
+])
+def test_a_file_name_loses_what_no_file_system_accepts(template, number, expected):
+    from app.gui.main_window import file_name
+
+    assert file_name(template, number) == expected
+
+
+def test_the_save_dialog_suggests_the_template_and_the_number(window):
+    window.draft.set_template(None, "invoice", (), "Invoice UA")
+
+    assert window.suggested_path("TEST-005").name == "Invoice UA_TEST-005.docx"
+
+
+def test_the_save_dialog_opens_where_the_last_document_went(window, tmp_path):
+    from PySide6.QtCore import QStandardPaths
+
+    from app.gui.settings import set_last_save_dir
+
+    set_last_save_dir(tmp_path)
+    assert window.suggested_path("1").parent == tmp_path
+
+    set_last_save_dir(tmp_path / "since deleted")
+    documents = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DocumentsLocation)
+    assert window.suggested_path("1").parent == Path(documents)
+
+
+def test_the_window_reopens_at_the_size_it_was_closed_at(qt_app, session: Session, monkeypatch):
+    from app.gui import main_window as module
+
+    monkeypatch.setattr(module, "SessionLocal", lambda: session)
+
+    first = module.MainWindow()
+    first.resize(700, 500)      # within the offscreen screen: a restored window is kept inside the screen
+    first.close()
+
+    assert module.MainWindow().size() == first.size()
+
+
+def test_menu_actions_carry_their_macos_roles(window):
+    """Explicit, so macOS does not guess from the label, which fails once translated."""
+    from PySide6.QtGui import QAction
+    from PySide6.QtWidgets import QMenu
+
+    roles = {
+        action.text(): action.menuRole()
+        for menu in window.menuBar().findChildren(QMenu)
+        for action in menu.actions() if not action.isSeparator()
+    }
+
+    assert roles["E&xit"] == QAction.MenuRole.QuitRole
+    assert roles["&Preferences..."] == QAction.MenuRole.PreferencesRole
+    assert roles["&About"] == QAction.MenuRole.AboutRole
+    assert roles["&Templates..."] == QAction.MenuRole.NoRole
+
+
+# --- the date format ----------------------------------------------------------------
+
+def test_the_date_format_combo_offers_five_examples(qt_app, session: Session):
+    from app.gui.dialogs.widgets import DateFormatCombo
+
+    combo = DateFormatCombo(session)
+
+    assert [combo.itemText(i) for i in range(combo.count())] == [
+        "2026-05-24", "24.05.2026", "05/24/2026 (US)", "24 May 2026",
+        "May 24, 2026 (US, English documents only)",
+    ]
+    combo.set_pattern("not offered")
+    assert combo.pattern() == "y-MM-dd"
+
+
+def test_settings_save_the_default_date_format(qt_app, session: Session, seeded_inputs):
+    from app.gui.dialogs.settings import SettingsDialog
+    from app.services.settings import TemplateDefaultService
+
+    dialog = SettingsDialog(session)
+    dialog.date_combo.set_pattern("dd.MM.y")
+    dialog._save()
+
+    assert TemplateDefaultService(session).get().date_format == "dd.MM.y"
+
+
+def test_the_template_dialog_edits_the_date_format(qt_app, session: Session, stored_template):
+    from app.gui.dialogs.template_edit import TemplateEditDialog
+    from app.services.template.repository import TemplateRepository
+
+    dialog = TemplateEditDialog(session, stored_template)
+    assert dialog.date_combo.pattern() == "y-MM-dd"
+
+    dialog.date_combo.set_pattern("d MMMM y")
+    dialog._save()
+
+    assert TemplateRepository(session).current_version(stored_template).config["date_format"] == "d MMMM y"
+
+
+def test_a_new_template_starts_with_the_default_date_format(qt_app, session: Session, seeded_inputs):
+    from app.gui.dialogs.template_import import TemplateImportDialog
+    from app.services.settings import TemplateDefaultService
+
+    TemplateDefaultService(session).update(date_format="dd.MM.y")
+    dialog = TemplateImportDialog(session)
+
+    assert dialog.date_combo.pattern() == "dd.MM.y"
+    assert dialog._config().date_format == "dd.MM.y"

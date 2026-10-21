@@ -1,3 +1,11 @@
+import os
+import tempfile
+from pathlib import Path
+
+# The suite never touches the developer's own data. app.db.session computes its
+# database URL from PLATER_DB when first imported, so this comes before any app import.
+os.environ["PLATER_DB"] = str(Path(tempfile.mkdtemp(prefix="plater-tests-")) / "plater.db")
+
 from typing import Any, Callable
 from decimal import Decimal
 from pathlib import Path
@@ -115,6 +123,14 @@ def qt_app():
     from PySide6.QtWidgets import QApplication
 
     yield QApplication.instance() or QApplication([])
+
+
+@pytest.fixture(autouse=True)
+def private_settings(tmp_path, monkeypatch):
+    """Every test gets its own plater.ini. Closing a MainWindow saves its geometry,
+    and a test must never overwrite the developer's own preferences."""
+
+    monkeypatch.setenv("PLATER_SETTINGS", str(tmp_path / "plater.ini"))
 
 
 @pytest.fixture

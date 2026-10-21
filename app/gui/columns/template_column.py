@@ -130,7 +130,7 @@ class TemplateColumn(QWidget):
 
         self._show_selected(current.text(), built_in=version.template.system)
         self._show_details(version)
-        self._draft.set_template(template_id, document_type, languages)
+        self._draft.set_template(template_id, document_type, languages, version.template.name)
         
 
     def _show_details(self, version: TemplateVersion) -> None:

@@ -17,6 +17,7 @@ from app.services.template.repository import TemplateRepository
 from app.services.template.import_service import TemplateImportService
 from app.services.template.db_input_provider import DbTemplateInputProvider
 from app.services.errors import BlueprintUnreadable, SourceNoLongerReads
+from app.services.dates import DEFAULT_DATE_FORMAT
 from app.db.models.core.template import Template
 from app.db.models.core.template_version import TemplateVersion
 from app.document_engine.blueprint.models.template import TemplateConfig
@@ -194,7 +195,8 @@ class TemplateRebuildService:
             type=template.type,
             name=template.name,
             description=config.get("description") or "",
-            append_currency=bool(config.get("append_currency"))
+            append_currency=bool(config.get("append_currency")),
+            date_format=config.get("date_format", DEFAULT_DATE_FORMAT),
         )
 
     def _stamp(self, template_id: int) -> int:

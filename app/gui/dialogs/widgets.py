@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import functools
+from datetime import date
 from collections.abc import Sequence, Iterable
 
 from PySide6.QtCore import Qt, QSignalBlocker, QCollator
@@ -28,6 +29,7 @@ from app.db.models.registries.tax_id_system import TaxIdSystemRegistry
 from app.db.models.registries.document_type import DocumentTypeRegistry
 from app.db.models.configs.default_template_config import DefaultTemplateConfig
 from app.gui.text import localized, preferred_languages
+from app.services.dates import DATE_FORMATS, DEFAULT_DATE_FORMAT, format_document_date
 
 type Item = tuple[str, str, tuple[str, ...]]        # code, label, aliases
 
@@ -133,6 +135,11 @@ def document_type_name(session: Session, code: str | None) -> str:
     return localized(row.localizations, "name")
 
 
+def default_date_format(session: Session) -> str:
+    config = session.scalars(select(DefaultTemplateConfig)).first()
+    return config.date_format if config is not None else DEFAULT_DATE_FORMAT
+
+
 def _localized_names(row) -> tuple[str, ...]:
     return tuple(
         localization.name
@@ -148,6 +155,40 @@ def _by_label(items: Iterable[Item]) -> list[Item]:
 
     order = functools.cmp_to_key(QCollator().compare)
     return sorted(items, key=lambda item: order(item[1]))
+
+
+class DateFormatCombo(QComboBox):
+    """The date formats available to template. Each shown as an example."""
+
+    EXAMPLE = date(2026, 5, 24)
+    def __init__(self, session: Session, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+
+        language = session.get(Language, preferred_languages()[0])
+        interface = language.code_alpha_2 if language is not None else "en"
+
+        notes = {
+            "MM/dd/y": self.tr("{example} (US)"),
+            "MMMM d, y": self.tr("{example} (US, English documents only)"),
+        }
+        for pattern in DATE_FORMATS:
+            # the English-only format is shown in English as it will print
+            locale = "en" if pattern == "MMMM d, y" else interface
+            example = format_document_date(self.EXAMPLE, pattern, locale)
+            self.addItem(
+                notes[pattern].format(example=example) if pattern in notes else example,
+                pattern,
+            )
+
+    def pattern(self) -> str:
+        return self.currentData() or DEFAULT_DATE_FORMAT
+
+
+    def set_pattern(self, pattern: str | None) -> None:
+        """An unknown pattern falls back to the default."""
+
+        position = self.findData(pattern or DEFAULT_DATE_FORMAT)
+        self.setCurrentIndex(max(position, 0))
 
 
 class ErrorBanner(QLabel):

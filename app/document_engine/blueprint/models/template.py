@@ -14,6 +14,7 @@ class TemplateConfig(BlueprintBase):
     name: str
     description: str
     append_currency: bool
+    date_format: str = "y-MM-dd"        # pattern from app/services/dates.py, ISO is default
     engine_version: int = 0
 
 

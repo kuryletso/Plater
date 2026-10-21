@@ -40,6 +40,19 @@
     </message>
 </context>
 <context>
+    <name>DateFormatCombo</name>
+    <message>
+        <location filename="../dialogs/widgets.py" line="+171"/>
+        <source>{example} (US)</source>
+        <translation>{example} (США)</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>{example} (US, English documents only)</source>
+        <translation>{example} (США, лише для англійських документів)</translation>
+    </message>
+</context>
+<context>
     <name>DocumentColumn</name>
     <message>
         <location filename="../designer/document_column.ui" line="+22"/>
@@ -100,7 +113,7 @@
 <context>
     <name>DraftState</name>
     <message>
-        <location filename="../draft_state.py" line="+204"/>
+        <location filename="../draft_state.py" line="+208"/>
         <source>Select a template</source>
         <translation>Виберіть шаблон</translation>
     </message>
@@ -216,7 +229,7 @@
 <context>
     <name>LocalizedFields</name>
     <message>
-        <location filename="../dialogs/widgets.py" line="+192"/>
+        <location filename="../dialogs/widgets.py" line="+61"/>
         <location line="+72"/>
         <source>Add a language</source>
         <translation>Додати мову</translation>
@@ -235,7 +248,7 @@
 <context>
     <name>MainWindow</name>
     <message numerus="yes">
-        <location filename="../main_window.py" line="+135"/>
+        <location filename="../main_window.py" line="+142"/>
         <source>... and %n more</source>
         <translation>
             <numerusform>... і ще %n</numerusform>
@@ -268,7 +281,7 @@
         <translation>Деякі шаблони не вдалося перебудувати</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+20"/>
         <source>&amp;File</source>
         <translation>&amp;Файл</translation>
     </message>
@@ -363,7 +376,7 @@
         <translation>Усе готово до створення.</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+13"/>
         <source>Save document</source>
         <translation>Зберегти документ</translation>
     </message>
@@ -373,7 +386,7 @@
         <translation>Документи Word (*.docx)</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+15"/>
         <location line="+52"/>
         <source>Generation failed</source>
         <translation>Не вдалося створити документ</translation>
@@ -692,7 +705,7 @@
         <translation>Організацій ще немає</translation>
     </message>
     <message>
-        <location line="+165"/>
+        <location line="+166"/>
         <source>This number may already have been issued.</source>
         <translation>Цей номер, можливо, уже видано.</translation>
     </message>
@@ -929,7 +942,7 @@
 <context>
     <name>SettingsDialog</name>
     <message>
-        <location filename="../dialogs/settings.py" line="+51"/>
+        <location filename="../dialogs/settings.py" line="+52"/>
         <source>Settings</source>
         <translation>Налаштування</translation>
     </message>
@@ -959,7 +972,7 @@
         <translation>Додавати валюту до грошових сум</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+3"/>
         <source>New template defaults</source>
         <translation>Типові значення нових шаблонів</translation>
     </message>
@@ -989,7 +1002,12 @@
         <translation>Опис</translation>
     </message>
     <message>
-        <location line="+51"/>
+        <location line="+1"/>
+        <source>Date format</source>
+        <translation>Формат дати</translation>
+    </message>
+    <message>
+        <location line="+52"/>
         <source>Primary language, document type and name required.</source>
         <translation>Потрібно вказати основну мову, тип документа та назву.</translation>
     </message>
@@ -1130,7 +1148,7 @@
 <context>
     <name>TemplateEditDialog</name>
     <message>
-        <location filename="../dialogs/template_edit.py" line="+45"/>
+        <location filename="../dialogs/template_edit.py" line="+46"/>
         <source>Edit template</source>
         <translation>Редагування шаблону</translation>
     </message>
@@ -1140,7 +1158,7 @@
         <translation>Додавати валюту до грошових сум</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+9"/>
         <source>Name</source>
         <translation>Назва</translation>
     </message>
@@ -1160,7 +1178,12 @@
         <translation>Мови</translation>
     </message>
     <message>
-        <location line="+33"/>
+        <location line="+1"/>
+        <source>Date format</source>
+        <translation>Формат дати</translation>
+    </message>
+    <message>
+        <location line="+34"/>
         <source>{languages} (re-import to change)</source>
         <translation>{languages} (щоб змінити, імпортуйте шаблон повторно)</translation>
     </message>
@@ -1173,7 +1196,7 @@
 <context>
     <name>TemplateImportDialog</name>
     <message>
-        <location filename="../dialogs/template_import.py" line="+58"/>
+        <location filename="../dialogs/template_import.py" line="+61"/>
         <source>Add template version</source>
         <translation>Нова версія шаблону</translation>
     </message>
@@ -1203,7 +1226,7 @@
         <translation>Додавати валюту до грошових сум</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+14"/>
         <source>File</source>
         <translation>Файл</translation>
     </message>
@@ -1238,7 +1261,12 @@
         <translation>Опис</translation>
     </message>
     <message>
-        <location line="+57"/>
+        <location line="+1"/>
+        <source>Date format</source>
+        <translation>Формат дати</translation>
+    </message>
+    <message>
+        <location line="+59"/>
         <source>Select a template</source>
         <translation>Виберіть шаблон</translation>
     </message>
@@ -1248,7 +1276,7 @@
         <translation>Документи Word (*.docx)</translation>
     </message>
     <message>
-        <location line="+51"/>
+        <location line="+52"/>
         <source>Choose a document type and primary language.</source>
         <translation>Виберіть тип документа та основну мову.</translation>
     </message>
@@ -1373,7 +1401,7 @@
         <translation>Неочікуваний символ «{character}» у заповнювачі: {content}.</translation>
     </message>
     <message>
-        <location filename="../../document_engine/blueprint/template_builder.py" line="+83"/>
+        <location filename="../../document_engine/blueprint/template_builder.py" line="+86"/>
         <source>Placeholder key &apos;{key}&apos; is disabled.</source>
         <translation>Ключ заповнювача «{key}» вимкнено.</translation>
     </message>
@@ -1531,8 +1559,8 @@
     </message>
     <message>
         <location line="+84"/>
-        <location filename="../../services/settings.py" line="+132"/>
-        <location filename="../../services/template/repository.py" line="+598"/>
+        <location filename="../../services/settings.py" line="+137"/>
+        <location filename="../../services/template/repository.py" line="+608"/>
         <source>Selected document type is no longer available.</source>
         <translation>Вибраний тип документа більше не доступний.</translation>
     </message>
@@ -1567,7 +1595,7 @@
         <translation>Номер документа змінився під час створення. Створіть документ ще раз.</translation>
     </message>
     <message>
-        <location line="+35"/>
+        <location line="+36"/>
         <source>This template was imported by an older version of the document engine. Rebuild it (Edit &gt; Templates &gt; Rebuild) to pick up the latest rendering fixes.</source>
         <translation>Цей шаблон імпортовано старішою версією рушія документів. Перебудуйте його (Редагування &gt; Шаблони &gt; Перебудувати), щоб отримати найновіші виправлення.</translation>
     </message>
@@ -1659,29 +1687,29 @@
         <translation>Введіть ім’я представника хоча б однією мовою.</translation>
     </message>
     <message>
-        <location filename="../../services/settings.py" line="-79"/>
+        <location filename="../../services/settings.py" line="-83"/>
         <location filename="../../services/template/db_input_provider.py" line="+35"/>
         <source>Application defaults are missing.</source>
         <translation>Бракує типових налаштувань програми.</translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="+35"/>
         <source>Select a different secondary language.</source>
         <translation>Виберіть іншу додаткову мову.</translation>
     </message>
     <message>
-        <location filename="../../services/template/rebuild_service.py" line="+174"/>
+        <location filename="../../services/template/rebuild_service.py" line="+175"/>
         <source>The template&apos;s original file no longer imports without errors.</source>
         <translation>Оригінальний файл шаблону більше не імпортується без помилок.</translation>
     </message>
     <message>
-        <location filename="../../services/template/repository.py" line="-524"/>
-        <location line="+231"/>
+        <location filename="../../services/template/repository.py" line="-533"/>
+        <location line="+234"/>
         <source>This is a built-in template. Make a copy of it to edit.</source>
         <translation>Це вбудований шаблон. Щоб редагувати його, створіть копію.</translation>
     </message>
     <message>
-        <location line="-70"/>
+        <location line="-71"/>
         <source>This template was saved by an older version of Plater and has to be rebuilt before it can be used.</source>
         <translation>Цей шаблон збережено старішою версією Plater; перед використанням його потрібно перебудувати.</translation>
     </message>
@@ -1704,6 +1732,11 @@
         <location line="+28"/>
         <source>The template could not be rendered.</source>
         <translation>Не вдалося сформувати шаблон.</translation>
+    </message>
+    <message>
+        <location filename="../../services/dates.py" line="+34"/>
+        <source>Select a date format.</source>
+        <translation>Виберіть формат дати.</translation>
     </message>
 </context>
 </TS>

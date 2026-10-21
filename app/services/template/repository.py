@@ -19,6 +19,7 @@ from app.document_engine.blueprint.assets import collect_assets_ids
 from app.document_engine.blueprint.serialize import dump_blueprint, load_blueprint
 from app.services.errors import EntityNotFound, InvalidSelection, BlueprintUnreadable
 from app.services.sentinel import Unset, UNSET
+from app.services.dates import DEFAULT_DATE_FORMAT, check_date_format
 from app.core.messages import QT_TRANSLATE_NOOP
 
 class TemplateRepository:
@@ -148,6 +149,7 @@ class TemplateRepository:
             document_type: str,
             description: str,
             append_currency: bool,
+            date_format: str = DEFAULT_DATE_FORMAT,
     ) -> bool:
         """Bring a shipped default's name, type, description and currency settings in line 
         with the manifest. Done in place. Seeding only. Returns whether anything changed. 
@@ -170,6 +172,7 @@ class TemplateRepository:
             "type": document_type,
             "description": description,
             "append_currency": append_currency,
+            "date_format": date_format,
         }
 
         if (template.name, template.type) == (name, document_type) and config == version.config:
@@ -290,6 +293,7 @@ class TemplateRepository:
             document_type: str | Unset = UNSET,
             description: str | Unset = UNSET,
             append_currency: bool | Unset = UNSET,
+            date_format: str | Unset = UNSET,
     ) -> Template:
         """Edits name, type and description etc. without touching its blueprint.
         
@@ -309,6 +313,9 @@ class TemplateRepository:
         if not isinstance(document_type, Unset):
             self._check_document_type(document_type)
 
+        if not isinstance(date_format, Unset):
+            check_date_format(date_format)
+
         version = self.current_version(template_id)
         config = dict(version.config)
 
@@ -323,6 +330,9 @@ class TemplateRepository:
 
         if not isinstance(append_currency, Unset):
             config["append_currency"] = append_currency
+
+        if not isinstance(date_format, Unset):
+            config["date_format"] = date_format
 
         version.config = config
         self._session.commit()

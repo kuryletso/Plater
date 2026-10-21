@@ -1006,3 +1006,16 @@ def test_importing_and_adding_a_version_are_logged_by_their_names(session: Sessi
     actions = [r.getMessage().split(" ", 1)[0] for r in caplog.records if r.name == "plater.action"]
     assert actions == ["template.read", "template.import", "template.read", "template.add_version"]
     assert f"template_id={template_id} version=2" in caplog.records[-1].getMessage()
+
+
+def test_editing_a_template_sets_its_date_format(session: Session, ingested):
+    from app.services.template.repository import TemplateRepository
+
+    repo = TemplateRepository(session)
+    template_id = repo.create(*ingested)
+
+    repo.update_metadata(template_id, date_format="d MMMM y")
+    assert repo.current_version(template_id).config["date_format"] == "d MMMM y"
+
+    with pytest.raises(InvalidSelection):
+        repo.update_metadata(template_id, date_format="whenever")

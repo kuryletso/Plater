@@ -166,3 +166,20 @@ def test_the_input_provider_uses_the_stored_defaults(session: Session):
     assert config.secondary_language == "ENG"
     assert config.append_currency is False
     assert DbTemplateInputProvider(session).languages() == {"UKR", "ENG"}
+
+
+def test_the_default_date_format_is_iso_and_can_be_changed(session: Session):
+    service = TemplateDefaultService(session)
+    service.ensure()
+    assert service.get().date_format == "y-MM-dd"
+
+    service.update(date_format="dd.MM.y")
+    assert service.get().date_format == "dd.MM.y"
+
+
+def test_an_unknown_default_date_format_is_refused(session: Session):
+    service = TemplateDefaultService(session)
+    service.ensure()
+
+    with pytest.raises(InvalidSelection):
+        service.update(date_format="dd/mm/yyyy")

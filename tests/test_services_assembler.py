@@ -636,3 +636,10 @@ def test_a_bilingual_invoice_with_an_untranslated_line_passes_column_validation(
     validate_context(blueprint, context, diagnostics)
 
     assert [item.code for item in diagnostics.items if item.severity == "error"] == []
+
+
+def test_the_date_is_written_in_each_document_language(invoice):
+    data, _, _, _, _ = invoice
+    context = InvoiceMapper(LANGS, labels={}, append_currency=True, date_format="d MMMM y").map(data)
+
+    assert context.scalars["date"] == {"UKR": "16 липня 2026", "ENG": "16 July 2026"}

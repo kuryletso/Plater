@@ -89,6 +89,7 @@ class DraftState(QObject):
         super().__init__(parent)
 
         self.template_id: int | None = None
+        self.template_name: str | None = None
         self.document_type: str | None = None
 
         self.provider_organization_id: int | None = None
@@ -105,7 +106,7 @@ class DraftState(QObject):
         self.languages: tuple[str, ...] = ()
         self.rows: tuple[LineRow, ...] = ()
         self.currency_code: str | None = None
-        self.issue_date: date = date.today()
+        self.issue_date: date = date.today()        # noqa: DTZ011
 
         self._was_complete: set[str] = set()
 
@@ -115,12 +116,15 @@ class DraftState(QObject):
             template_id: int | None,
             document_type: str | None,
             languages: tuple[str, ...],
+            name: str | None = None,
     ) -> None:
+        """`name` is used to name the saved file, service reads the template by id."""
         
         if document_type != self.document_type:
             self.sequence_id = None
 
         self.template_id = template_id
+        self.template_name = name
         self.document_type = document_type
         self.languages = languages
         self._emit()

@@ -21,6 +21,7 @@ from app.gui.dialogs.widgets import (
     searchable_combo,
     selected_code,
     show_code,
+    DateFormatCombo,
 )
 from app.gui.settings import SUPPORTED_LANGUAGES, set_ui_language, ui_language
 from app.gui.i18n import error_text
@@ -73,6 +74,7 @@ class SettingsDialog(QDialog):
         self.name_edit = QLineEdit()
         self.description_edit = QLineEdit()
         self.currency_check = QCheckBox(self.tr("Append the currency to money values"))
+        self.date_combo = DateFormatCombo(session)
 
         defaults = QGroupBox(self.tr("New template defaults"))
         defaults_form = QFormLayout(defaults)
@@ -81,6 +83,7 @@ class SettingsDialog(QDialog):
         defaults_form.addRow(self.tr("Document type"), self.type_combo)
         defaults_form.addRow(self.tr("Name"), self.name_edit)
         defaults_form.addRow(self.tr("Description"), self.description_edit)
+        defaults_form.addRow(self.tr("Date format"), self.date_combo)
         defaults_form.addRow("", self.currency_check)
 
         self.banner = ErrorBanner()
@@ -113,6 +116,7 @@ class SettingsDialog(QDialog):
         self.name_edit.setText(row.name)
         self.description_edit.setText(row.description or "")
         self.currency_check.setChecked(row.append_currency)
+        self.date_combo.set_pattern(row.date_format)
 
 
     def _on_language(self) -> None:
@@ -143,6 +147,7 @@ class SettingsDialog(QDialog):
                 name=self.name_edit.text().strip(),
                 description=self.description_edit.text().strip(),
                 append_currency=self.currency_check.isChecked(),
+                date_format=self.date_combo.pattern(),
             )
         except ServiceError as e:
             self._session.rollback()

@@ -114,6 +114,7 @@ class InvoiceGenerateService:
             languages,
             build_labels(self._session, codes),
             blueprint.config.append_currency,
+            blueprint.config.date_format,
         ).map(data)
 
         render = TemplateRenderingPipeline(DbAssetProvider(self._session)).render(blueprint, context)

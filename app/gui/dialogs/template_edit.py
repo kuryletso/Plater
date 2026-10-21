@@ -18,6 +18,7 @@ from app.gui.dialogs.widgets import (
     searchable_combo,
     selected_code,
     show_code,
+    DateFormatCombo,
 )
 from app.services.template.repository import TemplateRepository
 from app.services.errors import ServiceError
@@ -49,6 +50,7 @@ class TemplateEditDialog(QDialog):
         self.type_combo = searchable_combo(document_type_items(session))
         self.description_edit = QLineEdit()
         self.currency_check = QCheckBox(self.tr("Append the currency to money values"))
+        self.date_combo = DateFormatCombo(session)
         self.languages_label = QLabel()
         self.languages_label.setEnabled(False)
         self.banner = ErrorBanner()
@@ -60,6 +62,7 @@ class TemplateEditDialog(QDialog):
         form.addRow(self.tr("Document type"), self.type_combo)
         form.addRow(self.tr("Description"), self.description_edit)
         form.addRow(self.tr("Languages"), self.languages_label)
+        form.addRow(self.tr("Date format"), self.date_combo)
         form.addRow("", self.currency_check)
 
         buttons = QDialogButtonBox(
@@ -85,6 +88,7 @@ class TemplateEditDialog(QDialog):
         show_code(self.type_combo, template.type)
         self.description_edit.setText(config.get("description") or "")
         self.currency_check.setChecked(bool(config.get("append_currency")))
+        self.date_combo.set_pattern(config.get("date_format"))
 
         languages = " / ".join(
             code for code
@@ -112,6 +116,7 @@ class TemplateEditDialog(QDialog):
                 document_type=document_type,
                 description=self.description_edit.text().strip(),
                 append_currency=self.currency_check.isChecked(),
+                date_format=self.date_combo.pattern(),
             )
         except ServiceError as e:
             self._session.rollback()

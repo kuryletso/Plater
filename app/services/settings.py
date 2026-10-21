@@ -9,6 +9,7 @@ from app.db.models.references.language import Language
 from app.db.models.registries.document_type import DocumentTypeRegistry
 from app.services.sentinel import Unset, UNSET
 from app.services.errors import EntityNotFound, InvalidSelection
+from app.services.dates import check_date_format
 from app.core.messages import QT_TRANSLATE_NOOP
 
 
@@ -66,6 +67,7 @@ class TemplateDefaultService:
             name: str | Unset = UNSET,
             description: str | Unset = UNSET,
             append_currency: bool | Unset = UNSET,
+            date_format: str | Unset = UNSET,
     ) -> DefaultTemplateConfig:
 
         row = self.get()
@@ -95,6 +97,9 @@ class TemplateDefaultService:
         row.primary_language_code = new_primary
         row.secondary_language_code = new_secondary
         row.document_type_code = new_type
+
+        if not isinstance(date_format, Unset):
+            row.date_format = check_date_format(date_format)
 
         for field, value in (
             ("name", name),

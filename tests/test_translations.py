@@ -624,3 +624,18 @@ def test_the_managers_are_ukrainian(ukrainian, session):
     assert dialog.new_button.text() == "Створити..."
     assert [button.text() for button in dialog._extra_buttons] == \
         ["Версії...", "Дублювати", "Приховати", "Перебудувати"]
+
+
+def test_date_examples_follow_the_interface_language(ukrainian, session):
+    from app.gui.dialogs.widgets import DateFormatCombo
+    from app.gui.text import preferred_languages, set_preferred_languages
+
+    before = preferred_languages()
+    try:
+        set_preferred_languages(("UKR", "ENG"))
+        labels = [DateFormatCombo(session).itemText(i) for i in range(5)]
+    finally:
+        set_preferred_languages(before)
+
+    assert labels[3] == "24 травня 2026"
+    assert labels[4].startswith("May 24, 2026"), "the English-only format shows as it will print"
