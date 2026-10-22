@@ -7,7 +7,8 @@
     "secondary_language": null,
     "name": "Invoice (English)",
     "description": "Single-language invoice using the generated invoice table.",
-    "append_currency": true
+    "append_currency": true,
+    "date_format": "d MMMM y"
   },
   {
     "code": "default_ukr_invoice",
@@ -17,7 +18,8 @@
     "secondary_language": null,
     "name": "Рахунок-фактура",
     "description": "Рахунок-фактура українською з таблицею товарів/послуг.",
-    "append_currency": true
+    "append_currency": true,
+    "date_format": "d MMMM y"
   },
   {
     "code": "default_eng_ukr_invoice",
@@ -27,7 +29,8 @@
     "secondary_language": "UKR",
     "name": "Invoice (English / Ukrainian)",
     "description": "Bilingual invoice with an author-designed line table.",
-    "append_currency": true
+    "append_currency": true,
+    "date_format": "d MMMM y"
   },
   {
     "code": "default_ukr_akt",
@@ -37,6 +40,7 @@
     "secondary_language": null,
     "name": "Акт наданих послуг",
     "description": "Акт наданих послуг українською з таблицею робіт і підписами сторін.",
-    "append_currency": true
+    "append_currency": true,
+    "date_format": "d MMMM y"
   }
 ]

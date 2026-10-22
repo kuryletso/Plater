@@ -15,6 +15,7 @@ from app.gui.dialogs.tax_id import TaxIdDialog
 from app.gui.dialogs.bank_account import BankAccountDialog
 from app.gui.dialogs.representative import RepresentativeDialog
 from app.gui.dialogs.sequence import SequenceDialog
+from app.gui.icons import icon
 from app.services.doc_sequence.repository import SequenceRepository
 from app.services.organization.repository import OrganizationRepository
 from app.services.errors import ServiceError
@@ -70,6 +71,23 @@ class PartyColumn(QWidget):
 
         self.ui = Ui_PartyColumn()
         self.ui.setupUi(self)
+
+        ui = self.ui
+        for button, name in (
+            (ui.add_organization_button, "plus"),
+            (ui.edit_organization_button, "pencil"),
+            (ui.delete_organization_button, "trash"),
+            (ui.clear_button, "close"),
+            (ui.add_tax_button, "plus"),
+            (ui.edit_tax_button, "pencil"),
+            (ui.add_representative_button, "plus"),
+            (ui.edit_representative_button, "pencil"),
+            (ui.add_bank_button, "plus"),
+            (ui.edit_bank_button, "pencil"),
+            (ui.add_sequence_button, "plus"),
+            (ui.edit_sequence_button, "pencil"),
+        ):
+            button.setIcon(icon(name))      
 
         if role is PartyRole.CLIENT:
             self.ui.sequence_label.hide()

@@ -11,6 +11,7 @@ from app.gui.draft_state import DraftState
 from app.gui.dialogs.template_import import TemplateImportDialog
 from app.gui.dialogs.template_edit import TemplateEditDialog
 from app.gui.dialogs.widgets import document_type_name
+from app.gui.icons import icon
 from app.services.template.repository import TemplateRepository
 from app.services.template.rebuild_service import BlueprintState, TemplateRebuildService
 from app.services.errors import ServiceError
@@ -37,6 +38,14 @@ class TemplateColumn(QWidget):
 
         self.ui = Ui_TemplateColumn()
         self.ui.setupUi(self)
+
+        for button, name in (
+            (self.ui.add_template_button, "plus"),
+            (self.ui.edit_template_button, "pencil"),
+            (self.ui.delete_template_button, "trash"),
+            (self.ui.clear_button, "close"),
+        ):
+            button.setIcon(icon(name))
 
         self.ui.search_edit.textChanged.connect(self.refresh)
         self.ui.template_list.currentItemChanged.connect(self._on_selection)

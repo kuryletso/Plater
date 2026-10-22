@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from app.gui.draft_state import LineRow
 from app.gui.dialogs.widgets import ReferenceCombo
+from app.gui.icons import icon
 from app.services.invoice_line.repository import InvoiceLineRepository
 from app.db.models.core.invoice_line import InvoiceLine
 
@@ -125,13 +126,13 @@ class LineRowWidget(QWidget):
         for edit in (self.quantity_edit, self.price_edit, self.tax_edit):
             layout.addWidget(edit)
 
-        for text, slot, tooltip in (
-            ("▲", lambda: self.move_requested.emit(self, -1), self.tr("Move up")),
-            ("▼", lambda: self.move_requested.emit(self,  1), self.tr("Move down")),
-            ("✕", lambda: self.remove_requested.emit(self), self.tr("Remove line")),
+        for name, slot, tooltip in (
+            ("up", lambda: self.move_requested.emit(self, -1), self.tr("Move up")),
+            ("down", lambda: self.move_requested.emit(self,  1), self.tr("Move down")),
+            ("close", lambda: self.remove_requested.emit(self), self.tr("Remove line")),
         ):
             button = QToolButton()
-            button.setText(text)
+            button.setIcon(icon(name))
             button.setAutoRaise(True)
             button.setToolTip(tooltip)
             button.clicked.connect(slot)

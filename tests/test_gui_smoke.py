@@ -1826,3 +1826,42 @@ def test_a_new_template_starts_with_the_default_date_format(qt_app, session: Ses
 
     assert dialog.date_combo.pattern() == "dd.MM.y"
     assert dialog._config().date_format == "dd.MM.y"
+
+
+# --- icons, not characters -------------------------------------------------------------
+
+def bare_symbol_buttons(widget) -> list[str]:
+    """Tool buttons showing a character such as ✎ rather than an icon. A character
+    comes from whatever font has it: Windows drew the pencil as a quill."""
+    from PySide6.QtWidgets import QToolButton
+
+    return [
+        button.toolTip() or button.objectName()
+        for button in widget.findChildren(QToolButton)
+        if not button.objectName().startswith("qt_")
+        and button.icon().isNull()
+        and button.text() and not any(character.isalpha() for character in button.text())
+    ]
+
+
+def test_the_columns_show_icons_not_characters(window):
+    assert bare_symbol_buttons(window) == []
+
+
+def test_an_invoice_line_shows_icons_not_characters(qt_app, session: Session):
+    from PySide6.QtWidgets import QToolButton
+
+    from app.gui.columns.lines_row import LinesContainer
+
+    lines = LinesContainer(session)
+    lines.set_context(("ENG",), [])
+
+    assert lines.findChildren(QToolButton), "set_context builds the first row"
+    assert bare_symbol_buttons(lines) == []
+    assert all(not button.icon().isNull() for button in lines.findChildren(QToolButton))
+
+
+def test_the_language_tabs_show_icons_not_characters(qt_app, session: Session, seeded_inputs):
+    from app.gui.dialogs.organization import OrganizationDialog
+
+    assert bare_symbol_buttons(OrganizationDialog(session)) == []

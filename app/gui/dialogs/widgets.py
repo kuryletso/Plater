@@ -29,6 +29,7 @@ from app.db.models.registries.tax_id_system import TaxIdSystemRegistry
 from app.db.models.registries.document_type import DocumentTypeRegistry
 from app.db.models.configs.default_template_config import DefaultTemplateConfig
 from app.gui.text import localized, preferred_languages
+from app.gui.icons import icon
 from app.services.dates import DATE_FORMATS, DEFAULT_DATE_FORMAT, format_document_date
 
 type Item = tuple[str, str, tuple[str, ...]]        # code, label, aliases
@@ -228,13 +229,13 @@ class LocalizedFields(QWidget):
         self.tabs = QTabWidget()
 
         add_button = QToolButton()
-        add_button.setText("+")
+        add_button.setIcon(icon("plus"))
         add_button.setAutoRaise(True)
         add_button.setToolTip(self.tr("Add a language"))
         add_button.clicked.connect(self._add_language)
 
         remove_button = QToolButton()
-        remove_button.setText("—")
+        remove_button.setIcon(icon("minus"))
         remove_button.setAutoRaise(True)
         remove_button.setToolTip(self.tr("Remove this language"))
         remove_button.clicked.connect(self._remove_current)
