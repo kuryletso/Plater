@@ -643,3 +643,106 @@ def test_the_date_is_written_in_each_document_language(invoice):
     context = InvoiceMapper(LANGS, labels={}, append_currency=True, date_format="d MMMM y").map(data)
 
     assert context.scalars["date"] == {"UKR": "16 липня 2026", "ENG": "16 July 2026"}
+
+
+# --- reference data falls back to English --------------------------------------------------
+
+def edrpou(session):
+    from app.db.models.registries.tax_id_system import TaxIdSystemRegistry
+
+    return session.get(TaxIdSystemRegistry, "ua_edrpou")
+
+
+def test_reference_values_keep_each_language_s_own_name(session):
+    from app.services.invoice.assembler import reference_values
+
+    assert reference_values(edrpou(session).localizations, "name", CODES) == {
+        "UKR": "ЄДРПОУ", "ENG": "EDRPOU",
+    }
+
+
+def test_reference_values_lend_the_english_name_to_a_missing_language(session):
+    from app.services.invoice.assembler import reference_values
+
+    system = edrpou(session)
+    del system.localizations["UKR"]
+    session.commit()
+
+    assert reference_values(system.localizations, "name", CODES) == {
+        "UKR": "EDRPOU", "ENG": "EDRPOU",
+    }
+
+
+def test_reference_values_lend_any_name_when_there_is_no_english_one(session):
+    from app.services.invoice.assembler import reference_values
+
+    system = edrpou(session)
+    del system.localizations["ENG"]
+    session.commit()
+
+    assert reference_values(system.localizations, "name", CODES) == {
+        "UKR": "ЄДРПОУ", "ENG": "ЄДРПОУ",
+    }
+
+
+def test_reference_values_of_nothing_are_empty():
+    from app.services.invoice.assembler import reference_values
+
+    assert reference_values({}, "name", CODES) == {}
+
+
+def test_a_tax_system_named_in_english_only_prints_in_every_language(
+        session, make_org, make_line_input, make_sequence, assembler):
+    """Most seeded tax systems have an English name only, and
+    {{ client_tax_sys.UKR }} printed nothing."""
+
+    system = edrpou(session)
+    del system.localizations["UKR"]
+    session.commit()
+
+    provider, client = make_org("P", tax_value="11111111"), make_org("C", tax_value="22222222")
+    line, sequence = make_line_input(), make_sequence(provider)
+    data = assembler.assemble(make_draft(provider, client, sequence, (line,)), NUMBER)
+
+    assert data.client.tax_id.system == {"UKR": "EDRPOU", "ENG": "EDRPOU"}
+
+
+def test_a_unit_named_in_english_only_prints_in_every_language(
+        session, make_org, make_line_input, make_sequence, assembler):
+    unit = session.get(MeasurementUnitRegistry, "hour")
+    del unit.localizations["UKR"]
+    session.commit()
+
+    provider, client = make_org("P", tax_value="11111111"), make_org("C", tax_value="22222222")
+    line, sequence = make_line_input(), make_sequence(provider)
+    (assembled,) = assembler.assemble(make_draft(provider, client, sequence, (line,)), NUMBER).lines
+
+    assert assembled.unit == {"UKR": "hr", "ENG": "hr"}
+
+
+def test_a_table_header_labelled_in_english_only_prints_in_every_language(session):
+    session.add(PlaceholderRegistry(
+        key="invl_desc", required=True, type="COLUMN", active=True, columns=None,
+        localizations={
+            "ENG": PlaceholderRegistryLocalization(language_code="ENG", label="Description"),
+        },
+    ))
+    session.commit()
+
+    assert build_labels(session, CODES)["invl_desc"] == {
+        "UKR": "Description", "ENG": "Description",
+    }
+
+
+def test_the_user_s_own_data_never_borrows_another_language(
+        session, make_org, make_line_input, make_sequence, assembler):
+    """A missing Ukrainian name is the user's to fill, not one to cover with English."""
+
+    provider, client = make_org("P", tax_value="11111111"), make_org("C", tax_value="22222222")
+    del provider.localizations["UKR"]
+    session.commit()
+
+    line, sequence = make_line_input(), make_sequence(provider)
+    data = assembler.assemble(make_draft(provider, client, sequence, (line,)), NUMBER)
+
+    assert data.provider.legal_name == {"ENG": "P"}

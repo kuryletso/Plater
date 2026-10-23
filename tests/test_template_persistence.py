@@ -331,6 +331,15 @@ def test_list_search_matches_the_name_case_insensitively(session: Session):
     assert [t.id for t in found] == [match.id]
 
 
+def test_list_search_folds_cyrillic_case(session: Session):
+    match = make_template(session, "Рахунок-фактура")
+    make_template(session, "Quote")
+
+    found = TemplateRepository(session).list(search="рахунок")
+
+    assert [t.id for t in found] == [match.id]
+
+
 def test_list_can_filter_by_document_type(session: Session):
     invoice = make_template(session, "Invoice", type="invoice")
     make_template(session, "Akt", type="akt")

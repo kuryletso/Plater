@@ -49,7 +49,16 @@ def organization_label(organization: Any) -> str:
 
     tax = next(iter(organization.tax_ids), None)
     if tax is not None:
-        system = localized(tax.tax_id_system.localizations, "name")
+        system = tax_system_label(tax.tax_id_system)
         label += f"\n{system} {tax.value}"
 
     return label
+
+
+def tax_system_label(system: Any) -> str:
+    """The interface label in the interface language, if present. Otherwise falls back to English one, 
+    then the name.
+    """
+
+    label = system.label_uk if _preferred[0] == "UKR" else system.label_en
+    return label or system.label_en or localized(system.localizations, "name")

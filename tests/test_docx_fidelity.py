@@ -159,6 +159,30 @@ def test_every_body_run_inherits_the_default_size(make_styled_docx):
     assert [r.style.font_size for r in runs_of(blocks)] == [20, 20]
 
 
+def doc_defaults(run_properties: str) -> etree._Element:
+    return etree.fromstring(
+        '<w:docDefaults xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+        f'<w:rPrDefault><w:rPr>{run_properties}</w:rPr></w:rPrDefault></w:docDefaults>'
+    )
+
+
+def test_text_sized_nowhere_is_10_pt_as_in_word():
+    """docDefaults name a font and no size, Normal is empty, the run has no <w:sz>:
+    Word shows 10 pt. Three of the built-ins are written that way."""
+    from app.document_engine.parser.style_resolver.style_resolver import StyleResolver
+
+    defaults = doc_defaults('<w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>')
+    style = StyleResolver({}, defaults).default_run_style
+
+    assert (style.font_name, style.font_size) == ("Arial", 20)
+
+
+def test_a_document_without_defaults_is_10_pt_too():
+    from app.document_engine.parser.style_resolver.style_resolver import StyleResolver
+
+    assert StyleResolver({}, None).default_run_style.font_size == 20
+
+
 # --- cell borders ------------------------------------------------------------
 #
 # Layout tables routinely suppress borders per cell (w:val="nil"), so a cell border

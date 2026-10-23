@@ -4,7 +4,7 @@ import functools
 from datetime import date
 from collections.abc import Sequence, Iterable
 
-from PySide6.QtCore import Qt, QSignalBlocker, QCollator
+from PySide6.QtCore import QPersistentModelIndex, Qt, QSignalBlocker, QCollator, QModelIndex
 from PySide6.QtWidgets import (
     QCompleter,
     QComboBox,
@@ -28,7 +28,7 @@ from app.db.models.references.language import Language
 from app.db.models.registries.tax_id_system import TaxIdSystemRegistry
 from app.db.models.registries.document_type import DocumentTypeRegistry
 from app.db.models.configs.default_template_config import DefaultTemplateConfig
-from app.gui.text import localized, preferred_languages
+from app.gui.text import localized, preferred_languages, tax_system_label
 from app.gui.icons import icon
 from app.services.dates import DATE_FORMATS, DEFAULT_DATE_FORMAT, format_document_date
 
@@ -84,11 +84,13 @@ def currency_items(session: Session) -> list[Item]:
 
 
 def tax_system_items(session: Session) -> list[Item]:
+    """Labeled for the interface. Typing either label or name still finds a system."""
+
     return _by_label(
         (
             row.code,
-            localized(row.localizations, 'name'),
-            _localized_names(row),
+            tax_system_label(row),
+            (*_localized_names(row), *(label for label in (row.label_en, row.label_uk) if label)),
         ) for row in session.scalars(
             select(TaxIdSystemRegistry)
             .where(TaxIdSystemRegistry.active.is_(True))
@@ -328,22 +330,35 @@ class LocalizedFields(QWidget):
         return self._names.get(code, code)
 
 
+_SEARCH_ROLE = Qt.ItemDataRole.UserRole + 1
+class _LabelCompleter(QCompleter):
+    """Matches an item by any of its names, then writes its label into the field."""
+
+    def pathFromIndex(self, index: QModelIndex | QPersistentModelIndex) -> str:
+        return index.data(Qt.ItemDataRole.DisplayRole)
+
+
 class ReferenceCombo(QComboBox):
-    """Editable, type-to-filter picker over a reference table.
+    """Editable on-typing filter picker over a reference table.
     
-    Typed text resolves against the code and every localized name, 
-    not just displayed name. So the UI language does not affect user search.
+    Typed text resolved against the code and every localized name so the UI language does not limit 
+    what a user can search for. 
+    
+    The popup lists every item once, by its label. `list_names` lists every name instead.
     """
 
     def __init__(
             self,
-            items: Sequence[tuple[str, str, tuple[str, ...]]],       # code, label, aliases
+            items: Sequence[tuple[str, str, tuple[str, ...]]],      # code, label, aliases
             parent: QWidget | None = None,
+            *,
+            list_names: bool = False,
     ) -> None:
 
         super().__init__(parent)
         self.setEditable(True)
         self.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        self._list_names = list_names
         self._aliases: dict[str, str] = {}
 
         self.set_items(items)
@@ -352,26 +367,21 @@ class ReferenceCombo(QComboBox):
         if line_edit is not None:
             line_edit.editingFinished.connect(self._normalize)
 
+
     def set_items(
             self,
             items: Sequence[tuple[str, str, tuple[str, ...]]],
     ) -> None:
-        """Repopulates in-place to keep current selection."""
+        """Repopulates in-place to keep current slection."""
 
         current = self.code()
 
         with QSignalBlocker(self):
             self.clear()
-            self._aliases.clear()
-
-            for code, label, aliases in items:
+            for code, label, _ in items:
                 self.addItem(label, code)
-                for alias in aliases:
-                    if alias:
-                        self._aliases.setdefault(alias.casefold(), code)
-                self._aliases[label.casefold()] = code
-                self._aliases[code.casefold()] = code
 
+        self._aliases = _lookup(items)
         self._build_completer(items)
         self.set_code(current)
 
@@ -379,10 +389,8 @@ class ReferenceCombo(QComboBox):
     def code(self) -> str | None:
         return self._aliases.get(self.currentText().strip().casefold())
 
-
     def set_code(self, code: str | None) -> None:
         self.setCurrentIndex(self.findData(code) if code else -1)
-
 
     def _build_completer(
             self,
@@ -390,20 +398,32 @@ class ReferenceCombo(QComboBox):
     ) -> None:
 
         model = QStandardItemModel(self)
-        seen: set[str] = set()
 
-        for code, label, aliases in items:
-            for text in (label, code, *aliases):
-                key = text.casefold()
-                if not text or key in seen:
-                    continue
+        if self._list_names:
+            seen: set[str] = set()
+            for code, label, aliases in items:
+                for text in (label, code, *aliases):
+                    if not text or text.casefold() in seen:
+                        continue
 
-                seen.add(key)
-                entry = QStandardItem(text)
+                    seen.add(text.casefold())
+                    entry = QStandardItem(text)
+                    entry.setData(code, Qt.ItemDataRole.UserRole)
+                    model.appendRow(entry)
+
+            completer = QCompleter(model, self)
+
+        else:
+            for code, label, aliases in items:
+                entry = QStandardItem(label)
                 entry.setData(code, Qt.ItemDataRole.UserRole)
+                # one name per line
+                entry.setData("\n".join(text for text in (label, code, *aliases) if text), _SEARCH_ROLE)
                 model.appendRow(entry)
 
-        completer = QCompleter(model, self)
+            completer = _LabelCompleter(model, self)
+            completer.setCompletionRole(_SEARCH_ROLE)
+
         completer.setCompletionMode(QCompleter.CompletionMode.PopupCompletion)
         completer.setFilterMode(Qt.MatchFlag.MatchContains)
         completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
@@ -416,3 +436,22 @@ class ReferenceCombo(QComboBox):
         code = self.code()
         if code is not None:
             self.set_code(code)
+
+
+def _lookup(items: Sequence[tuple[str, str, tuple[str, ...]]]) -> dict[str, str]:
+    """Determines what typed text selects. A label or code always select its item. Matching name is 
+    only selected if exactly one item has it.
+    """
+
+    owners: dict[str, set[str]] = {}
+    for code, _, aliases in items:
+        for alias in aliases:
+            if alias:
+                owners.setdefault(alias.casefold(), set()).add(code)
+
+    lookup = { name: next(iter(codes)) for name, codes in owners.items() if len(codes) == 1 }
+    for code, label, _ in items:
+        lookup[label.casefold()] = code
+        lookup[code.casefold()] = code
+
+    return lookup

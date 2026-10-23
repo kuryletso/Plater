@@ -324,6 +324,7 @@ class MainWindow(QMainWindow):
         """
 
         repository = InvoiceLineRepository(self._session)
+        primary = self.draft.languages[0] if self.draft.languages else None
 
         for line in draft.lines:
             try:
@@ -336,6 +337,7 @@ class MainWindow(QMainWindow):
                     measurement_unit=line.unit_code,
                     unit_price=line.unit_price,
                     tax_rate=line.tax_rate,
+                    primary=primary,
                 )
             except ServiceError:
                 self._session.rollback()

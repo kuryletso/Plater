@@ -172,6 +172,42 @@ def test_fractional_quantities_survive_the_round_trip(repo):
     assert stored.tax_rate == Decimal("0.07")
 
 
+def test_create_rejects_a_description_another_line_has(repo, line):
+    """Case and spacing aside: the hints would list "design work" twice."""
+    with pytest.raises(InvalidSelection):
+        repo.create(
+            {"ENG": InvoiceLineText(description="design  WORK")},
+            quantity=Decimal("1"), measurement_unit="hour",
+            unit_price=Decimal("1"), tax_rate=Decimal("0"),
+        )
+
+
+def test_the_same_text_in_another_language_is_another_description(repo, line):
+    created = repo.create(
+        {"UKR": InvoiceLineText(description="Design work")},
+        quantity=Decimal("1"), measurement_unit="hour",
+        unit_price=Decimal("1"), tax_rate=Decimal("0"),
+    )
+
+    assert created.id != line.id
+
+
+def test_the_database_itself_refuses_a_duplicate_description(line, session: Session):
+    from sqlalchemy.exc import IntegrityError
+
+    session.add(InvoiceLine(
+        quantity=Decimal("1"), measurement_unit_code="hour",
+        unit_price=Decimal("1"), tax_rate=Decimal("0"),
+        localizations={
+            "ENG": InvoiceLineLocalization(language_code="ENG", description="DESIGN WORK"),
+        },
+    ))
+
+    with pytest.raises(IntegrityError):
+        session.commit()
+    session.rollback()
+
+
 # --- read --------------------------------------------------------------------
 
 def test_get_raises_for_an_unknown_line(repo):
@@ -195,15 +231,16 @@ def test_list_returns_newest_first(repo):
 
 
 def test_search_matches_any_localized_description(repo, line):
-    """A user typing in either language must find the same row.
-
-    Case-insensitivity is ASCII-only: SQLite's lower()/LIKE do not fold
-    Cyrillic, so 'дизайн' would miss 'Дизайн'. Shared limitation of every
-    icontains search in the codebase, noted for the GUI stage.
-    """
+    """A user typing in either language must find the same row."""
     assert [l.id for l in repo.list(search="design")] == [line.id]
     assert [l.id for l in repo.list(search="Дизайн")] == [line.id]
     assert repo.list(search="plumbing") == []
+
+
+def test_search_folds_cyrillic_case(repo, line):
+    """SQLite's own lower() folds ASCII only, so "дизайн" missed "Дизайн"."""
+
+    assert [l.id for l in repo.list(search="дизайн")] == [line.id]
 
 
 # --- update ------------------------------------------------------------------
@@ -311,6 +348,26 @@ def test_update_cannot_remove_the_last_localization(repo, line):
         repo.update(line.id, localizations={})
 
 
+def test_update_rejects_a_description_another_line_has(repo, line):
+    other = repo.create(
+        {"ENG": InvoiceLineText(description="Consulting")},
+        quantity=Decimal("1"), measurement_unit="hour",
+        unit_price=Decimal("1"), tax_rate=Decimal("0"),
+    )
+
+    with pytest.raises(InvalidSelection):
+        repo.update(other.id, localizations={"ENG": InvoiceLineText(description="Design work")})
+
+
+def test_update_may_keep_its_own_description(repo, line):
+    updated = repo.update(line.id, localizations={
+        "ENG": InvoiceLineText(description="DESIGN WORK"),
+        "UKR": InvoiceLineText(description="Дизайн"),
+    })
+
+    assert updated.localizations["ENG"].description == "DESIGN WORK"
+
+
 def test_update_raises_for_an_unknown_line(repo):
     with pytest.raises(EntityNotFound):
         repo.update(9999, unit_price=Decimal("1"))
@@ -332,25 +389,41 @@ def test_delete_raises_for_an_unknown_line(repo):
 
 # --- touch: cache write-back after a successful generate ----------------------
 
-def touch(repo, description="Design work", *, description_ukr="Дизайн",
+def texts(**descriptions: str) -> dict[str, InvoiceLineText]:
+    return {code: InvoiceLineText(description=text) for code, text in descriptions.items()}
+
+
+def touch(repo, description="Design work", *, description_ukr=None, primary=None,
           quantity="10", unit="hour", unit_price="125.50", tax_rate="0.2"):
+    """English, plus Ukrainian when given. `primary` is passed only when given."""
+
+    localizations = texts(ENG=description)
+    if description_ukr is not None:
+        localizations |= texts(UKR=description_ukr)
+
     return repo.touch(
-        {
-            "ENG": InvoiceLineText(description=description),
-            "UKR": InvoiceLineText(description=description_ukr),
-        },
+        localizations,
         quantity=Decimal(quantity),
         measurement_unit=unit,
         unit_price=Decimal(unit_price),
         tax_rate=Decimal(tax_rate),
+        **({"primary": primary} if primary is not None else {}),
     )
 
 
-def test_touching_an_unseen_line_stores_it(repo, session: Session):
-    stored = touch(repo)
+def stored(repo, line) -> dict[str, str]:
+    return {code: row.description for code, row in repo.get(line.id).localizations.items()}
 
-    assert session.scalars(select(InvoiceLine)).unique().all() == [stored]
-    assert stored.use_count == 1
+
+def saved_lines(session: Session) -> list[InvoiceLine]:
+    return list(session.scalars(select(InvoiceLine)).unique().all())
+
+
+def test_touching_an_unseen_line_stores_it(repo, session: Session):
+    line = touch(repo)
+
+    assert saved_lines(session) == [line]
+    assert line.use_count == 1
 
 
 def test_touching_a_known_line_bumps_it_instead_of_duplicating(repo, session: Session):
@@ -359,13 +432,20 @@ def test_touching_a_known_line_bumps_it_instead_of_duplicating(repo, session: Se
 
     assert second.id == first.id
     assert second.use_count == 2
-    assert len(session.scalars(select(InvoiceLine)).unique().all()) == 1
+    assert len(saved_lines(session)) == 1
 
 
 def test_matching_ignores_case(repo):
     """The user retyping 'design work' must not fork the hint."""
     first = touch(repo, "Design work")
     second = touch(repo, "DESIGN WORK")
+
+    assert second.id == first.id
+
+
+def test_matching_ignores_extra_spaces(repo):
+    first = touch(repo, "Design work")
+    second = touch(repo, " Design   work ")
 
     assert second.id == first.id
 
@@ -379,29 +459,83 @@ def test_quantity_is_remembered_but_never_matched(repo):
     assert second.quantity == Decimal("40")
 
 
-def test_a_new_price_forks_a_new_hint(repo, session: Session):
-    """Price changes are real, so both survive and the stale one decays away."""
-    first = touch(repo, unit_price="125.50")
-    second = touch(repo, unit_price="150.00")
+def test_new_values_update_the_same_line(repo, session: Session):
+    """The hints show descriptions only, so "per hour at 100" and "per project at
+    2000" were two identical-looking entries. The latest values win."""
+    first = touch(repo, unit="hour", unit_price="100", tax_rate="0.2")
+    second = touch(repo, unit="hour", unit_price="2000", tax_rate="0")
 
-    assert second.id != first.id
-    assert len(session.scalars(select(InvoiceLine)).unique().all()) == 2
+    assert second.id == first.id
+    assert (second.unit_price, second.tax_rate) == (Decimal("2000"), Decimal("0"))
+    assert len(saved_lines(session)) == 1
 
 
 def test_a_different_description_forks_a_new_hint(repo):
     assert touch(repo, "Design work").id != touch(repo, "Consulting").id
 
 
-def test_dropping_a_language_forks_a_new_hint(repo):
-    """Descriptions must match as a whole, not per language."""
-    both = touch(repo)
-    english_only = repo.touch(
-        {"ENG": InvoiceLineText(description="Design work")},
-        quantity=Decimal("10"), measurement_unit="hour",
-        unit_price=Decimal("125.50"), tax_rate=Decimal("0.2"),
+def test_a_language_left_out_keeps_its_text(repo):
+    """An English-only invoice must not cost the line its Ukrainian description."""
+    both = touch(repo, "Design work", description_ukr="Дизайн")
+    english_only = touch(repo, "Design work", unit_price="150")
+
+    assert english_only.id == both.id
+    assert stored(repo, both) == {"ENG": "Design work", "UKR": "Дизайн"}
+
+
+def test_a_new_translation_replaces_the_old_one(repo, session: Session):
+    line = touch(repo, "Design work", description_ukr="Дизайн")
+    touch(repo, "Design work", description_ukr="Дизайн інтерфейсу")
+
+    assert stored(repo, line) == {"ENG": "Design work", "UKR": "Дизайн інтерфейсу"}
+    assert len(saved_lines(session)) == 1
+
+
+def test_a_description_moves_to_the_line_it_was_typed_with(repo):
+    """Kept on both lines, "Розробка логотипу" would show twice in Ukrainian hints."""
+    design = touch(repo, "Design work", description_ukr="Дизайн")
+    logo = touch(repo, "Logo design", description_ukr="Розробка логотипу")
+
+    updated = touch(repo, "Design work", description_ukr="Розробка логотипу")
+
+    assert updated.id == design.id
+    assert stored(repo, design) == {"ENG": "Design work", "UKR": "Розробка логотипу"}
+    assert stored(repo, logo) == {"ENG": "Logo design"}
+
+
+def test_a_line_left_with_no_description_is_deleted(repo, session: Session):
+    touch(repo, "Design work", description_ukr="Дизайн")
+    repo.touch(
+        texts(UKR="Розробка логотипу"),
+        quantity=Decimal("1"), measurement_unit="hour",
+        unit_price=Decimal("1"), tax_rate=Decimal("0"),
     )
 
-    assert english_only.id != both.id
+    touch(repo, "Design work", description_ukr="Розробка логотипу")
+
+    assert len(saved_lines(session)) == 1
+
+
+def test_a_new_primary_description_makes_a_new_line(repo):
+    """The line that had "Дизайн" keeps "Design work", which was not typed."""
+    design = touch(repo, "Design work", description_ukr="Дизайн")
+
+    brand = touch(repo, "Brand design", description_ukr="Дизайн")
+
+    assert brand.id != design.id
+    assert stored(repo, brand) == {"ENG": "Brand design", "UKR": "Дизайн"}
+    assert stored(repo, design) == {"ENG": "Design work"}
+
+
+def test_the_primary_language_decides_which_line_is_updated(repo):
+    design = touch(repo, "Design work", description_ukr="Дизайн")
+    logo = touch(repo, "Logo design", description_ukr="Розробка логотипу")
+
+    updated = touch(repo, "Design work", description_ukr="Розробка логотипу", primary="UKR")
+
+    assert updated.id == logo.id
+    assert stored(repo, logo) == {"ENG": "Design work", "UKR": "Розробка логотипу"}
+    assert stored(repo, design) == {"UKR": "Дизайн"}
 
 
 # --- hints: frecency ranking --------------------------------------------------
@@ -411,25 +545,33 @@ def age(line, *, days: float, uses: int) -> None:
     line.use_count = uses
 
 
-def test_hints_match_either_language(repo):
-    line = touch(repo)
+def test_hints_search_one_language(repo):
+    """Typing in the English field must not offer a line for its Ukrainian text."""
+    line = touch(repo, "Design work", description_ukr="Дизайн")
 
-    assert [h.id for h in repo.hints("design")] == [line.id]
-    assert [h.id for h in repo.hints("дизайн")] == [line.id]
+    assert [h.id for h in repo.hints("ENG", "design")] == [line.id]
+    assert repo.hints("ENG", "дизайн") == []
+    assert [h.id for h in repo.hints("UKR", "дизайн")] == [line.id]
+
+
+def test_hints_leave_out_lines_without_the_language(repo):
+    design = touch(repo, "Design work", description_ukr="Дизайн")
+    touch(repo, "Consulting")
+
+    assert [h.id for h in repo.hints("UKR")] == [design.id]
 
 
 def test_hint_search_folds_cyrillic_case(repo):
-    """casefold() in Python is why this works where SQLite's lower() would not."""
+    """casefold() in Python is why this works where SQLite's own lower() would not."""
     line = touch(repo, description_ukr="Дизайн")
 
-    assert [h.id for h in repo.hints("ДИЗАЙН")] == [line.id]
-    assert [h.id for h in repo.hints("дизайн")] == [line.id]
+    assert [h.id for h in repo.hints("UKR", "ДИЗАЙН")] == [line.id]
 
 
 def test_hints_exclude_non_matches(repo):
     touch(repo, "Design work")
 
-    assert repo.hints("plumbing") == []
+    assert repo.hints("ENG", "plumbing") == []
 
 
 def test_a_frequent_line_outranks_a_merely_recent_one(repo, session: Session):
@@ -440,7 +582,7 @@ def test_a_frequent_line_outranks_a_merely_recent_one(repo, session: Session):
     age(once, days=0, uses=1)
     session.commit()
 
-    assert [h.id for h in repo.hints()] == [frequent.id, once.id]
+    assert [h.id for h in repo.hints("ENG")] == [frequent.id, once.id]
 
 
 def test_recency_breaks_ties_between_equally_used_lines(repo, session: Session):
@@ -450,7 +592,7 @@ def test_recency_breaks_ties_between_equally_used_lines(repo, session: Session):
     age(fresh, days=1, uses=3)
     session.commit()
 
-    assert [h.id for h in repo.hints()] == [fresh.id, stale.id]
+    assert [h.id for h in repo.hints("ENG")] == [fresh.id, stale.id]
 
 
 def test_a_long_unused_line_decays_below_a_new_one(repo, session: Session):
@@ -461,11 +603,11 @@ def test_a_long_unused_line_decays_below_a_new_one(repo, session: Session):
     age(recent, days=0, uses=1)
     session.commit()
 
-    assert [h.id for h in repo.hints()] == [recent.id, ancient.id]
+    assert [h.id for h in repo.hints("ENG")] == [recent.id, ancient.id]
 
 
 def test_hints_respect_the_limit(repo):
     for i in range(5):
         touch(repo, f"Line {i}")
 
-    assert len(repo.hints(limit=3)) == 3
+    assert len(repo.hints("ENG", limit=3)) == 3

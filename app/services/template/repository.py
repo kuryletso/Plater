@@ -459,7 +459,7 @@ class TemplateRepository:
         if document_type is not None:
             query = query.where(Template.type == document_type)
         if search:
-            query = query.where(Template.name.icontains(search))
+            query = query.where(Template.name.icontains(search, autoescape=True))
 
         return list(self._session.scalars(query).all())
 

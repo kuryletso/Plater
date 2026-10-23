@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.db.models.core.invoice_line import InvoiceLine
-from app.db.models.core.invoice_line_localization import InvoiceLineLocalization
+from app.db.models.core.invoice_line_localization import InvoiceLineLocalization, description_key
 from app.db.models.references.language import Language
 from app.db.models.registries.measurement_unit import MeasurementUnitRegistry
 from app.services.errors import EntityNotFound, InvalidSelection
@@ -44,6 +44,7 @@ class InvoiceLineRepository:
         self._check_localizations(localizations)
         self._check_measurement_unit(measurement_unit)
         self._check_amounts(quantity, unit_price, tax_rate)
+        self._check_descriptions_free(localizations)
 
         line = InvoiceLine(
             quantity=quantity,
@@ -101,7 +102,7 @@ class InvoiceLineRepository:
             query = query.where(
                 InvoiceLine.id.in_(
                     select(InvoiceLineLocalization.invoice_line_id)
-                    .where(InvoiceLineLocalization.description.icontains(search)),
+                    .where(InvoiceLineLocalization.description.icontains(search, autoescape=True)),
                 )
             )
 
@@ -123,6 +124,7 @@ class InvoiceLineRepository:
 
         if not isinstance(localizations, Unset):
             self._check_localizations(localizations)
+            self._check_descriptions_free(localizations, line_id)
         if not isinstance(measurement_unit, Unset):
             self._check_measurement_unit(measurement_unit)
 
@@ -180,64 +182,83 @@ class InvoiceLineRepository:
             measurement_unit: str,
             unit_price: Decimal,
             tax_rate: Decimal,
+            primary: str | None = None,
     ) -> InvoiceLine:
-        """Cache write-back after a successful generate. Bump the match or store a new hint.
-        Quantity is per-invoice, so it never participates in matching
-        and only remembered a 'last used'.
+        """Cache write-back after a successful generate, one saved line per description.
+
+        The line holding primary language description takes the latest values, or a new line is created. 
+        Every description given then belongs to that line, taken from whichever line had it before. 
+        Languages that are not used keep their text. Line left with no description is deleted. 
+        `primary` defaults to the first language given.
         """
 
-        typed = {
-            code: text.description.casefold()
-            for code, text in localizations.items()
-        }
+        self._check_localizations(localizations)
+        self._check_measurement_unit(measurement_unit)
+        self._check_amounts(quantity, unit_price, tax_rate)
 
-        for line in self.list():
-            if line.measurement_unit_code != measurement_unit:
-                continue
-            if line.unit_price != unit_price or line.tax_rate != tax_rate:
-                continue
+        lookup = primary if primary is not None and primary in localizations else next(iter(localizations))
+        owner = self._owner(lookup, localizations[lookup].description)
 
-            stored = {
-                code: row.description.casefold()
-                for code, row in line.localizations.items()
-            }
-            if stored != typed:
-                continue
+        if owner is None:
+            line = InvoiceLine(use_count=0)
+            self._session.add(line)
+        else:
+            line = owner.invoice_line
 
-            line.use_count += 1
-            line.last_used_at = datetime.now(UTC)
-            line.quantity = quantity
-            self._session.commit()
-            return line
+        line.quantity = quantity
+        line.measurement_unit_code = measurement_unit
+        line.unit_price = unit_price
+        line.tax_rate = tax_rate
+        line.use_count += 1
+        line.last_used_at = datetime.now(UTC)
 
-        return self.create(
-            localizations=localizations,
-            quantity=quantity,
-            measurement_unit=measurement_unit,
-            unit_price=unit_price,
-            tax_rate=tax_rate,
-        )
+        # Frees the description first and flushes, then writes new row. Single flush would write rows 
+        # before it deletes them, which the unqique constraint would refuse otherwise.
+
+        for code, text in localizations.items():
+            taken = self._owner(code, text.description)
+            if taken is not None and taken.invoice_line is not line:
+                donor = taken.invoice_line
+                del donor.localizations[code]
+                if not donor.localizations:
+                    self._session.delete(donor)
+        self._session.flush()
+
+        for code, text in localizations.items():
+            row = line.localizations.get(code)
+            if row is None:
+                line.localizations[code] = InvoiceLineLocalization(
+                    language_code=code,
+                    description=text.description,
+                )
+            else:
+                row.description = text.description
+
+        self._session.commit()
+
+        return line
 
 
     def hints(
             self,
+            language: str,
             search: str | None = None,
             *,
             limit: int = 20,
     ) -> list[InvoiceLine]:
-        """Autocomplete candidates, best first. Filtering and scoring happen in Python:
-        the cache is small, casefild() handles Cyrillic, uses frecency formula."""
+        """Autocomplete candidates, lines which `language` description contains 
+        `search`, best first. Filtering and scoring happen in Python:
+        the cache is small, casefild() handles Cyrillic, uses frecency formula.
+        """
 
         now = datetime.now(UTC)
         needle = search.casefold() if search else None
 
         def matches(line: InvoiceLine) -> bool:
-            if needle is None:
-                return True
-            return any(
-                needle in row.description.casefold()
-                for row in line.localizations.values()
-            )
+            row = line.localizations.get(language)
+            if row is None:
+                return False
+            return needle is None or needle in row.description.casefold()
 
         def score(line: InvoiceLine) -> float:
             last_used = line.last_used_at
@@ -315,3 +336,30 @@ class InvoiceLineRepository:
                 user_message=QT_TRANSLATE_NOOP("messages", "Tax rate cannot be negative."),
                 context={"tax_rate": tax_rate},
             )
+
+
+    def _check_descriptions_free(
+            self,
+            localizations: Mapping[str, InvoiceLineText],
+            line_id: int | None = None,
+    ) -> None:
+        """Descrption belongs to one saved line per language."""
+
+        for code, text in localizations.items():
+            owner = self._owner(code, text.description)
+            if owner is not None and owner.invoice_line_id != line_id:
+                raise InvalidSelection(
+                    f"line {owner.invoice_line_id} already has this {code} description",
+                    user_message=QT_TRANSLATE_NOOP("messages", "Another saved invoice line already has this description."),
+                    context={"line_id": owner.invoice_line_id, "language": code},
+                )
+
+
+    def _owner(self, language: str, description: str) -> InvoiceLineLocalization | None:
+        return self._session.scalar(
+            select(InvoiceLineLocalization)
+                .where(
+                    InvoiceLineLocalization.language_code == language,
+                    InvoiceLineLocalization.description_key == description_key(description),
+                )
+        )

@@ -110,6 +110,25 @@ def test_search_matches_any_language(repo):
     assert [o.localizations["ENG"].legal_name for o in found] == ["Globex"]
 
 
+def test_search_folds_cyrillic_case(repo):
+    """SQLite's own lower() folds ASCII only, so "тов" missed "ТОВ"."""
+    repo.create(bilingual("Acme", "Акме"))
+    repo.create(bilingual("Globex", "ТОВ Глобекс"))
+
+    found = repo.list(search="тов глобекс")
+
+    assert [o.localizations["ENG"].legal_name for o in found] == ["Globex"]
+
+
+def test_search_takes_a_percent_sign_literally(repo):
+    repo.create(bilingual("100% Design", "100% Дизайн"))
+    repo.create(bilingual("Globex", "Глобекс"))
+
+    found = repo.list(search="%")
+
+    assert [o.localizations["ENG"].legal_name for o in found] == ["100% Design"]
+
+
 # --- update ------------------------------------------------------------------
 
 def test_update_changes_only_what_was_passed(repo, organization):

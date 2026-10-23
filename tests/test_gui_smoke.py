@@ -1157,6 +1157,84 @@ def test_reference_pickers_offer_aliases_as_completions(qt_app, session: Session
     assert completer.completionCount() >= 1
 
 
+def completions(completer) -> list[str]:
+    model = completer.completionModel()
+    return [model.index(row, 0).data() for row in range(model.rowCount())]
+
+
+VAT_SYSTEMS = [
+    ("be_vat", "VAT Number — Belgium", ("VAT Number", "BTW-nummer")),
+    ("ee_vat", "VAT Number — Estonia", ("VAT Number", "Käibemaksukohustuslase number")),
+]
+
+
+def test_a_picker_lists_each_item_once_by_its_label(qt_app):
+    from app.gui.dialogs.widgets import ReferenceCombo
+
+    combo = ReferenceCombo(VAT_SYSTEMS)
+    completer = combo.completer()
+    completer.setCompletionPrefix("VAT Number")
+
+    assert completions(completer) == ["VAT Number — Belgium", "VAT Number — Estonia"]
+
+
+def test_a_picker_finds_an_item_by_another_name_and_shows_its_label(qt_app):
+    from app.gui.dialogs.widgets import ReferenceCombo
+
+    combo = ReferenceCombo(VAT_SYSTEMS)
+    completer = combo.completer()
+    completer.setCompletionPrefix("btw")
+
+    assert completions(completer) == ["VAT Number — Belgium"]
+
+    completer.setCurrentRow(0)
+    assert completer.currentCompletion() == "VAT Number — Belgium", "the label goes in the field"
+
+
+def test_a_name_several_items_share_selects_none_of_them(qt_app):
+    """Typing "VAT Number" used to select whichever system sorted first."""
+    from app.gui.dialogs.widgets import ReferenceCombo
+
+    combo = ReferenceCombo(VAT_SYSTEMS)
+
+    combo.lineEdit().setText("VAT Number")
+    assert combo.code() is None
+
+    combo.lineEdit().setText("btw-nummer")
+    assert combo.code() == "be_vat"
+
+
+def test_a_label_selects_its_item_even_when_others_share_it_as_a_name(qt_app):
+    from app.gui.dialogs.widgets import ReferenceCombo
+
+    combo = ReferenceCombo([*VAT_SYSTEMS, ("vat", "VAT Number", ("VAT Number",))])
+    combo.lineEdit().setText("vat number")
+
+    assert combo.code() == "vat"
+
+
+def test_the_tax_system_picker_lists_labels_only(qt_app, session: Session, labelled_edrpou):
+    from app.gui.dialogs.widgets import searchable_combo, tax_system_items
+
+    combo = searchable_combo(tax_system_items(session))
+    completer = combo.completer()
+    completer.setCompletionPrefix("ЄДРПОУ")
+
+    assert completions(completer) == ["EDRPOU code"]
+
+
+def test_an_invoice_line_s_unit_picker_still_lists_every_name(qt_app, session: Session):
+    """Units keep listing each name: typing "го" offers "год", not only "hr"."""
+    from app.gui.columns.lines_row import LinesContainer
+
+    lines = LinesContainer(session)
+    lines.set_context(("ENG",), [("hour", "hr", ("hr", "год"))])
+    completer = lines._widgets[0].unit_combo.completer()
+    completer.setCompletionPrefix("го")
+
+    assert completions(completer) == ["год"]
+
+
 # --- 2026-09-04 manual test pass: open tasks ---------------------------------
 #
 # Each xfail(strict=True) below is an open task. Fixing it turns the test into an
@@ -1604,6 +1682,70 @@ def test_the_tax_id_picker_names_the_tax_system(window, make_org):
     assert column.ui.tax_combo.itemText(0) == "12345678 (EDRPOU)"
 
 
+@pytest.fixture
+def labelled_edrpou(session: Session):
+    from app.db.models.registries.tax_id_system import TaxIdSystemRegistry
+
+    system = session.get(TaxIdSystemRegistry, "ua_edrpou")
+    system.label_en = "EDRPOU code"
+    system.label_uk = "Код ЄДРПОУ"
+    session.commit()
+    return system
+
+
+def tax_system_label_in(languages: tuple[str, ...], system) -> str:
+    from app.gui.text import preferred_languages, set_preferred_languages, tax_system_label
+
+    before = preferred_languages()
+    set_preferred_languages(languages)
+    try:
+        return tax_system_label(system)
+    finally:
+        set_preferred_languages(before)
+
+
+def test_a_tax_system_label_follows_the_interface_language(labelled_edrpou):
+    assert tax_system_label_in(("UKR", "ENG"), labelled_edrpou) == "Код ЄДРПОУ"
+    assert tax_system_label_in(("ENG", "UKR"), labelled_edrpou) == "EDRPOU code"
+
+
+def test_a_tax_system_without_a_ukrainian_label_shows_the_english_one(session: Session,
+                                                                       labelled_edrpou):
+    labelled_edrpou.label_uk = None
+    session.commit()
+
+    assert tax_system_label_in(("UKR", "ENG"), labelled_edrpou) == "EDRPOU code"
+
+
+def test_a_tax_system_without_labels_shows_its_printed_name(session: Session):
+    from app.db.models.registries.tax_id_system import TaxIdSystemRegistry
+
+    system = session.get(TaxIdSystemRegistry, "ua_edrpou")
+
+    assert tax_system_label_in(("UKR", "ENG"), system) == "ЄДРПОУ"
+    assert tax_system_label_in(("ENG", "UKR"), system) == "EDRPOU"
+
+
+def test_the_tax_id_picker_shows_the_label(window, make_org, labelled_edrpou):
+    make_org("Acme", tax_value="12345678")
+    column = window.provider_column
+    select_organization(column, "Acme")
+
+    assert column.ui.tax_combo.itemText(0) == "12345678 (EDRPOU code)"
+
+
+def test_the_tax_system_picker_shows_labels_and_finds_names_too(qt_app, session: Session,
+                                                                  labelled_edrpou):
+    from app.gui.dialogs.widgets import searchable_combo, tax_system_items
+
+    combo = searchable_combo(tax_system_items(session))
+
+    assert combo.itemText(0) == "EDRPOU code"
+    for typed in ("EDRPOU code", "Код ЄДРПОУ", "EDRPOU", "ЄДРПОУ", "ua_edrpou"):
+        combo.lineEdit().setText(typed)
+        assert combo.code() == "ua_edrpou", typed
+
+
 def test_the_bank_dialog_says_when_it_edits(qt_app, session: Session, organization_with_details):
     from app.gui.dialogs.bank_account import BankAccountDialog
 
@@ -1865,3 +2007,55 @@ def test_the_language_tabs_show_icons_not_characters(qt_app, session: Session, s
     from app.gui.dialogs.organization import OrganizationDialog
 
     assert bare_symbol_buttons(OrganizationDialog(session)) == []
+
+
+# --- saved invoice lines -----------------------------------------------------------------
+
+def remember(session: Session, **descriptions: str):
+    from decimal import Decimal
+
+    from app.services.invoice_line.repository import InvoiceLineRepository, InvoiceLineText
+
+    return InvoiceLineRepository(session).touch(
+        {code: InvoiceLineText(description=text) for code, text in descriptions.items()},
+        quantity=Decimal("1"), measurement_unit="hour",
+        unit_price=Decimal("100"), tax_rate=Decimal("0"),
+    )
+
+
+def test_line_hints_search_the_primary_language_only(qt_app, session: Session):
+    """Typing "design" in a Ukrainian field offered "Дизайн", found by its English text."""
+    from app.gui.columns.lines_row import LinesContainer
+
+    remember(session, ENG="Design work", UKR="Дизайн")
+    lines = LinesContainer(session)
+    lines.set_context(("UKR", "ENG"), [("hour", "hr", ("hr", "год"))])
+    edit = lines._widgets[0].description_edits["UKR"]
+
+    edit.textEdited.emit("design")
+    assert completions(edit.completer()) == []
+
+    edit.textEdited.emit("диз")
+    assert completions(edit.completer()) == ["Дизайн"]
+
+
+def test_a_generated_line_is_remembered_under_the_primary_language(window, session: Session):
+    from decimal import Decimal
+    from types import SimpleNamespace
+
+    from app.services.invoice.draft import LineInput
+    from app.services.invoice_line.repository import InvoiceLineRepository
+
+    design = remember(session, ENG="Design work", UKR="Дизайн")
+    logo = remember(session, ENG="Logo design", UKR="Розробка логотипу")
+    window.draft.languages = ("UKR", "ENG")
+
+    window._remember_lines(SimpleNamespace(lines=(LineInput(
+        descriptions={"ENG": "Design work", "UKR": "Розробка логотипу"},
+        unit_code="hour", quantity=Decimal("1"),
+        unit_price=Decimal("100"), tax_rate=Decimal("0"),
+    ),)))
+
+    repo = InvoiceLineRepository(session)
+    assert set(repo.get(logo.id).localizations) == {"ENG", "UKR"}
+    assert set(repo.get(design.id).localizations) == {"UKR"}

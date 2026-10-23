@@ -10,7 +10,6 @@ from app.db.models.core.organization import Organization
 from app.db.models.core.representative import Representative as RepresentativeORM
 from app.db.models.core.tax_id import TaxId as TaxIdORM
 from app.db.models.core.bank_account import BankAccount as BankAccountORM
-from app.db.models.core.invoice_line import InvoiceLine
 from app.db.models.references.country import Country
 from app.db.models.references.currency import Currency
 from app.db.models.references.language import Language
@@ -49,6 +48,29 @@ def values_of(
             out[code] = value
     
     return out
+
+
+def reference_values(
+        localizations: Mapping[str, Any],
+        attr: str,
+        codes: tuple[str, ...],
+) -> Values:
+    """values_of() for reference data (tax systems, countries etc.) since some only named in English.
+    A language without its name falls back to English one.
+    """
+
+    values = values_of(localizations, attr, codes)
+    fallback = next(
+        (
+            value for code in ("ENG", *localizations)
+            if (row := localizations.get(code)) is not None
+            and (value := getattr(row, attr)) is not None
+        ),
+        None,
+    )
+    if fallback is None:
+        return values
+    return {code: values.get(code, fallback) for code in codes}
 
 
 def resolve_languages(
@@ -93,7 +115,7 @@ def build_labels(
         )
     ):
         
-        localized = values_of(ph.localizations, "label", codes)
+        localized = reference_values(ph.localizations, "label", codes)
         if localized:
             labels[ph.key] = localized
 
@@ -221,8 +243,8 @@ class InvoiceAssembler:
         
         return TaxId(
             value=match.value,
-            system=values_of(match.tax_id_system.localizations, "name", self._codes),
-            country=values_of(match.country.localizations, "name", self._codes),
+            system=reference_values(match.tax_id_system.localizations, "name", self._codes),
+            country=reference_values(match.country.localizations, "name", self._codes),
         )
     
 
@@ -308,7 +330,7 @@ class InvoiceAssembler:
                     for code, text in line.descriptions.items()
                     if code in self._codes and text
                 },
-                unit=values_of(units[line.unit_code].localizations, "name", self._codes),
+                unit=reference_values(units[line.unit_code].localizations, "name", self._codes),
                 quantity=line.quantity,
                 unit_price=line.unit_price,
                 tax_rate=line.tax_rate,

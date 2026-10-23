@@ -94,7 +94,7 @@ class RepresentativeRepository:
             query = query.where(
                 Representative.id.in_(
                     select(RepresentativeLocalization.representative_id)
-                    .where(RepresentativeLocalization.name.icontains(search)),
+                    .where(RepresentativeLocalization.name.icontains(search, autoescape=True)),
                 )
             )
 

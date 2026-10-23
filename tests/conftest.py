@@ -25,6 +25,7 @@ from app.document_engine.normalization.models.inlines import (
 from app.document_engine.enums.enums import PlaceholderType, MoneySymbolPosition
 
 from app.db.base import Base
+from app.db.connection import configure_sqlite
 from app.db.models import *  # noqa: F401,F403  — registers every mapper
 from app.db.models.configs.default_template_config import DefaultTemplateConfig
 from app.db.models.core.bank_account import BankAccount
@@ -323,13 +324,9 @@ def session() -> Session:
 
     engine = create_engine("sqlite://")
 
-    # match production (app.db.session enables this per connection): without it SQLite
-    # silently accepts rows whose foreign keys point at nothing.
-    @event.listens_for(engine, "connect")
-    def _enable_foreign_keys(dbapi_connection, _):
-        cursor = dbapi_connection.cursor()
-        cursor.execute("PRAGMA foreign_keys=ON")
-        cursor.close()
+    # match production: without foreign keys SQLite silently accepts rows that point at
+    # nothing, and without the Unicode lower() search misses Cyrillic in another case
+    event.listen(engine, "connect", configure_sqlite)
 
     Base.metadata.create_all(engine)
 

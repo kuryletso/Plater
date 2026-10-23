@@ -33,6 +33,13 @@ def test_the_golden_blueprints_are_present():
     assert {path.stem.split("_")[1] for path in golden_blueprints()} >= {"0", "2"}
 
 
+def test_the_current_engine_has_a_golden_generation():
+    """The README asks for one on every ENGINE_VERSION bump; this asks louder."""
+    from app.document_engine.version import ENGINE_VERSION
+
+    assert str(ENGINE_VERSION) in {path.stem.split("_")[1] for path in golden_blueprints()}
+
+
 @pytest.mark.parametrize("path", golden_blueprints(), ids=lambda path: path.stem)
 def test_a_blueprint_written_by_an_older_engine_still_loads(path: Path):
     stored = json.loads(path.read_text(encoding="utf-8"))

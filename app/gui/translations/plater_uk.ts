@@ -42,7 +42,7 @@
 <context>
     <name>DateFormatCombo</name>
     <message>
-        <location filename="../dialogs/widgets.py" line="+171"/>
+        <location filename="../dialogs/widgets.py" line="+174"/>
         <source>{example} (US)</source>
         <translation>{example} (США)</translation>
     </message>
@@ -181,7 +181,7 @@
 <context>
     <name>LineRowWidget</name>
     <message>
-        <location filename="../columns/lines_row.py" line="+91"/>
+        <location filename="../columns/lines_row.py" line="+92"/>
         <source>Description ({language})</source>
         <translation>Опис ({language})</translation>
     </message>
@@ -221,7 +221,7 @@
         <translation>Видалити рядок</translation>
     </message>
     <message>
-        <location line="+119"/>
+        <location line="+118"/>
         <source>Template renders {language} descriptions; this line will print blank.</source>
         <translation>Шаблон друкує описи мовою {language}; у цьому рядку опис буде порожнім.</translation>
     </message>
@@ -387,12 +387,12 @@
     </message>
     <message>
         <location line="+15"/>
-        <location line="+52"/>
+        <location line="+54"/>
         <source>Generation failed</source>
         <translation>Не вдалося створити документ</translation>
     </message>
     <message>
-        <location line="-38"/>
+        <location line="-40"/>
         <source>Could not save</source>
         <translation>Не вдалося зберегти</translation>
     </message>
@@ -404,7 +404,7 @@
 {error}</translation>
     </message>
     <message>
-        <location line="+38"/>
+        <location line="+40"/>
         <source>The document could not be generated, so no number was used.</source>
         <translation>Документ не вдалося створити, тому номер не використано.</translation>
     </message>
@@ -663,7 +663,7 @@
         <translation>Пошук організацій...</translation>
     </message>
     <message>
-        <location filename="../columns/party_column.py" line="+86"/>
+        <location filename="../columns/party_column.py" line="+104"/>
         <location line="+196"/>
         <source>Select...</source>
         <translation>Виберіть...</translation>
@@ -1058,7 +1058,7 @@
         <translation>Імпортувати шаблон</translation>
     </message>
     <message>
-        <location filename="../columns/template_column.py" line="+66"/>
+        <location filename="../columns/template_column.py" line="+75"/>
         <source>Built-in template</source>
         <translation>Вбудований шаблон</translation>
     </message>
@@ -1575,7 +1575,7 @@
         <translation>Кількість цифр не може бути від’ємною.</translation>
     </message>
     <message>
-        <location filename="../../services/invoice/assembler.py" line="+218"/>
+        <location filename="../../services/invoice/assembler.py" line="+241"/>
         <source>Select a tax ID for this organization.</source>
         <translation>Виберіть податковий номер для цієї організації.</translation>
     </message>
@@ -1615,7 +1615,7 @@
         <translation>Рядок {line} не має опису мовою {language}; у документі опис буде порожнім.</translation>
     </message>
     <message>
-        <location filename="../../services/invoice_line/repository.py" line="+263"/>
+        <location filename="../../services/invoice_line/repository.py" line="+290"/>
         <source>Enter the line description in at least one language.</source>
         <translation>Введіть опис рядка хоча б однією мовою.</translation>
     </message>
@@ -1638,6 +1638,11 @@
         <location line="+7"/>
         <source>Tax rate cannot be negative.</source>
         <translation>Ставка податку не може бути від’ємною.</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>Another saved invoice line already has this description.</source>
+        <translation>Інший збережений рядок рахунку вже має такий опис.</translation>
     </message>
     <message>
         <location filename="../../services/measurement_unit/repository.py" line="+39"/>

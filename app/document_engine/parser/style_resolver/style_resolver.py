@@ -66,7 +66,7 @@ class StyleResolver:
             italic=False,
             underline=False,
             font_name="Calibri",
-            font_size=22,
+            font_size=20,
             color="000000",
         )
 

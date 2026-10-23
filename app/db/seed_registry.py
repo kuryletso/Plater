@@ -175,10 +175,24 @@ expand_measurement_units = _registry(
 )
 
 
-expand_tax_id_system = _registry(
-    TaxIdSystemRegistry, TaxIdSystemRegistryLocalization,
-    "tax_id_system_code", TAX_NAME_COLUMNS,
-)
+def expand_tax_id_system(raw: Rows) -> Batch:
+    """Registry plus the interface labels which are longer than names."""
+
+    parents = [
+        {
+            "code": r["code"],
+            "system": r["system"],
+            "active": r["active"],
+            "label_en": r.get("label_en") or None,
+            "label_uk": r.get("label_uk") or None,
+        }
+        for r in raw
+    ]
+
+    return (
+        (TaxIdSystemRegistry, parents),
+        (TaxIdSystemRegistryLocalization, _names(raw, "tax_id_system_code", TAX_NAME_COLUMNS)),
+    )
 
 
 def expand_placeholders(raw: Rows) -> Batch:

@@ -10,7 +10,7 @@ from app.document_engine.blueprint.models.table import (
     TablePlaceholder,
     RowStyleBlueprint, CellStyleBlueprint,
 )
-from app.document_engine.rendering.context import InvoiceTableData, InvoiceLineRow
+from app.document_engine.rendering.context import InvoiceTableData
 from app.document_engine.rendering.resolve.models import (
     ResolvedTable, ResolvedRow, ResolvedCell,
     ResolvedParagraph, ResolvedTextRun,
@@ -31,9 +31,6 @@ COLUMN_WEIGHTS = {
 FALLBACK_WIDTH = 9026       # A4, up to 1" margins
 
 SUBTOTAL_LABEL, TOTAL_TAX_LABEL, TOTAL_LABEL = "subtotal", "total_tax", "total"
-
-DEFAULT_FONT = "Arial"        # TODO: source from document default
-DEFAULT_SIZE = 22       # half-points
 
 _MARGINS = MarginsBlueprint(top=50, bottom=50, left=100, right=100)
 
@@ -81,17 +78,6 @@ def build_invoice_table(
                 "autofit": False,
             }
         ),
-    )
-
-
-def _text(bold: bool) -> TextStyleBlueprint:
-    return TextStyleBlueprint(
-        bold=bold,
-        italic=False,
-        underline=False,
-        font_name=DEFAULT_FONT,
-        font_size=DEFAULT_SIZE,
-        color="000000",
     )
 
 

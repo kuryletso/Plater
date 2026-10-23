@@ -1,7 +1,7 @@
 [
   {
     "code": "au_abn",
-    "name": "Australian Business Number",
+    "name": "Business Number",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -15,11 +15,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Australian Business Number",
+    "label_uk": ""
   },
   {
     "code": "au_acn",
-    "name": "Australian Company Number",
+    "name": "Company Number",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -33,11 +35,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Australian Company Number",
+    "label_uk": ""
   },
   {
     "code": "au_tfn",
-    "name": "Tax File Number — Australia",
+    "name": "Tax File Number",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -51,11 +55,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Tax File Number — Australia",
+    "label_uk": ""
   },
   {
     "code": "be_bce",
-    "name": "Enterprise Number — Belgium",
+    "name": "Enterprise Number",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "Numéro d'entreprise",
@@ -69,11 +75,13 @@
     "name_ITA": "",
     "name_NLD": "Ondernemingsnummer",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Enterprise Number — Belgium",
+    "label_uk": ""
   },
   {
     "code": "be_nn",
-    "name": "National Register Number — Belgium",
+    "name": "National Register Number",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "Numéro de registre national",
@@ -87,11 +95,13 @@
     "name_ITA": "",
     "name_NLD": "Rijksregisternummer",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "National Register Number — Belgium",
+    "label_uk": ""
   },
   {
     "code": "be_vat",
-    "name": "VAT Number — Belgium",
+    "name": "VAT Number",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "Numéro TVA",
@@ -105,11 +115,13 @@
     "name_ITA": "",
     "name_NLD": "BTW-nummer",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "VAT Number — Belgium",
+    "label_uk": ""
   },
   {
     "code": "ca_bn",
-    "name": "Business Number — Canada",
+    "name": "Business Number",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "Numéro d'entreprise",
@@ -123,11 +135,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Business Number — Canada",
+    "label_uk": ""
   },
   {
     "code": "ca_sin",
-    "name": "Social Insurance Number — Canada",
+    "name": "Social Insurance Number",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "Numéro d'assurance sociale (NAS)",
@@ -141,11 +155,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Social Insurance Number — Canada",
+    "label_uk": ""
   },
   {
     "code": "ch_ahv",
-    "name": "Social Security Number — Switzerland",
+    "name": "Social Security Number",
     "name_UKR": "",
     "name_DEU": "AHV-Nummer",
     "name_FRA": "",
@@ -159,11 +175,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Social Security Number — Switzerland",
+    "label_uk": ""
   },
   {
     "code": "ch_uid",
-    "name": "Enterprise Identification Number — Switzerland",
+    "name": "Enterprise Identification Number",
     "name_UKR": "",
     "name_DEU": "Unternehmens-Identifikationsnummer (UID)",
     "name_FRA": "",
@@ -177,11 +195,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Enterprise Identification Number — Switzerland",
+    "label_uk": ""
   },
   {
     "code": "ch_vat",
-    "name": "VAT Number — Switzerland",
+    "name": "VAT Number",
     "name_UKR": "",
     "name_DEU": "Mehrwertsteuernummer",
     "name_FRA": "",
@@ -195,11 +215,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "VAT Number — Switzerland",
+    "label_uk": ""
   },
   {
     "code": "cz_dic",
-    "name": "Tax Identification Number — Czechia",
+    "name": "Tax Identification Number",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -213,11 +235,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Tax Identification Number — Czechia",
+    "label_uk": ""
   },
   {
     "code": "cz_ic",
-    "name": "Company ID — Czechia",
+    "name": "Company ID",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -231,11 +255,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Company ID — Czechia",
+    "label_uk": ""
   },
   {
     "code": "cz_rc",
-    "name": "Birth Number — Czechia",
+    "name": "Birth Number",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -249,11 +275,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Birth Number — Czechia",
+    "label_uk": ""
   },
   {
     "code": "de_handelsregisternr",
-    "name": "Commercial Register Number — Germany",
+    "name": "Commercial Register Number",
     "name_UKR": "",
     "name_DEU": "Handelsregisternummer",
     "name_FRA": "",
@@ -267,11 +295,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Commercial Register Number — Germany",
+    "label_uk": ""
   },
   {
     "code": "de_steuer_id",
-    "name": "Tax Identification Number — Germany",
+    "name": "Tax Identification Number",
     "name_UKR": "",
     "name_DEU": "Steueridentifikationsnummer",
     "name_FRA": "",
@@ -285,11 +315,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Tax Identification Number — Germany",
+    "label_uk": ""
   },
   {
     "code": "de_steuernummer",
-    "name": "Tax Number — Germany",
+    "name": "Tax Number",
     "name_UKR": "",
     "name_DEU": "Steuernummer",
     "name_FRA": "",
@@ -303,11 +335,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Tax Number — Germany",
+    "label_uk": ""
   },
   {
     "code": "de_ust_id",
-    "name": "VAT Identification Number — Germany",
+    "name": "VAT Identification Number",
     "name_UKR": "",
     "name_DEU": "Umsatzsteuer-Identifikationsnummer",
     "name_FRA": "",
@@ -321,7 +355,9 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "VAT Identification Number — Germany",
+    "label_uk": ""
   },
   {
     "code": "duns",
@@ -339,11 +375,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "D-U-N-S Number",
+    "label_uk": ""
   },
   {
     "code": "ee_ik",
-    "name": "Personal Identification Code — Estonia",
+    "name": "Personal Identification Code",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -357,11 +395,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Personal Identification Code — Estonia",
+    "label_uk": ""
   },
   {
     "code": "ee_reg",
-    "name": "Commercial Register Code — Estonia",
+    "name": "Commercial Register Code",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -375,11 +415,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Commercial Register Code — Estonia",
+    "label_uk": ""
   },
   {
     "code": "ee_vat",
-    "name": "VAT Number — Estonia",
+    "name": "VAT Number",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -393,11 +435,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "VAT Number — Estonia",
+    "label_uk": ""
   },
   {
     "code": "eori",
-    "name": "Economic Operators Registration and Identification (EORI)",
+    "name": "EORI",
     "name_UKR": "",
     "name_DEU": "EORI-Nummer",
     "name_FRA": "",
@@ -411,11 +455,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Economic Operators Registration and Identification (EORI)",
+    "label_uk": ""
   },
   {
     "code": "es_cif",
-    "name": "Company Tax Code (legacy) — Spain",
+    "name": "Company Tax Code",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -429,11 +475,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Company Tax Code (legacy) — Spain",
+    "label_uk": ""
   },
   {
     "code": "es_nie",
-    "name": "Foreigner Identification Number — Spain",
+    "name": "Foreigner Identification Number",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -447,11 +495,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Foreigner Identification Number — Spain",
+    "label_uk": ""
   },
   {
     "code": "es_nif",
-    "name": "Tax Identification Number — Spain",
+    "name": "Tax Identification Number",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -465,11 +515,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Tax Identification Number — Spain",
+    "label_uk": ""
   },
   {
     "code": "es_vat",
-    "name": "VAT Number — Spain",
+    "name": "VAT Number",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -483,11 +535,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "VAT Number — Spain",
+    "label_uk": ""
   },
   {
     "code": "fr_nir",
-    "name": "National Identification Number — France",
+    "name": "National Identification Number",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "Numéro d'inscription au répertoire (NIR)",
@@ -501,11 +555,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "National Identification Number — France",
+    "label_uk": ""
   },
   {
     "code": "fr_siren",
-    "name": "Company Identifier — France",
+    "name": "Company Identifier",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "Numéro SIREN",
@@ -519,11 +575,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Company Identifier — France",
+    "label_uk": ""
   },
   {
     "code": "fr_siret",
-    "name": "Establishment Identifier — France",
+    "name": "Establishment Identifier",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "Numéro SIRET",
@@ -537,11 +595,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Establishment Identifier — France",
+    "label_uk": ""
   },
   {
     "code": "fr_tva",
-    "name": "VAT Number — France",
+    "name": "VAT Number",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "Numéro de TVA intracommunautaire",
@@ -555,11 +615,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "VAT Number — France",
+    "label_uk": ""
   },
   {
     "code": "gs1_gln",
-    "name": "Global Location Number (GLN)",
+    "name": "GLN",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -573,11 +635,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Global Location Number (GLN)",
+    "label_uk": ""
   },
   {
     "code": "it_cf",
-    "name": "Fiscal Code — Italy",
+    "name": "Fiscal Code",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -591,11 +655,13 @@
     "name_ITA": "Codice Fiscale",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Fiscal Code — Italy",
+    "label_uk": ""
   },
   {
     "code": "it_piva",
-    "name": "VAT Number — Italy",
+    "name": "VAT Number",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -609,7 +675,9 @@
     "name_ITA": "Partita IVA",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "VAT Number — Italy",
+    "label_uk": ""
   },
   {
     "code": "lei",
@@ -627,11 +695,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Legal Entity Identifier",
+    "label_uk": ""
   },
   {
     "code": "lt_company",
-    "name": "Company Registration Code — Lithuania",
+    "name": "Company Registration Code",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -645,11 +715,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Company Registration Code — Lithuania",
+    "label_uk": ""
   },
   {
     "code": "lt_personal",
-    "name": "Personal Code — Lithuania",
+    "name": "Personal Code",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -663,11 +735,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Personal Code — Lithuania",
+    "label_uk": ""
   },
   {
     "code": "lt_vat",
-    "name": "VAT Number — Lithuania",
+    "name": "VAT Number",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -681,11 +755,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "VAT Number — Lithuania",
+    "label_uk": ""
   },
   {
     "code": "lv_pers_code",
-    "name": "Personal Identity Number — Latvia",
+    "name": "Personal Identity Number",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -699,11 +775,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Personal Identity Number — Latvia",
+    "label_uk": ""
   },
   {
     "code": "lv_reg",
-    "name": "Company Registration Number — Latvia",
+    "name": "Company Registration Number",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -717,11 +795,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Company Registration Number — Latvia",
+    "label_uk": ""
   },
   {
     "code": "lv_vat",
-    "name": "VAT Number — Latvia",
+    "name": "VAT Number",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -735,11 +815,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "VAT Number — Latvia",
+    "label_uk": ""
   },
   {
     "code": "nl_bsn",
-    "name": "Citizen Service Number — The Netherlands",
+    "name": "Citizen Service Number",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -753,11 +835,13 @@
     "name_ITA": "",
     "name_NLD": "Burgerservicenummer (BSN)",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Citizen Service Number — The Netherlands",
+    "label_uk": ""
   },
   {
     "code": "nl_kvk",
-    "name": "Chamber of Commerce Number — The Netherlands",
+    "name": "Chamber of Commerce Number",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -771,11 +855,13 @@
     "name_ITA": "",
     "name_NLD": "KvK-nummer",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Chamber of Commerce Number — The Netherlands",
+    "label_uk": ""
   },
   {
     "code": "nl_vat",
-    "name": "VAT Number — The Netherlands",
+    "name": "VAT Number",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -789,11 +875,13 @@
     "name_ITA": "",
     "name_NLD": "BTW-identificatienummer",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "VAT Number — The Netherlands",
+    "label_uk": ""
   },
   {
     "code": "nz_ird",
-    "name": "IRD Number — New Zealand",
+    "name": "IRD Number",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -807,11 +895,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "IRD Number — New Zealand",
+    "label_uk": ""
   },
   {
     "code": "nz_nzbn",
-    "name": "New Zealand Business Number (NZBN)",
+    "name": "NZBN",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -825,11 +915,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "New Zealand Business Number (NZBN)",
+    "label_uk": ""
   },
   {
     "code": "pl_krs",
-    "name": "National Court Register Number — Poland",
+    "name": "National Court Register Number",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -843,11 +935,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "National Court Register Number — Poland",
+    "label_uk": ""
   },
   {
     "code": "pl_nip",
-    "name": "Tax Identification Number — Poland",
+    "name": "Tax Identification Number",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -861,11 +955,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Tax Identification Number — Poland",
+    "label_uk": ""
   },
   {
     "code": "pl_pesel",
-    "name": "National Identification Number — Poland",
+    "name": "National Identification Number",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -879,11 +975,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "National Identification Number — Poland",
+    "label_uk": ""
   },
   {
     "code": "pl_regon",
-    "name": "Business Statistical Number — Poland",
+    "name": "Business Statistical Number",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -897,11 +995,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Business Statistical Number — Poland",
+    "label_uk": ""
   },
   {
     "code": "sk_dic",
-    "name": "Tax Identification Number — Slovakia",
+    "name": "Tax Identification Number",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -915,11 +1015,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Tax Identification Number — Slovakia",
+    "label_uk": ""
   },
   {
     "code": "sk_ic_dph",
-    "name": "VAT Number — Slovakia",
+    "name": "VAT Number",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -933,11 +1035,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "VAT Number — Slovakia",
+    "label_uk": ""
   },
   {
     "code": "sk_ico",
-    "name": "Company ID — Slovakia",
+    "name": "Company ID",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -951,7 +1055,9 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Company ID — Slovakia",
+    "label_uk": ""
   },
   {
     "code": "tin",
@@ -969,12 +1075,14 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Tax Identification Number",
+    "label_uk": ""
   },
   {
     "code": "ua_edrpou",
-    "name": "Unified State Register Code — Ukraine",
-    "name_UKR": "Код ЄДРПОУ",
+    "name": "Unified State Register Code",
+    "name_UKR": "ЄДРПОУ",
     "name_DEU": "",
     "name_FRA": "",
     "name_POL": "",
@@ -987,12 +1095,14 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Unified State Register Code — Ukraine",
+    "label_uk": "Код ЄДРПОУ"
   },
   {
     "code": "ua_passport",
-    "name": "Passport Series and Number — Ukraine",
-    "name_UKR": "Паспорт громадянина України",
+    "name": "Passport Series and Number",
+    "name_UKR": "Номер паспорта",
     "name_DEU": "",
     "name_FRA": "",
     "name_POL": "",
@@ -1005,12 +1115,14 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Passport Series and Number — Ukraine",
+    "label_uk": "Паспорт громадянина України"
   },
   {
     "code": "ua_rnokpp",
-    "name": "Taxpayer Registration Number — Ukraine",
-    "name_UKR": "Реєстраційний номер облікової картки платника податків (РНОКПП)",
+    "name": "Taxpayer Registration Number",
+    "name_UKR": "РНОКПП",
     "name_DEU": "",
     "name_FRA": "",
     "name_POL": "",
@@ -1023,12 +1135,14 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Taxpayer Registration Number — Ukraine",
+    "label_uk": "Реєстраційний номер облікової картки платника податків (РНОКПП)"
   },
   {
     "code": "ua_vat",
-    "name": "VAT Payer Number — Ukraine",
-    "name_UKR": "Індивідуальний податковий номер (ІПН)",
+    "name": "VAT Payer Number",
+    "name_UKR": "ІПН",
     "name_DEU": "",
     "name_FRA": "",
     "name_POL": "",
@@ -1041,11 +1155,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "VAT Payer Number — Ukraine",
+    "label_uk": "Індивідуальний податковий номер (ІПН)"
   },
   {
     "code": "uk_crn",
-    "name": "Company Registration Number — UK",
+    "name": "Company Registration Number",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -1059,11 +1175,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Company Registration Number — UK",
+    "label_uk": ""
   },
   {
     "code": "uk_nino",
-    "name": "National Insurance Number — UK",
+    "name": "National Insurance Number",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -1077,11 +1195,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "National Insurance Number — UK",
+    "label_uk": ""
   },
   {
     "code": "uk_utr",
-    "name": "Unique Taxpayer Reference (UTR) — UK",
+    "name": "UTR",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -1095,11 +1215,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Unique Taxpayer Reference (UTR) — UK",
+    "label_uk": ""
   },
   {
     "code": "uk_vat",
-    "name": "VAT Registration Number — UK",
+    "name": "VAT Registration Number",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -1113,11 +1235,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "VAT Registration Number — UK",
+    "label_uk": ""
   },
   {
     "code": "us_atin",
-    "name": "Adoption Taxpayer Identification Number (ATIN) — USA",
+    "name": "ATIN",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -1131,11 +1255,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Adoption Taxpayer Identification Number (ATIN) — USA",
+    "label_uk": ""
   },
   {
     "code": "us_ein",
-    "name": "Employer Identification Number (EIN) — USA",
+    "name": "EIN",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -1149,11 +1275,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Employer Identification Number (EIN) — USA",
+    "label_uk": ""
   },
   {
     "code": "us_itin",
-    "name": "Individual Taxpayer Identification Number (ITIN) — USA",
+    "name": "ITIN",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -1167,11 +1295,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Individual Taxpayer Identification Number (ITIN) — USA",
+    "label_uk": ""
   },
   {
     "code": "us_ptin",
-    "name": "Preparer Tax Identification Number (PTIN) — USA",
+    "name": "PTIN",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -1185,11 +1315,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Preparer Tax Identification Number (PTIN) — USA",
+    "label_uk": ""
   },
   {
     "code": "us_ssn",
-    "name": "Social Security Number (SSN) — USA",
+    "name": "SSN",
     "name_UKR": "",
     "name_DEU": "",
     "name_FRA": "",
@@ -1203,7 +1335,9 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "Social Security Number (SSN) — USA",
+    "label_uk": ""
   },
   {
     "code": "vat",
@@ -1221,11 +1355,13 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "VAT Number",
+    "label_uk": ""
   },
   {
     "code": "vat_eu",
-    "name": "EU VAT Number",
+    "name": "VAT Number",
     "name_UKR": "",
     "name_DEU": "VAT-Identifikationsnummer",
     "name_FRA": "",
@@ -1239,6 +1375,8 @@
     "name_ITA": "",
     "name_NLD": "",
     "system": true,
-    "active": true
+    "active": true,
+    "label_en": "EU VAT Number",
+    "label_uk": ""
   }
 ]

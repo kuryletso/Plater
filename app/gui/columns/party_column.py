@@ -7,7 +7,7 @@ from PySide6.QtWidgets import QListWidgetItem, QWidget, QDialog, QComboBox, QMes
 from PySide6.QtGui import QRegularExpressionValidator
 from sqlalchemy.orm import Session
 
-from app.gui.text import localized, organization_label
+from app.gui.text import localized, organization_label, tax_system_label
 from app.gui.draft_state import DraftState
 from app.gui.generated.ui_party_column import Ui_PartyColumn
 from app.gui.dialogs.organization import OrganizationDialog
@@ -224,7 +224,7 @@ class PartyColumn(QWidget):
             self.ui.tax_combo.clear()
             for tax in org.tax_ids:
                 self.ui.tax_combo.addItem(
-                    f"{tax.value} ({localized(tax.tax_id_system.localizations, "name")})",
+                    f"{tax.value} ({tax_system_label(tax.tax_id_system)})",
                     tax.id,
                 )
             self.ui.tax_combo.setCurrentIndex(-1)

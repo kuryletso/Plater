@@ -7,8 +7,8 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
 from app.paths import database_path, user_data_dir, PROJECT_ROOT
-
 from app.services.settings import TemplateDefaultService
+from app.db.connection import configure_sqlite
 
 DATABASE_URL = f"sqlite:///{database_path().as_posix()}"
 
@@ -17,11 +17,7 @@ engine = create_engine(
     # echo=True     # uncomment for debugging
 )
 
-@event.listens_for(engine, "connect")
-def _enable_foreign_keys(dbapi_connection, _):
-    cursor = dbapi_connection.cursor()
-    cursor.execute("PRAGMA foreign_keys=ON")
-    cursor.close()
+event.listen(engine, "connect", configure_sqlite)
 
 SessionLocal = sessionmaker(bind=engine)
 

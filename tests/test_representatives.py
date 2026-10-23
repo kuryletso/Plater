@@ -108,6 +108,15 @@ def test_search_matches_any_language(repo):
     assert [r.localizations["ENG"].name for r in found] == ["Olena Kovalenko"]
 
 
+def test_search_folds_cyrillic_case(repo):
+    repo.create(bilingual("Ivan Petrenko", "Іван Петренко"))
+    repo.create(bilingual("Olena Kovalenko", "Олена Коваленко"))
+
+    found = repo.list(search="КОВАЛЕНКО")
+
+    assert [r.localizations["ENG"].name for r in found] == ["Olena Kovalenko"]
+
+
 def test_list_can_be_narrowed_to_one_organization(repo, organizations):
     """The invoice draft picker only wants this organization's people."""
     acme = organizations.create(org_text("Acme"))

@@ -96,10 +96,10 @@ class LineRowWidget(QWidget):
             self.description_edits[code] = edit
 
         if self._primary is not None:
-            self._attach_completer(self.description_edits[self._primary])
+            self._attach_completer(self.description_edits[self._primary], self._primary)
 
 
-        self.unit_combo = ReferenceCombo(units)     # built-in setEditable(True)
+        self.unit_combo = ReferenceCombo(units, list_names=True)     # built-in setEditable(True)
         self.unit_combo.setMinimumWidth(90)
         internal_line_edit = cast(QLineEdit, self.unit_combo.lineEdit())      # static checker fails to see self.unit_combo.setEditable(True) that prevents .lineEdit() from returning None
         internal_line_edit.setPlaceholderText(self.tr("Unit"))
@@ -171,7 +171,7 @@ class LineRowWidget(QWidget):
         self._changed()
 
 
-    def _attach_completer(self, edit: QLineEdit) -> None:
+    def _attach_completer(self, edit: QLineEdit, language: str) -> None:
         completer = QCompleter(edit)
         # Unfiltered because hints() already filtered and ranked, and its casefold()
         # handles Cyrillic better than Qt
@@ -185,11 +185,10 @@ class LineRowWidget(QWidget):
         def refresh(text: str) -> None:
             model.clear()
             ids.clear()
-            for line in self._repo.hints(text or None):
-                localization = line.localizations.get(self._primary or "")
-                if localization is not None:
-                    ids[localization.description] = line.id
-                    model.appendRow(QStandardItem(localization.description))
+            for line in self._repo.hints(language, text or None):
+                description = line.localizations[language].description
+                ids[description] = line.id
+                model.appendRow(QStandardItem(description))
 
         def accept(text: str) -> None:
             line_id = ids.get(text)

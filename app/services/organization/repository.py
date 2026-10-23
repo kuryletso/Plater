@@ -9,7 +9,6 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.db.models.core.bank_account import BankAccount
 from app.db.models.core.bank_account_localization import BankAccountLocalization
-from app.db.models.core.document_sequence import DocumentSequence
 from app.db.models.core.organization import Organization
 from app.db.models.core.organization_localization import OrganizationLocalization
 from app.db.models.core.representative import Representative
@@ -118,7 +117,7 @@ class OrganizationRepository:
             query = query.where(
                 Organization.id.in_(
                     select(OrganizationLocalization.organization_id)
-                    .where(OrganizationLocalization.legal_name.icontains(search)),
+                    .where(OrganizationLocalization.legal_name.icontains(search, autoescape=True)),
                 )
             )
 

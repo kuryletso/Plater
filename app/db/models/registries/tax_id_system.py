@@ -34,3 +34,7 @@ class TaxIdSystemRegistry(Base):
         default=True,
         server_default=text("1"),
     )
+
+    label_en: Mapped[str | None] = mapped_column(String(255))
+
+    label_uk: Mapped[str | None] = mapped_column(String(255))

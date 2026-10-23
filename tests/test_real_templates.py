@@ -2432,3 +2432,25 @@ def test_our_own_page_numbers_read_back_with_their_formatting(ingest_real, tmp_p
 
     assert [f.kind for f in fields] == ["PAGE", "PAGE"]
     assert (fields[0].style.italic, fields[0].style.color) == (True, "d9d9d9")
+
+
+# --- text sized nowhere ------------------------------------------------------------------
+
+@pytest.mark.parametrize("name", [
+    "DEFAULT_ENG_invoice", "DEFAULT_UKR_invoice", "DEFAULT_UKR_akt_nadanykh_posluh",
+])
+def test_a_shipped_template_s_body_text_is_10_pt(name):
+    """Their body is Arial 10, much of it without a size of its own. Word shows that
+    at 10 pt; Plater printed it at 11, so provider_type came out larger than the
+    provider_name beside it, which has an explicit 10."""
+
+    blueprint = ingest_with_assets(seed_template(name), real_provider())[0]
+    parties = {
+        p.style.font_size for p in placeholders(blueprint)
+        if p.key.startswith(("provider_", "client_"))
+    }
+    tables = {b.text_style.font_size for b in _blocks(blueprint) if isinstance(b, TablePlaceholder)}
+    cells = {c.text_style.font_size for c in cell_placeholders(blueprint)}
+
+    assert parties == {20}
+    assert tables | cells == {20}
