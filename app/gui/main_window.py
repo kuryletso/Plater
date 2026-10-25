@@ -3,8 +3,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QStandardPaths, QTimer
-from PySide6.QtGui import QAction
+from PySide6.QtCore import Qt, QStandardPaths, QTimer, QUrl
+from PySide6.QtGui import QAction, QDesktopServices
 from PySide6.QtWidgets import (
     QFrame,
     QWidget,
@@ -18,10 +18,12 @@ from PySide6.QtWidgets import (
     QDialog,
 )
 
+from app.core.version import app_version
+from app.paths import log_path
+from app.db.session import SessionLocal
+
 from app.gui.preview import PreviewPanel
 from app.gui.widgets.collapsible_column import Accordion, CollapsibleColumn
-
-from app.db.session import SessionLocal
 from app.gui.dialogs.settings import SettingsDialog
 from app.gui.dialogs.manager_dialog import ManagerDialog
 from app.gui.dialogs.managers import (
@@ -42,6 +44,7 @@ from app.gui.columns.template_column import TemplateColumn
 from app.gui.columns.party_column import PartyColumn, PartyRole
 from app.gui.columns.document_column import DocumentColumn
 from app.gui.draft_state import COLUMNS, DraftState, CLIENT, DOCUMENT, PROVIDER, TEMPLATE
+from app.gui.i18n import error_text, diagnostic_text, severity_label
 
 from app.services.doc_sequence.repository import SequenceRepository
 from app.services.errors import ServiceError
@@ -49,7 +52,6 @@ from app.services.invoice.generate import InvoiceGenerateService, GenerationResu
 from app.services.invoice.draft import InvoiceDraft
 from app.services.invoice_line.repository import InvoiceLineRepository, InvoiceLineText
 from app.services.template.rebuild_service import TemplateRebuildService
-from app.gui.i18n import error_text, diagnostic_text, severity_label
 
 # chars, not supported by file systems in file name
 _NOT_IN_FILE_NAMES = re.compile(r'[\\/:*?"<>|\x00-\x1f]')
@@ -205,6 +207,7 @@ class MainWindow(QMainWindow):
         add(settings_menu, self.tr("&Preferences..."), self._open_settings, QAction.MenuRole.PreferencesRole)
 
         help_menu = self.menuBar().addMenu(self.tr("&Help"))
+        add(help_menu, self.tr("Open &log folder"), self._open_log_folder)
         add(help_menu, self.tr("&About"), self._about, QAction.MenuRole.AboutRole)
 
 
@@ -250,9 +253,14 @@ class MainWindow(QMainWindow):
 
         return footer
 
+    def _open_log_folder(self) -> None:
+        """Packaged app has no console so the session log is the only source of test data."""
+
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(log_path().parent)))
+
 
     def _about(self) -> None:
-        QMessageBox.about(self, "Plater", self.tr("Plater — invoice generator."))
+        QMessageBox.about(self, "Plater", self.tr("Plater {version} — invoice generator.").format(version=app_version()))
 
 
     def _refresh_readiness(self) -> None:

@@ -23,6 +23,9 @@ def main() -> int:
     app = QApplication(sys.argv)
     app.setApplicationName("Plater")
 
+    from app.gui.icons import icon
+    app.setWindowIcon(icon("plater"))
+
     if sys.platform == "darwin":        # native style on macOS looks ugly
         app.setStyle("Fusion")
 
@@ -76,34 +79,13 @@ def main() -> int:
     return code
 
 
-def _version() -> str:
-    """pyproject.toml is the version's one home. 
-    Plater runs from source so there is no package metadata unless it was installed.
-    """
-
-    import tomllib
-    from importlib import metadata
-
-    from app.paths import PROJECT_ROOT
-
-    try:
-        with open(PROJECT_ROOT / "pyproject.toml", "rb") as file:
-            return tomllib.load(file)["project"]["version"]
-    except (OSError, KeyError, tomllib.TOMLDecodeError):
-        pass
-
-    try:
-        return metadata.version("Plater")
-    except metadata.PackageNotFoundError:
-        return "unknown"
-
-
 def _runtime() -> str:
     import platform
     import PySide6
+    from app.core.version import app_version
     from app.document_engine.version import ENGINE_VERSION
 
-    version = _version()
+    version = app_version()
     return (
         f"Plater {version} | engine {ENGINE_VERSION} | Python {platform.python_version()} "
         f"| PySide {PySide6.__version__} | {platform.platform()}"

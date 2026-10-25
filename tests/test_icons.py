@@ -12,7 +12,7 @@ def names() -> list[str]:
 
 
 def test_the_icon_set_is_not_accidentally_empty():
-    assert {"plus", "minus", "pencil", "trash", "close", "up", "down"} <= set(names())
+    assert {"plus", "minus", "pencil", "trash", "close", "up", "down", "plater"} <= set(names())
 
 
 @pytest.mark.parametrize("name", names() or ["none"])

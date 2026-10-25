@@ -248,7 +248,7 @@
 <context>
     <name>MainWindow</name>
     <message numerus="yes">
-        <location filename="../main_window.py" line="+142"/>
+        <location filename="../main_window.py" line="+144"/>
         <source>... and %n more</source>
         <translation>
             <numerusform>... і ще %n</numerusform>
@@ -332,6 +332,11 @@
     </message>
     <message>
         <location line="+1"/>
+        <source>Open &amp;log folder</source>
+        <translation>Відкрити теку &amp;журналу</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>&amp;About</source>
         <translation>&amp;Про програму</translation>
     </message>
@@ -366,9 +371,9 @@
         <translation>Завершіть налаштування документа, щоб створити його</translation>
     </message>
     <message>
-        <location line="+12"/>
-        <source>Plater — invoice generator.</source>
-        <translation>Plater — генератор рахунків.</translation>
+        <location line="+17"/>
+        <source>Plater {version} — invoice generator.</source>
+        <translation>Plater {version} — генератор рахунків.</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -1575,7 +1580,7 @@
         <translation>Кількість цифр не може бути від’ємною.</translation>
     </message>
     <message>
-        <location filename="../../services/invoice/assembler.py" line="+241"/>
+        <location filename="../../services/invoice/assembler.py" line="+240"/>
         <source>Select a tax ID for this organization.</source>
         <translation>Виберіть податковий номер для цієї організації.</translation>
     </message>
@@ -1615,7 +1620,7 @@
         <translation>Рядок {line} не має опису мовою {language}; у документі опис буде порожнім.</translation>
     </message>
     <message>
-        <location filename="../../services/invoice_line/repository.py" line="+290"/>
+        <location filename="../../services/invoice_line/repository.py" line="+284"/>
         <source>Enter the line description in at least one language.</source>
         <translation>Введіть опис рядка хоча б однією мовою.</translation>
     </message>
@@ -1660,7 +1665,7 @@
         <translation>Одиниця з кодом «{code}» уже існує.</translation>
     </message>
     <message>
-        <location filename="../../services/organization/repository.py" line="+207"/>
+        <location filename="../../services/organization/repository.py" line="+206"/>
         <location line="+199"/>
         <source>That tax identifier is already recorded.</source>
         <translation>Такий податковий номер уже записано.</translation>

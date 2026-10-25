@@ -58,6 +58,8 @@ def install(
     qt = QTranslator(app)
     if qt.load(locale, "qtbase", "_", QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath)):
         _add(app, qt)       # standard buttons, the text field's context menu
+    else:
+        log.warning("No Qt translation for %s; standard buttons stay in English", code)
 
     _add(app, plater)
     QLocale.setDefault(locale)      # dates and the calendar popup

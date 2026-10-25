@@ -1,0 +1,32 @@
+Plater is free software under the GNU Affero General Public License, version 3 or
+later: see LICENSE.txt beside Plater.exe. Its source code is at
+https://github.com/kuryletso/Plater
+
+This copy of Plater includes the following software by others. Each package's own
+license text is in its *.dist-info folder inside the _internal folder.
+
+Qt and Qt for Python (PySide6, shiboken6)
+    GNU Lesser General Public License, version 3 (LGPL-3.0.txt here, which builds on
+    GPL-3.0.txt). You may replace them with your own build of the same version: the
+    Qt libraries are the files in _internal/PySide6 and _internal/shiboken6.
+
+num2words
+    GNU Lesser General Public License (its text: _internal/num2words-*.dist-info/COPYING).
+    It is kept as plain Python files in _internal/num2words, which you may replace.
+
+Python                      Python Software Foundation License 2.0
+alembic                     MIT
+annotated-types             MIT
+babel                       BSD-3-Clause; its locale data: Unicode License
+docopt                      MIT
+greenlet                    MIT and PSF-2.0
+lxml                        BSD-3-Clause; includes libxml2 and libxslt, MIT
+Mako                        MIT
+MarkupSafe                  BSD-3-Clause
+Pillow                      MIT-CMU
+pydantic, pydantic-core     MIT
+SQLAlchemy                  MIT
+SQLite                      public domain
+OpenSSL                     Apache License 2.0
+typing_extensions           PSF-2.0
+typing-inspection           MIT

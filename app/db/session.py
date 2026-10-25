@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from alembic import command
 from alembic.config import Config
 
@@ -36,9 +38,21 @@ def init_db() -> None:
     from app.services.template.defaults import seed_default_templates
 
     user_data_dir().mkdir(parents=True, exist_ok=True)
+    create_database_file(database_path())
     command.upgrade(_alembic_config(), "head")      # migrate: fresh, updated or shared DB
 
     with SessionLocal() as session:
         seed(session, SEED_SPECS)
         TemplateDefaultService(session).ensure()
         seed_default_templates(session)
+
+
+def create_database_file(path: Path) -> None:
+    """An mepty file SQLite takes as a new database, only readable by its owner where file modes apply (macOS). 
+    SQLite gives its journal the same mode. On Windows the profile's permissions do that job. An existing file 
+    is left as is.
+    """
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if not path.exists():
+        path.touch(mode=0o600)

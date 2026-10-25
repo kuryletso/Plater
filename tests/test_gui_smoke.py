@@ -2059,3 +2059,35 @@ def test_a_generated_line_is_remembered_under_the_primary_language(window, sessi
     repo = InvoiceLineRepository(session)
     assert set(repo.get(logo.id).localizations) == {"ENG", "UKR"}
     assert set(repo.get(design.id).localizations) == {"UKR"}
+
+
+# --- Help menu ---------------------------------------------------------------------------
+
+def test_help_opens_the_folder_holding_the_session_log(window, monkeypatch):
+    from app.gui import main_window as module
+    from app.paths import log_path
+
+    opened = []
+
+    class Desktop:
+        @staticmethod
+        def openUrl(url):
+            opened.append(url)
+            return True
+
+    monkeypatch.setattr(module, "QDesktopServices", Desktop)
+    window._open_log_folder()
+
+    assert [Path(url.toLocalFile()) for url in opened] == [log_path().parent]
+
+
+def test_about_names_the_version(window, monkeypatch):
+    from app.core.version import app_version
+    from app.gui import main_window as module
+
+    shown = []
+    monkeypatch.setattr(module.QMessageBox, "about", lambda parent, title, text: shown.append(text))
+    window._about()
+
+    assert app_version() != "unknown"
+    assert app_version() in shown[0]
