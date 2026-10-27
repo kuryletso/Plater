@@ -12,8 +12,8 @@ profile. Nothing is sent anywhere.
 
 ## Status
 
-Functionally complete for a first release and in active use, but still
-**pre-release**: there are no installers yet, so it runs from source.
+Version 1.0, in active use. Each [release](https://github.com/kuryletso/Plater/releases/latest) 
+comes with a Windows installer; a macOS build is planned. On other platforms Plater runs from source.
 The interface is in English and Ukrainian (*Settings -> Preferences*).
 
 ## Features
@@ -37,7 +37,33 @@ The interface is in English and Ukrainian (*Settings -> Preferences*).
   are rounded before they are summed so the printed total reconciles, and the
   total can be spelled out in words.
 
-## Getting started
+## Install (Windows)
+
+1. Download [Plater-Setup.exe](https://github.com/kuryletso/Plater/releases/latest/download/Plater-Setup.exe)
+  from the latest release.
+2. Run it. It installs for your Windows user only, without admin rights, into `%LOCALAPPDATA%\Programs\Plater` by default, and adds Plater to the Start menu.
+
+The installer is not code-signed yet, so Windows may say *"Windows protected your PC"*. Choose **More info**, then **Run anyway**.
+
+To update, run a newer installer over existing installation.
+Uninstall as any other program (*Settings -> Apps*). Uninstalling does not remove your data.
+
+## Your data
+
+The database is created on first launch, together with the built-in templates and reference data (languages, countries, currencies, tax systems and units), and updated automatically by newer versions.
+It lives in your user data folder:
+
+| Platform | Location |
+| --- | --- |
+| Windows | `%LOCALAPPDATA%\Plater\` |
+| macOS | `~/Library/Application Support/Plater/` |
+| Linux | `$XDG_DATA_HOME/Plater/` or `~/.local/share/Plater/` |
+
+`plater.db` holds your data and `plater.ini` is your interface preferences. Back up `plater.db` to keep your data safe. Keep it on a local disk: SQLite databases can be damaged on network drives.
+
+*Help -> Open log folder* shows `plater.log`, the record of the current session. The previous one is `plater.prev.log`. Attach it when you report a problem. It does not carry user data.
+
+## Run from source
 
 Requires [uv](https://docs.astral.sh/uv/) and Python 3.13, which uv installs for
 you if needed.
@@ -50,19 +76,6 @@ uv run python -m app.gui.main
 
 `build_ui.py` compiles the Qt Designer forms in `app/gui/designer/` and the translations 
 in `app/gui/translations/`. Neither is committed, so run it after cloning and whenever a `.ui` or `.ts` file changes.
-
-The database is created and migrated on first launch, together with the built-in
-templates and reference data (languages, countries, currencies, tax systems and
-units). It lives in your user data directory:
-
-| Platform | Location |
-| --- | --- |
-| Windows | `%LOCALAPPDATA%\Plater\` |
-| macOS | `~/Library/Application Support/Plater/` |
-| Linux | `$XDG_DATA_HOME/Plater/` or `~/.local/share/Plater/` |
-
-`plater.db` holds your data and `plater.ini` your interface preferences. Set
-`PLATER_DB` or `PLATER_SETTINGS` to use different files.
 
 ## Writing templates
 
@@ -160,6 +173,9 @@ than real editors do, and synthetic fixtures miss most real-world bugs.
 - **Lint:** `scripts/review_changes.sh` runs ruff over the Python files you have
   changed, outside `tests/`.
 - **Migrations:** Alembic, applied automatically at startup.
+- **Builds and releases:** `scripts/build_app.py` builds the app into `dist/Plater/` and, 
+  on Windows with [Inno Setup](https://jrsoftware.org/isinfo.php) installed, `dist/Plater-Setup.exe`.
+  `scripts/smoke_app.py` then starts the build and checks its log. Pushing a tag `vX.Y.Z` that matches `pyproject.toml` makes GitHub Actions test, build, smoke-test and publish a release.
 
 The document engine works in two stages. At **import**, a `.docx` is parsed,
 normalized and turned into a *blueprint*, which is stored with the original file.
@@ -221,3 +237,6 @@ Plater uses [PySide6](https://doc.qt.io/qtforpython/) (Qt for Python) under the
 LGPL-3.0 and [num2words](https://github.com/savoirfairelinux/num2words) under the
 LGPL-2.1, both unmodified and as separate libraries. Its other dependencies are
 under MIT and BSD licenses.
+
+The installed app lists every bundled component and its license in
+`licenses\THIRD-PARTY.txt`.

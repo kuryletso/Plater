@@ -1,0 +1,28 @@
+# Runs the test suite on every push to main and on every pull request
+name: Tests
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+
+jobs:
+    test:
+        strategy:
+            fail-fast: false
+            matrix:
+                os: [windows-latest, macos-latest]
+        runs-on: ${{ matrix.os }}
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: astral-sh/setup-uv@v6
+              with:
+                python-version: "3.13"
+
+            - run: uv sync --locked
+
+            # the forms and translations are compiled, not committed
+            - run: uv run python scripts/build_ui.py
+
+            - run: uv run pytest -q
